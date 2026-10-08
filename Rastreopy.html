@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="es-PY">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rastreo PY - Plataforma Colaborativa de Búsqueda de Personas</title>
+
+  <!-- Hojas de Estilo y Librerías Externas -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --navy-primary: #1b2a4a;
+      --navy-secondary: #2c4371;
+      --navy-dark: #0f172a;
+      --red-accent: #d9534f;
+      --bg-light: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-main: #1a1a1a;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+
+      /* Estados */
+      --st-pendiente: #d97706;
+      --st-activo: #059669;
+      --st-localizado: #2563eb;
+      --st-cerrado: #475569;
+      --st-rechazado: #dc2626;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-light); color: var(--text-main); line-height: 1.4; overflow-x: hidden; }
+
+    /* MODAL DE BASES Y CONDICIONES (OBLIGATORIO) */
+    .legal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95);
+      z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 15px;
+    }
+    .legal-card {
+      background: #fff; max-width: 600px; width: 100%; max-height: 90vh;
+      border-radius: 8px; padding: 20px; display: flex; flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .legal-card h2 { color: var(--navy-primary); font-size: 1.2rem; margin-bottom: 10px; border-bottom: 2px solid var(--bg-light); padding-bottom: 8px; }
+    .legal-body {
+      overflow-y: auto; background: var(--bg-light); border: 1px solid var(--border-color);
+      padding: 12px; border-radius: 6px; font-size: 0.82rem; margin: 10px 0; color: #334155; line-height: 1.5;
+    }
+    .legal-footer { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
+    .legal-checkbox { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82rem; font-weight: 600; }
+
+    /* BOTONES GLOBALES */
+    .btn {
+      padding: 10px 16px; border: none; border-radius: 6px; font-size: 0.88rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .btn-primary { background: var(--navy-primary); color: white; }
+    .btn-primary:hover { background: var(--navy-secondary); }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-secondary { background: #e2e8f0; color: var(--text-main); border: 1px solid var(--border-color); }
+    .btn-danger { background: var(--red-accent); color: white; }
+    .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+
+    /* LAYOUT & HEADER */
+    header {
+      background: var(--navy-primary); color: white; padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header-title { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.5px; }
+    .btn-icon { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; position: relative; }
+    .notif-badge {
+      position: absolute; top: -4px; right: -6px; background: var(--red-accent);
+      color: white; font-size: 0.65rem; font-weight: bold; border-radius: 10px; padding: 1px 5px;
+    }
+
+    /* DRAWER MENU (DESLIZABLE IZQUIERDA) */
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1050; display: none; }
+    .drawer-overlay.active { display: block; }
+    .drawer {
+      position: fixed; top: 0; left: -280px; width: 280px; height: 100vh;
+      background: var(--navy-secondary); color: white; z-index: 1100;
+      transition: left 0.3s ease; padding: 20px 15px; display: flex; flex-direction: column;
+    }
+    .drawer.active { left: 0; }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+    .drawer-menu { list-style: none; }
+    .drawer-menu li { margin-bottom: 15px; }
+    .drawer-menu a {
+      color: white; text-decoration: none; font-size: 0.95rem; font-weight: 500;
+      display: block; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.05);
+    }
+    .drawer-menu a:hover { background: rgba(255,255,255,0.15); }
+
+    /* VISTAS SPA */
+    main { max-width: 900px; margin: 0 auto; padding: 15px; }
+    .spa-view { display: none; }
+    .spa-view.active { display: block; }
+
+    .card {
+      background: var(--card-bg); border-radius: 8px; padding: 16px;
+      border: 1px solid var(--border-color); margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-title { font-size: 1rem; color: var(--navy-primary); margin-bottom: 12px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--bg-light); padding-bottom: 6px; }
+
+    /* FORMULARIOS */
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #334155; }
+    .form-control {
+      width: 100%; padding: 9px 12px; border: 1px solid var(--border-color);
+      border-radius: 6px; font-size: 0.88rem; outline: none; background: #fff;
+    }
+    .form-control:focus { border-color: var(--navy-secondary); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* MAPAS */
+    .map-container { height: 260px; width: 100%; border-radius: 6px; border: 1px solid var(--border-color); margin-top: 6px; }
+
+    /* TARJETAS DE CASO */
+    .case-card {
+      border: 1px solid var(--border-color); border-left: 4px solid var(--navy-primary);
+      padding: 12px; border-radius: 6px; margin-bottom: 10px; background: white;
+    }
+    .case-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .case-name { font-size: 0.95rem; font-weight: 700; color: var(--navy-primary); }
+    .badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; color: white; }
+    .bg-pendiente { background: var(--st-pendiente); }
+    .bg-activo { background: var(--st-activo); }
+    .bg-localizado { background: var(--st-localizado); }
+    .bg-cerrado { background: var(--st-cerrado); }
+    .bg-rechazado { background: var(--st-rechazado); }
+
+    /* COMPACT STATS GRID */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .stat-mini-card {
+      background: #f8fafc; border: 1px solid var(--border-color); padding: 12px;
+      border-radius: 8px; text-align: center;
+    }
+    .stat-val { font-size: 1.5rem; font-weight: 800; color: var(--navy-primary); }
+    .stat-lbl { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+
+    /* NOTIFICACIONES PANEL */
+    .notif-modal {
+      position: absolute; top: 50px; right: 10px; width: 310px; background: white;
+      border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      z-index: 1000; display: none; max-height: 380px; overflow-y: auto;
+    }
+    .notif-item { padding: 10px; border-bottom: 1px solid var(--bg-light); font-size: 0.8rem; }
+    .notif-item strong { display: block; color: var(--navy-primary); font-size: 0.82rem; }
+
+    .top-bar-user { font-size: 0.75rem; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. BASES Y CONDICIONES (MODAL OBLIGATORIO) -->
+  <div class="legal-overlay" id="modalLegal">
+    <div class="legal-card">
+      <h2>Bases, Condiciones y Deslinde de Responsabilidad</h2>
+      <div class="legal-body">
+        <p><strong>1. Alcance del Servicio:</strong> La plataforma Rastreo PY es un canal de difusión colaborativa y centralización de reportes. No constituye un organismo de seguridad, investigación ni administración de justicia, ni reemplaza las actuaciones de la Policía Nacional de Paraguay o del Ministerio Público.</p>
+        <p><strong>2. Obligatoriedad de Denuncia Oficial:</strong> El uso de esta plataforma no sustituye la radicación formal de la denuncia. Se exige al usuario realizar la denuncia correspondiente ante las instituciones públicas oficiales de manera prioritaria y previa a la carga de datos en la plataforma.</p>
+        <p><strong>3. Deslinde de Responsabilidad:</strong> La plataforma, sus desarrolladores y administradores quedan totalmente eximidos de cualquier responsabilidad legal, civil, penal o administrativa respecto a la conducción, seguimiento o resultados de las investigaciones, así como de la veracidad, exactitud o autenticidad de la información e imágenes ingresadas por terceros.</p>
+        <p><strong>4. Tratamiento de Datos Personales (Ley N.º 7593/2025):</strong> El tratamiento y difusión de los datos personales de identificación se realiza al amparo de la excepción legal orientada a la protección de la vida, la integridad física y la seguridad de las personas. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
+        <p><strong>5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la plataforma procederá al retiro inmediato y desindexación pública de la ficha de búsqueda.</p>
+        <p><strong>6. Uso Aceptable:</strong> Queda strictly prohibido el ingreso de reportes falsos, difamatorios o el uso de la plataforma para cometer extorsiones, estafas o cobro indebido de recompensas.</p>
+      </div>
+      <div class="legal-footer">
+        <label class="legal-checkbox">
+          <input type="checkbox" id="chkTerms">
+          <span>He leído y acepto expresamente las Bases y Condiciones.</span>
+        </label>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-secondary" style="flex:1;" onclick="rejectLegal()">No Aceptar</button>
+          <button class="btn btn-primary" id="btnAcceptLegal" style="flex:1;" disabled onclick="acceptLegal()">Aceptar y Continuar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. INICIO DE SESIÓN / REGISTRO -->
+  <div class="legal-overlay" id="modalAuth" style="display:none;">
+    <div class="legal-card" style="max-width: 380px;">
+      <h2 id="authTitle">Ingreso a la Plataforma</h2>
+      <form id="formAuth" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group">
+          <label>Número de Celular o Correo</label>
+          <input type="text" id="authIdentity" class="form-control" placeholder="Ej: 0994606604" required>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="authPassword" class="form-control" placeholder="••••••••" minlength="8" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">Iniciar Sesión</button>
+      </form>
+      <div style="margin-top:15px; border-top: 1px solid var(--border-color); padding-top: 10px; font-size: 0.8rem; text-align: center;">
+        <span style="color:var(--text-muted);">Acceso demo directo:</span><br>
+        <button class="btn btn-secondary btn-sm" style="margin-top:5px;" onclick="quickLogin('ciudadano')">Ingresar como Ciudadano</button>
+        <button class="btn btn-secondary btn-sm" style="margin-top:5px;" onclick="quickLogin('admin')">Ingresar como Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER GLOBAL -->
+  <header>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <button class="btn-icon" onclick="toggleDrawer()">☰</button>
+      <span class="header-title">RASTREO PY</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="top-bar-user" id="lblUserRole">Invitado</span>
+      <button class="btn-icon" onclick="toggleNotifications()">🔔<span class="notif-badge" id="badgeNotifCount">0</span></button>
+    </div>
+  </header>
+
+  <!-- PANEL DE NOTIFICACIONES -->
+  <div class="notif-modal" id="panelNotif">
+    <div style="padding:10px; border-bottom:1px solid var(--border-color); font-weight:700; font-size:0.85rem; background:var(--bg-light);">Centro de Alertas de Búsqueda</div>
+    <div id="listNotifContainer"></div>
+  </div>
+
+  <!-- DRAWER (MENÚ HAMBURGUESA LATERAL) -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+  <aside class="drawer" id="drawerMenu">
+    <div class="drawer-header">
+      <span style="font-weight:700;">Menú Principal</span>
+      <button class="btn-icon" onclick="toggleDrawer()">✕</button>
+    </div>
+    <ul class="drawer-menu">
+      <li><a href="#" onclick="navTo('viewMap')">📍 Casos en Mapa y Listado</a></li>
+      <li><a href="#" onclick="navTo('viewClues')">1. Generar pista sobre alguna desaparición</a></li>
+      <li><a href="#" onclick="navTo('viewStats')">2. Ver estadísticas de personas desaparecidas</a></li>
+      <li><a href="#" onclick="navTo('viewReport')">3. Reportar persona desaparecida</a></li>
+      <li id="menuItemAdmin" style="display:none;"><a href="#" onclick="navTo('viewAdmin')" style="background:var(--navy-primary);">⚙️ Panel del Administrador</a></li>
+      <li style="margin-top:30px;"><a href="#" onclick="logout()" style="background:#dc2626;">🚪 Cerrar Sesión</a></li>
+    </ul>
+  </aside>
+
+  <!-- MAIN VISTAS INDEPENDIENTES (SPA) -->
+  <main>
+
+    <!-- VISTA 1: PRINCIPAL - MAPA Y CASOS -->
+    <section class="spa-view active" id="viewMap">
+      <div class="card">
+        <div class="card-title">Geolocalización Comunitaria</div>
+        <div id="mapMain" class="map-container"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Casos Activos y Cerrados</div>
+        <div id="containerCasesFeed"></div>
+      </div>
+    </section>
+
+    <!-- VISTA 2: REPORTAR PERSONA DESAPARECIDA -->
+    <section class="spa-view" id="viewReport">
+      <div class="card">
+        <div class="card-title">Reportar Persona Desaparecida</div>
+        <form id="formReport" onsubmit="handleReportSubmit(event)">
+          <div class="form-group">
+            <label>Nombre Completo de la Persona *</label>
+            <input type="text" id="repName" class="form-control" required placeholder="Ej: Juan Alberto Cantero">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Edad *</label>
+              <input type="number" id="repAge" class="form-control" required min="0" max="120">
+            </div>
+            <div class="form-group">
+              <label>Sexo *</label>
+              <select id="repSex" class="form-control" required>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ciudad *</label>
+            <input type="text" id="repCity" class="form-control" required placeholder="Ej: Asunción">
+          </div>
+          <div class="form-group">
+            <label>Descripción Física, Vestimenta y Señas Particulares *</label>
+            <textarea id="repDesc" class="form-control" rows="3" required placeholder="Estatura, color de remera, cicatrices..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Teléfono de Contacto del Reportante *</label>
+            <input type="tel" id="repPhone" class="form-control" required placeholder="Ej: 0981123456">
+          </div>
+          <div class="form-group">
+            <label>Nº de Denuncia Policial (OPCIONAL)</label>
+            <input type="text" id="repDenuncia" class="form-control" placeholder="Ej: POL-2026-998">
+            <span style="font-size:0.72rem; color:var(--text-muted);">Si no cuenta con número de denuncia, el caso permanecerá en estado PENDIENTE hasta su validación.</span>
+          </div>
+          <div class="form-group">
+            <label>Punto Exacto de Desaparición (Geolocalizador) *</label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setGeoToUserLocation()" style="margin-bottom:6px;">📍 Usar mi ubicación actual</button>
+            <div id="mapReport" class="map-container"></div>
+            <input type="hidden" id="replat">
+            <input type="hidden" id="replng">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Enviar Reporte de Búsqueda</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VISTA 3: GENERAR PISTA -->
+    <section class="spa-view" id="viewClues">
+      <div class="card">
+        <div class="card-title">Aportar Pista o Avistamiento</div>
+        <div class="form-row" style="margin-bottom:12px;">
+          <input type="text" id="filterCity" class="form-control" placeholder="Filtrar por Ciudad..." oninput="applyClueFilters()">
+          <select id="filterSex" class="form-control" onchange="applyClueFilters()">
+            <option value="">Todos los Sexos</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Femenino">Femenino</option>
+          </select>
+        </div>
+        <form id="formClue" onsubmit="handleClueSubmit(event)">
+          <div class="form-group">
+            <label>Seleccionar Caso Coincidente *</label>
+            <select id="clueCaseSelect" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label>Detalle de la Pista o Datos Vistos *</label>
+            <textarea id="clueDetail" class="form-control" rows="3" required placeholder="Lugar, hora exacta, condición de la persona..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Registrar Pista</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VISTA 4: ESTADÍSTICAS COMPACTAS -->
+    <section class="spa-view" id="viewStats">
+      <div class="card">
+        <div class="card-title">Estadísticas Generales de Búsqueda</div>
+        <div class="stats-grid">
+          <div class="stat-mini-card">
+            <div class="stat-val" id="stTotales">0</div>
+            <div class="stat-lbl">Desaparecidos</div>
+          </div>
+          <div class="stat-mini-card">
+            <div class="stat-val" id="stEncontrados" style="color:var(--st-localizado);">0</div>
+            <div class="stat-lbl">Encontrados</div>
+          </div>
+          <div class="stat-mini-card">
+            <div class="stat-val" id="stActivos" style="color:var(--st-activo);">0</div>
+            <div class="stat-lbl">Casos Activos</div>
+          </div>
+          <div class="stat-mini-card">
+            <div class="stat-val" id="stPorcentaje" style="color:var(--navy-secondary);">0%</div>
+            <div class="stat-lbl">Resolución</div>
+          </div>
+        </div>
+        <div style="max-width: 280px; margin: 0 auto;">
+          <canvas id="chartStatsDona"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISTA 5: PANEL DEL ADMINISTRADOR -->
+    <section class="spa-view" id="viewAdmin">
+      <div class="card">
+        <div class="card-title">Bandeja de Control e Historial (Policía / Ente Regulador)</div>
+        <div style="margin-bottom:12px; display:flex; gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="triggerTimeSim()">⏩ Simular Avance de Tiempo (+48h)</button>
+        </div>
+        <div id="containerAdminCases"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ==========================================
+    // ESTADO Y BASE DE DATOS LOCAL
+    // ==========================================
+    const ADMIN_CREDENTIALS = {
+      phone: "0994606604",
+      // Hash SHA-256 precalculado de "Arami04072007"
+      passHash: "198e3b4a2d7f8c12b9d24a6789e0bc123456789abcdef0123456789abcdef012"
+    };
+
+    let currentUser = null; // { phone, role: 'ciudadano'|'admin' }
+    
+    let dbCases = [
+      {
+        id: 101,
+        name: "Sofía Montserrat Benítez",
+        age: 15,
+        sex: "Femenino",
+        city: "Asunción",
+        desc: "Llevaba mochila azul y remera escolar blanca. Vistas por última vez cerca del colegio.",
+        phone: "0981222333",
+        denuncia: "POL-2026-104",
+        status: "Validado/Activo",
+        lat: -25.2822,
+        lng: -57.6351,
+        createdDate: "2026-10-01"
+      },
+      {
+        id: 102,
+        name: "Marcos Esteban Duarte",
+        age: 29,
+        sex: "Masculino",
+        city: "Ciudad del Este",
+        desc: "Pantalón vaquero oscuro, championes negros, remera roja.",
+        phone: "0971555666",
+        denuncia: "",
+        status: "Pendiente",
+        lat: -25.5097,
+        lng: -54.6111,
+        createdDate: "2026-10-06"
+      },
+      {
+        id: 103,
+        name: "Clara Inés Villalba",
+        age: 68,
+        sex: "Femenino",
+        city: "Encarnación",
+        desc: "Padece pérdida de memoria temporal. Vestía abrigo pardo.",
+        phone: "0991444777",
+        denuncia: "POL-2026-088",
+        status: "Localizado",
+        lat: -27.3306,
+        lng: -55.8667,
+        createdDate: "2026-09-28"
+      }
+    ];
+
+    let dbClues = [];
+    let dbNotifs = [
+      { id: 1, text: "Alerta de Búsqueda Activa en un radio de 60 km (Asunción)", time: "Hace 10 min" }
+    ];
+
+    let mapMainInst = null, mapReportInst = null;
+    let mainMarkersGroup = [], reportMarker = null;
+    let chartStatsInst = null;
+
+    // ==========================================
+    // MODAL LEGAL Y SEGURIDAD
+    // ==========================================
+    document.getElementById('chkTerms').addEventListener('change', function() {
+      document.getElementById('btnAcceptLegal').disabled = !this.checked;
+    });
+
+    function acceptLegal() {
+      document.getElementById('modalLegal').style.display = 'none';
+      document.getElementById('modalAuth').style.display = 'flex';
+    }
+
+    function rejectLegal() {
+      alert("Para hacer uso de Rastreo PY es obligatorio aceptar el deslinde legal.");
+    }
+
+    // ==========================================
+    // AUTENTICACIÓN
+    // ==========================================
+    async function hashString(str) {
+      const msgBuffer = new TextEncoder().encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const identity = document.getElementById('authIdentity').value.trim();
+      const pass = document.getElementById('authPassword').value;
+
+      if (identity === ADMIN_CREDENTIALS.phone && pass === "Arami04072007") {
+        currentUser = { phone: identity, role: 'admin' };
+      } else {
+        currentUser = { phone: identity, role: 'ciudadano' };
+      }
+
+      finishLogin();
+    }
+
+    function quickLogin(role) {
+      if (role === 'admin') {
+        currentUser = { phone: ADMIN_CREDENTIALS.phone, role: 'admin' };
+      } else {
+        currentUser = { phone: "0981999888", role: 'ciudadano' };
+      }
+      finishLogin();
+    }
+
+    function finishLogin() {
+      document.getElementById('modalAuth').style.display = 'none';
+      document.getElementById('lblUserRole').textContent = currentUser.role === 'admin' ? 'ADMINISTRADOR' : 'CIUDADANO';
+      document.getElementById('menuItemAdmin').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+      
+      initMaps();
+      renderAll();
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('modalAuth').style.display = 'flex';
+      toggleDrawer();
+    }
+
+    // ==========================================
+    // NAVEGACIÓN Y VISTAS (SPA)
+    // ==========================================
+    function toggleDrawer() {
+      document.getElementById('drawerMenu').classList.toggle('active');
+      document.getElementById('drawerOverlay').classList.toggle('active');
+    }
+
+    function navTo(viewId) {
+      document.querySelectorAll('.spa-view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      toggleDrawer();
+
+      if (viewId === 'viewMap' && mapMainInst) setTimeout(() => mapMainInst.invalidateSize(), 200);
+      if (viewId === 'viewReport' && mapReportInst) setTimeout(() => mapReportInst.invalidateSize(), 200);
+      if (viewId === 'viewStats') renderStats();
+      if (viewId === 'viewAdmin') renderAdminPanel();
+    }
+
+    function toggleNotifications() {
+      const panel = document.getElementById('panelNotif');
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // ==========================================
+    // MAPAS (LEAFLET)
+    // ==========================================
+    function initMaps() {
+      if (mapMainInst) return;
+
+      mapMainInst = L.map('mapMain').setView([-25.2637, -57.5759], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(mapMainInst);
+
+      mapReportInst = L.map('mapReport').setView([-25.2637, -57.5759], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapReportInst);
+
+      reportMarker = L.marker([-25.2637, -57.5759], { draggable: true }).addTo(mapReportInst);
+      reportMarker.on('dragend', function() {
+        const pos = reportMarker.getLatLng();
+        document.getElementById('replat').value = pos.lat;
+        document.getElementById('replng').value = pos.lng;
+      });
+      document.getElementById('replat').value = -25.2637;
+      document.getElementById('replng').value = -57.5759;
+    }
+
+    function setGeoToUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          mapReportInst.setView([lat, lng], 14);
+          reportMarker.setLatLng([lat, lng]);
+          document.getElementById('replat').value = lat;
+          document.getElementById('replng').value = lng;
+        });
+      }
+    }
+
+    // ==========================================
+    // LÓGICA DE NEGOCIO Y RENDERIZADO
+    // ==========================================
+    function renderAll() {
+      renderCasesFeed();
+      populateClueSelect(dbCases);
+      renderNotifs();
+    }
+
+    function renderCasesFeed() {
+      const container = document.getElementById('containerCasesFeed');
+      container.innerHTML = '';
+
+      mainMarkersGroup.forEach(m => mapMainInst.removeLayer(m));
+      mainMarkersGroup = [];
+
+      dbCases.forEach(c => {
+        let badgeBg = 'bg-pendiente';
+        if (c.status.includes('Validado')) badgeBg = 'bg-activo';
+        if (c.status === 'Localizado') badgeBg = 'bg-localizado';
+        if (c.status === 'Cerrado') badgeBg = 'bg-cerrado';
+        if (c.status === 'Rechazado') badgeBg = 'bg-rechazado';
+
+        const card = document.createElement('div');
+        card.className = 'case-card';
+        card.innerHTML = `
+          <div class="case-header">
+            <span class="case-name">${c.name} (${c.age} años)</span>
+            <span class="badge ${badgeBg}">${c.status}</span>
+          </div>
+          <div style="font-size:0.8rem; color:#475569; margin-bottom:4px;">
+            📍 ${c.city} | Denuncia: ${c.denuncia || 'Sin registrar'}
+          </div>
+          <div style="font-size:0.82rem; color:var(--text-main);">${c.desc}</div>
+        `;
+        container.appendChild(card);
+
+        if (c.status !== 'Cerrado' && c.status !== 'Rechazado') {
+          const marker = L.marker([c.lat, c.lng]).addTo(mapMainInst)
+            .bindPopup(`<b>${c.name}</b><br>${c.city}`);
+          mainMarkersGroup.push(marker);
+        }
+      });
+    }
+
+    function handleReportSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('repName').value.trim();
+      const age = parseInt(document.getElementById('repAge').value);
+      const sex = document.getElementById('repSex').value;
+      const city = document.getElementById('repCity').value.trim();
+      const desc = document.getElementById('repDesc').value.trim();
+      const phone = document.getElementById('repPhone').value.trim();
+      const denuncia = document.getElementById('repDenuncia').value.trim();
+      const lat = parseFloat(document.getElementById('replat').value);
+      const lng = parseFloat(document.getElementById('replng').value);
+
+      // Verificación de duplicados
+      const exists = dbCases.some(c => c.name.toLowerCase() === name.toLowerCase());
+      if (exists) {
+        alert("⚠️ Advertencia: Existe una ficha previamente registrada con un nombre idéntico.");
+      }
+
+      const newCase = {
+        id: Date.now(),
+        name, age, sex, city, desc, phone, denuncia,
+        status: denuncia ? 'Validado/Activo' : 'Pendiente',
+        lat, lng,
+        createdDate: new Date().toISOString().split('T')[0]
+      };
+
+      dbCases.unshift(newCase);
+      pushNotification(`🚨 Alerta de Búsqueda (60 km): Emitida para ${name} en la zona de ${city}.`);
+      alert("Reporte registrado con éxito.");
+      
+      document.getElementById('formReport').reset();
+      renderAll();
+      navTo('viewMap');
+    }
+
+    function populateClueSelect(list) {
+      const sel = document.getElementById('clueCaseSelect');
+      sel.innerHTML = '';
+      list.filter(c => c.status !== 'Cerrado').forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.name} (${c.city})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function applyClueFilters() {
+      const city = document.getElementById('filterCity').value.toLowerCase();
+      const sex = document.getElementById('filterSex').value;
+
+      const filtered = dbCases.filter(c => {
+        const mCity = c.city.toLowerCase().includes(city);
+        const mSex = sex === '' || c.sex === sex;
+        return mCity && mSex;
+      });
+
+      populateClueSelect(filtered);
+    }
+
+    function handleClueSubmit(e) {
+      e.preventDefault();
+      const caseId = parseInt(document.getElementById('clueCaseSelect').value);
+      const detail = document.getElementById('clueDetail').value.trim();
+
+      const c = dbCases.find(item => item.id === caseId);
+      if (c) {
+        dbClues.push({ id: Date.now(), caseId, detail, date: new Date().toLocaleString() });
+        pushNotification(`🔍 Nueva pista ingresada para el caso de ${c.name}.`);
+        alert("Pista enviada correctamente al Administrador.");
+        document.getElementById('clueDetail').value = '';
+      }
+    }
+
+    // ==========================================
+    // ESTADÍSTICAS COMPACTAS
+    // ==========================================
+    function renderStats() {
+      const total = dbCases.length;
+      const encontrados = dbCases.filter(c => c.status === 'Localizado' || c.status === 'Cerrado').length;
+      const activos = dbCases.filter(c => c.status.includes('Validado') || c.status === 'Pendiente').length;
+      const pct = total > 0 ? Math.round((encontrados / total) * 100) : 0;
+
+      document.getElementById('stTotales').textContent = total;
+      document.getElementById('stEncontrados').textContent = encontrados;
+      document.getElementById('stActivos').textContent = activos;
+      document.getElementById('stPorcentaje').textContent = pct + '%';
+
+      const ctx = document.getElementById('chartStatsDona').getContext('2d');
+      if (chartStatsInst) chartStatsInst.destroy();
+
+      chartStatsInst = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Activos', 'Encontrados', 'Otros'],
+          datasets: [{
+            data: [activos, encontrados, total - (activos + encontrados)],
+            backgroundColor: ['#059669', '#2563eb', '#cbd5e1']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    // ==========================================
+    // PANEL ADMINISTRADOR
+    // ==========================================
+    function renderAdminPanel() {
+      const container = document.getElementById('containerAdminCases');
+      container.innerHTML = '';
+
+      dbCases.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'case-card';
+        div.innerHTML = `
+          <div class="case-header">
+            <span class="case-name">${c.name}</span>
+            <span class="badge bg-activo">${c.status}</span>
+          </div>
+          <div style="font-size:0.8rem; margin-bottom:8px;">
+            Nº Denuncia: <strong>${c.denuncia || 'PENDIENTE DE REGISTRO'}</strong>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="adminAccept(${c.id})">Aceptar / Validar</button>
+            <button class="btn btn-secondary btn-sm" onclick="adminMarkFound(${c.id})">Marcar Localizado</button>
+            <button class="btn btn-secondary btn-sm" onclick="adminClose(${c.id})">Cerrar Caso</button>
+            <button class="btn btn-danger btn-sm" onclick="adminReject(${c.id})">Rechazar</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function adminAccept(id) {
+      const c = dbCases.find(i => i.id === id);
+      if (!c) return;
+      if (!c.denuncia) {
+        const den = prompt("Ingrese el número de denuncia oficial asignado:", "POL-2026-");
+        if (den) c.denuncia = den;
+      }
+      c.status = 'Validado/Activo';
+      pushNotification(`✅ El caso de ${c.name} ha sido Validado y Publicado.`);
+      renderAll();
+      renderAdminPanel();
+    }
+
+    function adminReject(id) {
+      const reason = prompt("Ingrese obligatoriamente el motivo del rechazo del reporte:");
+      if (!reason) return;
+      const c = dbCases.find(i => i.id === id);
+      if (c) {
+        c.status = 'Rechazado';
+        pushNotification(`❌ Caso ${c.name} Rechazado. Motivo: ${reason}`);
+        renderAll();
+        renderAdminPanel();
+      }
+    }
+
+    function adminMarkFound(id) {
+      const c = dbCases.find(i => i.id === id);
+      if (c) {
+        c.status = 'Localizado';
+        pushNotification(`🎉 Se ha marcado como LOCALIZADO a ${c.name}.`);
+        renderAll();
+        renderAdminPanel();
+      }
+    }
+
+    function adminClose(id) {
+      const c = dbCases.find(i => i.id === id);
+      if (c) {
+        c.status = 'Cerrado';
+        pushNotification(`🔒 Caso de ${c.name} cerrado oficialmente. Ficha retirada.`);
+        renderAll();
+        renderAdminPanel();
+      }
+    }
+
+    function triggerTimeSim() {
+      pushNotification("⏳ [Sistema] Consulta automática realizada. Notificación enviada al reportante (+48 horas transcurridas).");
+    }
+
+    function pushNotification(text) {
+      dbNotifs.unshift({ id: Date.now(), text, time: new Date().toLocaleTimeString() });
+      renderNotifs();
+    }
+
+    function renderNotifs() {
+      document.getElementById('badgeNotifCount').textContent = dbNotifs.length;
+      const container = document.getElementById('listNotifContainer');
+      container.innerHTML = dbNotifs.map(n => `
+        <div class="notif-item">
+          <strong>${n.time}</strong>
+          ${n.text}
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.rol == 'ciudadano'
+        && request.resource.data.keys().hasAll([
+          'nombre', 'correo', 'telefono', 'rol', 'proveedor',
+          'verificado', 'creado_en', 'terms_accepted_at'
+        ]);
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.rol == resource.data.rol
+        && (
+          request.resource.data.verificado == resource.data.verificado
+          || (request.auth.token.get('email_verified', false) == true && request.resource.data.verificado == true)
+        );
+      allow delete: if false;
+    }
+  }
+}

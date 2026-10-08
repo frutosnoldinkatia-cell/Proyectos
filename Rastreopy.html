@@ -254,8 +254,6 @@
   <!-- LÓGICA JAVASCRIPT DE LA SPA -->
   <script>
     const DB_KEY = 'RASTREO_PY_INSTITUCIONAL_V4';
-    const OTP_KEY = 'rastreo_codigos';
-    const SESSION_KEY = 'rastreo_sesion';
 
     // DATOS INICIALES REALISTAS DE PARAGUAY
     const INITIAL_CASES = [
@@ -327,6 +325,7 @@
       if (!data) {
         store = {
           termsAccepted: false,
+          termsAcceptedAt: '',
           casos: INITIAL_CASES,
           pistas: [
             {
@@ -356,119 +355,13 @@
         store = JSON.parse(data);
       }
 
-      const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-      store.currentUser = session ? obtenerUsuarios().find(user => user.id === session.id && user.rol === session.rol) || null : null;
+      store.currentUser = window.firebaseCurrentProfile || null;
       return store;
     }
 
     function saveStore(store) {
       const { users, codigosOTP, currentUser, ...appData } = store;
       localStorage.setItem(DB_KEY, JSON.stringify(appData));
-    }
-
-    function crearSal() {
-      const bytes = new Uint8Array(16);
-      if (globalThis.crypto && globalThis.crypto.getRandomValues) globalThis.crypto.getRandomValues(bytes);
-      else bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
-      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-
-    function obtenerCodigos() {
-      try { return JSON.parse(localStorage.getItem(OTP_KEY)) || {}; }
-      catch (error) { return {}; }
-    }
-
-    function guardarCodigos(codigos) {
-      localStorage.setItem(OTP_KEY, JSON.stringify(codigos));
-    }
-
-    async function inicializarUsuarios() {
-      const users = obtenerUsuarios();
-      const normalizedUsers = Array.isArray(users) ? users : [];
-      let changed = !Array.isArray(users);
-      let legacyUsers = [];
-      let legacyCodes = {};
-      let oldStore = null;
-
-      try {
-        oldStore = JSON.parse(localStorage.getItem(DB_KEY) || 'null');
-        legacyUsers = Array.isArray(oldStore.users) ? oldStore.users : [];
-        legacyCodes = oldStore.codigosOTP || {};
-      } catch (error) {
-        legacyUsers = [];
-        legacyCodes = {};
-      }
-
-      for (const oldUser of legacyUsers) {
-        const identifier = normalizarIdentificador(oldUser.identificador || oldUser.contacto);
-        if (!identifier || normalizedUsers.some(user => user.identificador === identifier)) continue;
-        const salt = oldUser.sal || crearSal();
-        const rawPassword = oldUser.contrasena_hash || oldUser.passwordHash || '';
-        normalizedUsers.push({
-          id: oldUser.id || `usr_${Date.now()}_${normalizedUsers.length}`,
-          nombre: oldUser.nombre || oldUser.nombreCompleto || 'Usuario',
-          identificador: identifier,
-          tipo: identifier.includes('@') ? 'correo' : 'celular',
-          sal: salt,
-          contrasena_hash: oldUser.contrasena_hash && oldUser.sal ? oldUser.contrasena_hash : await hashContrasena(rawPassword, salt),
-          rol: String(oldUser.rol || 'CIUDADANO').toLowerCase() === 'administrador' ? 'administrador' : 'ciudadano',
-          verificado: oldUser.verificado !== false,
-          creado_en: oldUser.creado_en || oldUser.fechaCreacion || new Date().toISOString()
-        });
-        changed = true;
-      }
-
-      const codes = obtenerCodigos();
-      for (const [legacyIdentifier, oldCode] of Object.entries(legacyCodes)) {
-        const pendingData = oldCode.userData;
-        const identifier = normalizarIdentificador(pendingData?.identificador || pendingData?.contacto || legacyIdentifier);
-        let user = normalizedUsers.find(candidate => candidate.identificador === identifier);
-        if (pendingData && !user && identifier) {
-          const salt = crearSal();
-          user = {
-            id: pendingData.id || `usr_${Date.now()}_${normalizedUsers.length}`,
-            nombre: pendingData.nombre || pendingData.nombreCompleto || 'Usuario',
-            identificador: identifier,
-            tipo: identifier.includes('@') ? 'correo' : 'celular',
-            sal: salt,
-            contrasena_hash: await hashContrasena(pendingData.contrasena || pendingData.passwordHash || '', salt),
-            rol: 'ciudadano',
-            verificado: false,
-            creado_en: new Date().toISOString()
-          };
-          normalizedUsers.push(user);
-          changed = true;
-        }
-        if (user && oldCode.expires > Date.now()) {
-          codes[user.id] = { code: oldCode.code, expires: oldCode.expires, purpose: oldCode.isReset ? 'reset' : 'verify' };
-        }
-      }
-
-      if (!normalizedUsers.some(user => user.rol === 'administrador')) {
-        const salt = crearSal();
-        normalizedUsers.push({
-          id: 'admin_demo',
-          nombre: 'Comandancia Policía Nacional',
-          identificador: normalizarIdentificador('0981000000'),
-          tipo: 'celular',
-          sal: salt,
-          contrasena_hash: await hashContrasena('Admin.Demo2026', salt),
-          rol: 'administrador',
-          verificado: true,
-          creado_en: new Date().toISOString()
-        });
-        changed = true;
-      }
-
-      if (changed) guardarUsuarios(normalizedUsers);
-      if (Object.keys(codes).length) guardarCodigos(codes);
-      if (oldStore && (Object.hasOwn(oldStore, 'users') || Object.hasOwn(oldStore, 'codigosOTP') || Object.hasOwn(oldStore, 'currentUser'))) {
-        delete oldStore.users;
-        delete oldStore.codigosOTP;
-        delete oldStore.currentUser;
-        localStorage.setItem(DB_KEY, JSON.stringify(oldStore));
-      }
-      return normalizedUsers.length;
     }
 
     let activeMap = null;
@@ -480,7 +373,7 @@
       const main = document.getElementById('mainContent');
       const header = document.getElementById('topHeader');
 
-      if (!store.termsAccepted) {
+      if (!store.termsAccepted || !store.termsAcceptedAt) {
         header.classList.add('hidden');
         main.innerHTML = renderLegalTerms();
         return;
@@ -598,15 +491,25 @@
       `;
     }
 
-    function acceptTerms() {
+    async function acceptTerms() {
       if (!document.getElementById('checkTerms').checked) {
         alert('Debe declarar la aceptación de los términos para utilizar el portal.');
         return;
       }
       const store = getStore();
       store.termsAccepted = true;
+      store.termsAcceptedAt = new Date().toISOString();
       saveStore(store);
-      navigateTo('auth', { authMode: 'login' });
+      try {
+        await window.firebaseAuthApi.recordTermsAcceptance(store.termsAcceptedAt);
+        navigateTo(window.firebaseCurrentProfile ? 'home' : 'auth', { authMode: 'login' });
+      } catch (error) {
+        console.error('No se pudo guardar la aceptación de términos.', error);
+        store.termsAccepted = false;
+        store.termsAcceptedAt = '';
+        saveStore(store);
+        alert('No se pudo guardar la aceptación en tu cuenta. Verifica la conexión y vuelve a intentarlo.');
+      }
     }
 
     function rejectTerms() { alert('Acceso denegado. No es posible acceder sin aceptar las bases y condiciones.'); }
@@ -629,7 +532,19 @@
           </div>
 
           <div class="card auth-panel">
+            <button type="button" onclick="handleGoogleLogin()" class="btn btn-outline" style="width:100%; margin-bottom:12px;">Continuar con Google</button>
+            <form onsubmit="handleSendPhoneCode(event)">
+              ${!isLogin ? `<div class="form-group"><label>Nombre Completo</label><input type="text" id="phoneRegName" required placeholder="Ej: Juan Pérez" class="form-control"></div>` : ''}
+              <div class="form-group">
+                <label>Número de Celular</label>
+                <input type="tel" id="phoneContact" required placeholder="0981 123 456" class="form-control">
+              </div>
+              <button type="submit" class="btn btn-outline" style="width:100%;">Enviar código SMS</button>
+              <div id="recaptcha-container"></div>
+            </form>
+            <div style="text-align:center; color:var(--text-muted); font-size:11px; margin:12px 0;">o con correo y contraseña</div>
             ${isLogin ? renderLoginForm(identifier) : renderRegisterForm()}
+            <div id="authFeedback" class="hidden" role="status" style="margin-top:12px; color:var(--red-accent); font-size:12px; line-height:1.5;"></div>
           </div>
         </div>
       `;
@@ -639,22 +554,18 @@
       return `
         <form onsubmit="handleLogin(event)">
           <div class="form-group">
-            <label>Número de Celular o Correo</label>
-            <input type="text" id="loginContact" required value="${escapeHtml(identifier)}" placeholder="0981000000 o usuario@correo.com" class="form-control">
+            <label>Correo Electrónico</label>
+            <input type="email" id="loginEmail" required value="${escapeHtml(identifier.includes('@') ? identifier : '')}" placeholder="usuario@correo.com" class="form-control">
           </div>
           <div class="form-group">
             <label>Contraseña</label>
             <div style="position:relative;">
-              <input type="password" id="loginPassword" required placeholder="••••••••" class="form-control">
+              <input type="password" id="loginPassword" required placeholder="Contraseña" class="form-control">
               <button type="button" onclick="togglePass('loginPassword')" style="position:absolute; right:10px; top:8px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px;">Mostrar</button>
             </div>
           </div>
           <div style="text-align:right; margin-bottom:12px;">
             <button type="button" onclick="handleForgotPassword()" style="background:none; border:none; color:var(--navy-primary); font-size:11px; font-weight:600; cursor:pointer;">¿Olvidaste tu contraseña?</button>
-          </div>
-          <div id="loginFeedback" class="hidden" role="status" style="margin-bottom:12px; color:var(--red-accent); font-size:12px; line-height:1.5;">
-            <span id="loginFeedbackText"></span>
-            <button id="resendVerificationButton" type="button" onclick="resendVerificationCode()" class="btn btn-outline btn-sm hidden" style="width:100%; margin-top:8px;">Enviar código nuevamente</button>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;">Ingresar al sistema</button>
         </form>
@@ -666,28 +577,21 @@
         <form onsubmit="handleRegister(event)">
           <div class="form-group">
             <label>Nombre Completo</label>
-            <input type="text" id="regName" required placeholder="Ej: Juan Pérez" class="form-control">
+            <input type="text" id="regEmailName" required placeholder="Ej: Juan Pérez" class="form-control">
           </div>
           <div class="form-group">
-            <label>Vincular cuenta mediante</label>
-            <select id="regType" class="form-control">
-              <option value="celular">Número de Celular (SMS)</option>
-              <option value="email">Correo Electrónico (Gmail)</option>
-            </select>
+            <label>Correo Electrónico</label>
+            <input type="email" id="regEmail" required placeholder="usuario@correo.com" class="form-control">
           </div>
           <div class="form-group">
-            <label>Celular o Correo</label>
-            <input type="text" id="regContact" required placeholder="0981123456" class="form-control">
-          </div>
-          <div class="form-group">
-            <label>Contraseña (Mínimo 8 caracteres)</label>
-            <input type="password" id="regPass" required minlength="8" placeholder="••••••••" class="form-control">
+            <label>Contraseña</label>
+            <input type="password" id="regPass" required minlength="6" placeholder="Mínimo 6 caracteres" class="form-control">
           </div>
           <div class="form-group">
             <label>Confirmar contraseña</label>
-            <input type="password" id="regPassConfirm" required minlength="8" placeholder="Repita la contraseña" class="form-control">
+            <input type="password" id="regPassConfirm" required minlength="6" placeholder="Repita la contraseña" class="form-control">
           </div>
-          <button type="submit" class="btn btn-red" style="width:100%;">Registrarme y recibir código</button>
+          <button type="submit" class="btn btn-red" style="width:100%;">Crear cuenta y verificar correo</button>
         </form>
       `;
     }
@@ -703,57 +607,47 @@
       })[character]);
     }
 
-    function mostrarErrorLogin(message, userId = '') {
-      const feedback = document.getElementById('loginFeedback');
+    function showAuthFeedback(message) {
+      const feedback = document.getElementById('authFeedback');
+      if (!feedback) return;
+      feedback.textContent = message;
       feedback.classList.remove('hidden');
-      document.getElementById('loginFeedbackText').textContent = message;
-      feedback.dataset.userId = userId;
-      document.getElementById('resendVerificationButton').classList.toggle('hidden', !userId);
+    }
+
+    function acceptedTermsAt() {
+      return getStore().termsAcceptedAt;
+    }
+
+    function handleAuthError(error) {
+      console.error('Error de autenticación Firebase.', error);
+      showAuthFeedback(window.firebaseAuthApi.getAuthErrorMessage(error));
     }
 
     async function handleLogin(e) {
       e.preventDefault();
-      const identifier = normalizarIdentificador(document.getElementById('loginContact').value);
+      const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
-      const users = obtenerUsuarios();
-      const user = users.find(candidate => candidate.identificador === identifier);
-
-      if (!user) {
-        console.log('[Rastreo PY login]', { identificador: identifier, cantidadUsuarios: users.length, encontrado: false, hashCoincide: false });
-        mostrarErrorLogin('Número, correo o contraseña incorrectos.');
-        return;
+      try {
+        const profile = await window.firebaseAuthApi.loginEmail(email, password, acceptedTermsAt());
+        window.firebaseCurrentProfile = profile;
+        navigateTo('home');
+      } catch (error) {
+        handleAuthError(error);
       }
-
-      const passwordHash = await hashContrasena(password, user.sal);
-      const hashMatches = passwordHash === user.contrasena_hash;
-      console.log('[Rastreo PY login]', { identificador: identifier, cantidadUsuarios: users.length, encontrado: true, hashCoincide: hashMatches });
-      if (!hashMatches) {
-        mostrarErrorLogin('Número, correo o contraseña incorrectos.');
-        return;
-      }
-
-      if (!user.verificado && user.rol === 'ciudadano') {
-        mostrarErrorLogin('Debe verificar su cuenta.', user.id);
-        return;
-      }
-
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: user.id, rol: user.rol }));
-      navigateTo(user.rol === 'administrador' ? 'admin' : 'feed');
     }
 
     async function handleRegister(e) {
       e.preventDefault();
-      const name = document.getElementById('regName').value.trim();
-      const rawIdentifier = document.getElementById('regContact').value;
-      const identifier = normalizarIdentificador(rawIdentifier);
+      const name = document.getElementById('regEmailName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPass').value;
       const confirmation = document.getElementById('regPassConfirm').value;
-      if (!name || !rawIdentifier.trim() || !password || !confirmation) {
+      if (!name || !email || !password || !confirmation) {
         alert('Complete todos los campos requeridos.');
         return;
       }
-      if (password.length < 8) {
-        alert('La contraseña debe tener al menos 8 caracteres.');
+      if (password.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres.');
         return;
       }
       if (password !== confirmation) {
@@ -761,129 +655,88 @@
         return;
       }
 
-      const users = obtenerUsuarios();
-      const existingUser = users.some(user => user.identificador === identifier);
-      if (existingUser) {
-        console.log('[Rastreo PY registro]', { identificador: identifier, cantidadUsuarios: users.length, encontrado: true, hashCoincide: null });
-        alert('Este número o correo ya está registrado. Inicie sesión.');
-        return;
+      try {
+        await window.firebaseAuthApi.registerEmail(email, password, name, acceptedTermsAt());
+        navigateTo('auth', { authMode: 'login', identifier: email });
+        showAuthFeedback('Cuenta creada. Revisa tu correo y confirma el enlace de verificación antes de iniciar sesión.');
+      } catch (error) {
+        handleAuthError(error);
       }
-
-      const salt = crearSal();
-      const passwordHash = await hashContrasena(password, salt);
-      const user = {
-        id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        nombre: name,
-        identificador: identifier,
-        tipo: identifier.includes('@') ? 'correo' : 'celular',
-        sal: salt,
-        contrasena_hash: passwordHash,
-        rol: 'ciudadano',
-        verificado: false,
-        creado_en: new Date().toISOString()
-      };
-      users.push(user);
-      guardarUsuarios(users);
-      const savedHashMatches = passwordHash === await hashContrasena(password, salt);
-      console.log('[Rastreo PY registro]', { identificador: identifier, cantidadUsuarios: users.length, encontrado: true, hashCoincide: savedHashMatches });
-
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const codes = obtenerCodigos();
-      codes[user.id] = { code, expires: Date.now() + 5 * 60 * 1000, purpose: 'verify' };
-      guardarCodigos(codes);
-      showToast('Código de Verificación', `Su código OTP de acceso es: ${code}`);
-      navigateTo('otp', { userId: user.id, contact: identifier });
     }
 
-    function crearCodigoParaUsuario(user, purpose) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const codes = obtenerCodigos();
-      codes[user.id] = { code, expires: Date.now() + 5 * 60 * 1000, purpose };
-      guardarCodigos(codes);
-      return code;
-    }
-
-    function reenviarCodigoVerificacion(userId) {
-      const user = obtenerUsuarios().find(candidate => candidate.id === userId && !candidate.verificado);
-      if (!user) {
-        mostrarErrorLogin('No se encontró una cuenta pendiente de verificación.');
-        return;
+    async function handleGoogleLogin() {
+      try {
+        const profile = await window.firebaseAuthApi.loginGoogle(acceptedTermsAt());
+        window.firebaseCurrentProfile = profile;
+        navigateTo('home');
+      } catch (error) {
+        handleAuthError(error);
       }
-      const code = crearCodigoParaUsuario(user, 'verify');
-      showToast('Código de Verificación', `Su código OTP de acceso es: ${code}`);
-      navigateTo('otp', { userId: user.id, contact: user.identificador });
     }
 
-    function resendVerificationCode() {
-      reenviarCodigoVerificacion(document.getElementById('loginFeedback').dataset.userId);
+    async function handleSendPhoneCode(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('phoneRegName');
+      const name = nameInput ? nameInput.value.trim() : '';
+      try {
+        await window.firebaseAuthApi.startPhoneLogin(
+          document.getElementById('phoneContact').value,
+          name,
+          acceptedTermsAt()
+        );
+        navigateTo('otp', { contact: document.getElementById('phoneContact').value });
+      } catch (error) {
+        handleAuthError(error);
+      }
     }
 
-    function handleForgotPassword() {
-      const value = prompt('Ingrese su número de celular o correo para el restablecimiento:');
+    async function handleForgotPassword() {
+      const value = prompt('Ingresa el correo asociado a tu cuenta:');
       if (!value) return;
-      const identifier = normalizarIdentificador(value);
-      const user = obtenerUsuarios().find(candidate => candidate.identificador === identifier);
-      if (!user) {
-        alert('No se encontró una cuenta con ese número o correo.');
+      if (!value.includes('@')) {
+        showAuthFeedback('El restablecimiento de contraseña solo está disponible para cuentas de correo.');
         return;
       }
-      const code = crearCodigoParaUsuario(user, 'reset');
-      showToast('Restablecimiento de Contraseña', `Código enviado: ${code}`);
-      navigateTo('otp', { userId: user.id, contact: identifier });
+      try {
+        await window.firebaseAuthApi.resetEmailPassword(value);
+        showAuthFeedback('Enviamos un enlace para restablecer la contraseña a tu correo.');
+      } catch (error) {
+        handleAuthError(error);
+      }
     }
 
     function renderOTPView(params) {
       return `
         <div style="padding:24px; flex:1; display:flex; flex-direction:column; justify-content:center; background:var(--bg-neutral); min-height:100vh;">
           <div class="card" style="text-align:center;">
-            <h3 style="font-size:15px; font-weight:700; color:var(--navy-primary); margin-bottom:6px;">Verificación de Código de Seguridad</h3>
-            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Ingrese el código de 6 dígitos enviado a <strong>${escapeHtml(params.contact || '')}</strong></p>
-            <input type="text" id="otpInput" maxlength="6" style="font-size:22px; letter-spacing:6px; text-align:center; font-family:monospace;" class="form-control">
-            <button onclick="verifyOTP('${params.userId}')" class="btn btn-primary" style="width:100%; margin-top:12px;">Validar código de acceso</button>
+            <h3 style="font-size:15px; font-weight:700; color:var(--navy-primary); margin-bottom:6px;">Verificación por SMS</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Ingresa el código de 6 dígitos enviado a <strong>${escapeHtml(params.contact || '')}</strong></p>
+            <input type="text" id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" style="font-size:22px; letter-spacing:6px; text-align:center; font-family:monospace;" class="form-control">
+            <div id="otpFeedback" class="hidden" role="status" style="margin-top:10px; color:var(--red-accent); font-size:12px;"></div>
+            <button onclick="verifyOTP()" class="btn btn-primary" style="width:100%; margin-top:12px;">Validar código de acceso</button>
             <button onclick="navigateTo('auth', {authMode:'login'})" class="btn btn-outline" style="width:100%; margin-top:8px;">Volver a iniciar sesión</button>
           </div>
         </div>
       `;
     }
 
-    async function verifyOTP(userId) {
+    async function verifyOTP() {
       const val = document.getElementById('otpInput').value.trim();
-      const codes = obtenerCodigos();
-      const otp = codes[userId];
-      if (!otp || otp.expires < Date.now() || otp.code !== val) {
-        alert('Código de verificación inválido o expirado.');
+      if (!/^\d{6}$/.test(val)) {
+        document.getElementById('otpFeedback').textContent = 'Ingresa los 6 dígitos del código SMS.';
+        document.getElementById('otpFeedback').classList.remove('hidden');
         return;
       }
-
-      const users = obtenerUsuarios();
-      const user = users.find(candidate => candidate.id === userId);
-      if (!user) {
-        alert('No se encontró la cuenta asociada a este código.');
-        return;
+      try {
+        const profile = await window.firebaseAuthApi.confirmPhoneCode(val);
+        window.firebaseCurrentProfile = profile;
+        navigateTo('home');
+      } catch (error) {
+        console.error('No se pudo verificar el código SMS.', error);
+        const feedback = document.getElementById('otpFeedback');
+        feedback.textContent = window.firebaseAuthApi.getAuthErrorMessage(error);
+        feedback.classList.remove('hidden');
       }
-
-      if (otp.purpose === 'reset') {
-        const newPassword = prompt('Ingrese su nueva contraseña (mínimo 8 caracteres):');
-        if (newPassword === null) return;
-        if (newPassword.length < 8) {
-          alert('La contraseña debe tener al menos 8 caracteres.');
-          return;
-        }
-        user.contrasena_hash = await hashContrasena(newPassword, user.sal);
-        guardarUsuarios(users);
-        delete codes[userId];
-        guardarCodigos(codes);
-        alert('Contraseña actualizada correctamente.');
-        navigateTo('auth', { authMode: 'login', identifier: user.identificador });
-        return;
-      }
-
-      user.verificado = true;
-      guardarUsuarios(users);
-      delete codes[userId];
-      guardarCodigos(codes);
-      alert('Cuenta creada correctamente. Inicie sesión con sus datos.');
-      navigateTo('auth', { authMode: 'login', identifier: user.identificador });
     }
 
     // ==========================================
@@ -1739,27 +1592,26 @@
       toggleNotificationsModal();
     }
 
-    function logout() {
-      sessionStorage.removeItem(SESSION_KEY);
-      navigateTo('auth', { authMode: 'login' });
+    async function logout() {
+      try {
+        await window.firebaseAuthApi.logout();
+        navigateTo('auth', { authMode: 'login' });
+      } catch (error) {
+        console.error('No se pudo cerrar la sesión de Firebase.', error);
+        alert('No se pudo cerrar la sesión. Inténtalo nuevamente.');
+      }
     }
-
-    window.verUsuarios = function () {
-      const users = obtenerUsuarios();
-      console.log(users);
-      return users;
-    };
 
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        const userCount = await inicializarUsuarios();
-        console.log('[Rastreo PY inicio]', { cantidadUsuarios: userCount });
+        await window.firebaseAuthReady;
         navigateTo('home');
       } catch (error) {
-        console.error('No se pudo inicializar el almacén de usuarios.', error);
-        alert('No se pudo inicializar el almacenamiento de usuarios en este navegador.');
+        console.error('No se pudo inicializar Firebase Authentication.', error);
+        alert('No se pudo inicializar la autenticación. Recarga la página e inténtalo nuevamente.');
       }
     });
   </script>
+  <script type="module" src="./firebase-auth.js"></script>
 </body>
 </html>

@@ -253,7 +253,7 @@
   <!-- LÓGICA JAVASCRIPT DE LA SPA -->
   <script>
     const DB_KEY = 'RASTREO_PY_INSTITUCIONAL_V4';
-    const API_BASE = 'http://localhost:3000/api';
+    const API_BASE = '/api';
     window.backendCurrentUser = null;
     let pendingRegistration = null;
     let resendTimer = null;
@@ -669,7 +669,7 @@
           body: options.body ? JSON.stringify(options.body) : undefined
         });
       } catch (error) {
-        const requestError = new Error('No se pudo conectar con el servidor. Compruebe que el backend esté iniciado en http://localhost:3000.');
+        const requestError = new Error('No se pudo conectar con el servidor. Compruebe que esté disponible e intente nuevamente.');
         requestError.cause = error;
         throw requestError;
       }

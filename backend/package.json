@@ -3,18 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
+    "migrate:sqlite": "node migrate-sqlite.js",
     "start": "node server.js",
     "test": "node --test"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "better-sqlite3": "^11.8.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.10.0"
+    "nodemailer": "^10.0.16",
+    "pg": "^8.16.3"
   }
 }

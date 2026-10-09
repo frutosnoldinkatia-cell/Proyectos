@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
-import { isGmail, normalizeEmail } from './db.js';
+import { isGmail, normalizeEmail, withTransaction } from './db.js';
 
 const CODE_LIFETIME_MS = 10 * 60 * 1000;
 const RESEND_INTERVAL_MS = 60 * 1000;
@@ -52,25 +52,34 @@ function loginRateLimiter() {
   });
 }
 
+function asyncRoute(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
 function sendCodeLimiter(db) {
-  return (req, res, next) => {
+  return asyncRoute(async (req, res, next) => {
     const email = normalizeEmail(req.body?.correo);
     if (!email) return next();
-    const transaction = db.transaction(() => {
-      db.prepare("DELETE FROM solicitudes_codigo WHERE creado_en < datetime('now', '-1 hour')").run();
-      const count = db.prepare(`
+
+    const allowed = await withTransaction(db, async client => {
+      await client.query("DELETE FROM solicitudes_codigo WHERE creado_en < NOW() - INTERVAL '1 hour'");
+      const { rows } = await client.query(`
         SELECT COUNT(*) AS total FROM solicitudes_codigo
-        WHERE correo = ? AND creado_en >= datetime('now', '-1 hour')
-      `).get(email).total;
-      if (count >= 5) return false;
-      db.prepare('INSERT INTO solicitudes_codigo (correo, proposito) VALUES (?, ?)').run(email, req.codePurpose);
+        WHERE correo = $1 AND creado_en >= NOW() - INTERVAL '1 hour'
+      `, [email]);
+      if (Number(rows[0].total) >= 5) return false;
+      await client.query(
+        'INSERT INTO solicitudes_codigo (correo, proposito) VALUES ($1, $2)',
+        [email, req.codePurpose]
+      );
       return true;
     });
-    if (!transaction()) {
+
+    if (!allowed) {
       return res.status(429).json({ error: 'Se alcanzó el límite de 5 envíos por hora para este correo.' });
     }
     next();
-  };
+  });
 }
 
 function createJwt(user, secret) {
@@ -117,30 +126,40 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
     });
   }
 
-  function persistCode({ correo, codeHash, proposito, nombre = null, passwordHash = null, accepted = false }) {
-    const expiresAt = new Date(Date.now() + CODE_LIFETIME_MS).toISOString();
-    db.prepare(`
+  async function persistCode({ correo, codeHash, proposito, nombre = null, passwordHash = null, accepted = false }) {
+    const expiresAt = new Date(Date.now() + CODE_LIFETIME_MS);
+    await db.query(`
       INSERT INTO codigos_verificacion (
         correo, codigo_hash, proposito, nombre_completo, contrasena_hash,
         acepto_terminos, fecha_aceptacion_terminos, expira_en, intentos
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
       ON CONFLICT(correo, proposito) DO UPDATE SET
-        codigo_hash = excluded.codigo_hash,
-        nombre_completo = excluded.nombre_completo,
-        contrasena_hash = excluded.contrasena_hash,
-        acepto_terminos = excluded.acepto_terminos,
-        fecha_aceptacion_terminos = excluded.fecha_aceptacion_terminos,
-        expira_en = excluded.expira_en,
+        codigo_hash = EXCLUDED.codigo_hash,
+        nombre_completo = EXCLUDED.nombre_completo,
+        contrasena_hash = EXCLUDED.contrasena_hash,
+        acepto_terminos = EXCLUDED.acepto_terminos,
+        fecha_aceptacion_terminos = EXCLUDED.fecha_aceptacion_terminos,
+        expira_en = EXCLUDED.expira_en,
         intentos = 0,
         creado_en = CURRENT_TIMESTAMP
-    `).run(correo, codeHash, proposito, nombre, passwordHash, accepted ? 1 : 0,
-      accepted ? new Date().toISOString() : null, expiresAt);
+    `, [
+      correo,
+      codeHash,
+      proposito,
+      nombre,
+      passwordHash,
+      accepted,
+      accepted ? new Date() : null,
+      expiresAt
+    ]);
   }
 
-  function checkCode(correo, proposito, code, res) {
-    const pending = db.prepare(`
-      SELECT * FROM codigos_verificacion WHERE correo = ? AND proposito = ?
-    `).get(correo, proposito);
+  async function checkCode(correo, proposito, code, res) {
+    const { rows } = await db.query(
+      'SELECT * FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+      [correo, proposito]
+    );
+    const pending = rows[0];
     if (!pending) {
       res.status(400).json({ error: 'No hay un código pendiente. Solicite uno nuevo.' });
       return null;
@@ -154,9 +173,16 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
       return null;
     }
     if (!codeMatches(code, pending.codigo_hash, jwtSecret)) {
-      const attempts = pending.intentos + 1;
-      db.prepare('UPDATE codigos_verificacion SET intentos = ? WHERE id = ?').run(attempts, pending.id);
+      const result = await db.query(
+        'UPDATE codigos_verificacion SET intentos = intentos + 1 WHERE id = $1 RETURNING intentos',
+        [pending.id]
+      );
+      const attempts = result.rows[0]?.intentos ?? pending.intentos + 1;
       if (attempts >= 5) {
+        await db.query(
+          'DELETE FROM codigos_verificacion WHERE id = $1',
+          [pending.id]
+        );
         res.status(429).json({ error: 'Demasiados intentos. Solicite un código nuevo.' });
       } else {
         res.status(400).json({ error: `Código incorrecto. Le quedan ${5 - attempts} intentos.` });
@@ -175,7 +201,7 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
   router.post('/registro', (req, res, next) => {
     req.codePurpose = 'registro';
     next();
-  }, sendLimiter, sendCodeLimiter(db), async (req, res) => {
+  }, sendLimiter, sendCodeLimiter(db), asyncRoute(async (req, res) => {
     const nombre = typeof req.body?.nombre_completo === 'string' ? req.body.nombre_completo.trim() : '';
     const correo = validGmail(req.body?.correo);
     const password = req.body?.contrasena;
@@ -186,142 +212,161 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
       return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
     }
     if (!accepted) return res.status(400).json({ error: 'Debe aceptar las bases y condiciones para registrarse.' });
-    if (db.prepare('SELECT id FROM usuarios WHERE correo = ? AND verificado = 1').get(correo)) {
-      return res.status(409).json({ error: 'Este Gmail ya está registrado. Inicie sesión.' });
-    }
 
+    const { rows } = await db.query(
+      'SELECT id FROM usuarios WHERE correo = $1 AND verificado = TRUE',
+      [correo]
+    );
+    if (rows[0]) return res.status(409).json({ error: 'Este Gmail ya está registrado. Inicie sesión.' });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const { code, hash } = makeCode(jwtSecret);
+    await persistCode({
+      correo, codeHash: hash, proposito: 'registro', nombre,
+      passwordHash, accepted
+    });
     try {
-      const passwordHash = await bcrypt.hash(password, 10);
-      const { code, hash } = makeCode(jwtSecret);
-      persistCode({
-        correo, codeHash: hash, proposito: 'registro', nombre,
-        passwordHash, accepted
-      });
-      try {
-        await sendCode({ correo, nombre, code, purpose: 'registro' });
-      } catch (error) {
-        db.prepare('DELETE FROM codigos_verificacion WHERE correo = ? AND proposito = ?').run(correo, 'registro');
-        console.error('No se pudo enviar el correo de verificación:', error);
-        return res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
-      }
-      res.json({ mensaje: 'Código enviado al Gmail.', correo });
+      await sendCode({ correo, nombre, code, purpose: 'registro' });
     } catch (error) {
-      next(error);
+      await db.query(
+        'DELETE FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+        [correo, 'registro']
+      );
+      console.error('No se pudo enviar el correo de verificación:', error);
+      return res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
     }
-  });
+    res.json({ mensaje: 'Código enviado al Gmail.', correo });
+  }));
 
-  router.post('/verificar', (req, res) => {
+  router.post('/verificar', asyncRoute(async (req, res) => {
     const correo = validGmail(req.body?.correo);
     const code = typeof req.body?.codigo === 'string' ? req.body.codigo.trim() : '';
     if (!correo || !/^\d{6}$/.test(code)) {
       return res.status(400).json({ error: 'Ingrese el Gmail y el código de 6 dígitos.' });
     }
-    const pending = checkCode(correo, 'registro', code, res);
+    const pending = await checkCode(correo, 'registro', code, res);
     if (!pending) return;
-    const transaction = db.transaction(() => {
-      db.prepare(`
-        INSERT INTO usuarios (
-          nombre_completo, correo, contrasena_hash, rol, verificado,
-          acepto_terminos, fecha_aceptacion_terminos
-        ) VALUES (?, ?, ?, 'ciudadano', 1, ?, ?)
-      `).run(pending.nombre_completo, pending.correo, pending.contrasena_hash,
-        pending.acepto_terminos, pending.fecha_aceptacion_terminos);
-      db.prepare('DELETE FROM codigos_verificacion WHERE id = ?').run(pending.id);
-    });
+
     try {
-      transaction();
+      await withTransaction(db, async client => {
+        await client.query(`
+          INSERT INTO usuarios (
+            nombre_completo, correo, contrasena_hash, rol, verificado,
+            acepto_terminos, fecha_aceptacion_terminos
+          ) VALUES ($1, $2, $3, 'ciudadano', TRUE, $4, $5)
+        `, [
+          pending.nombre_completo,
+          pending.correo,
+          pending.contrasena_hash,
+          pending.acepto_terminos,
+          pending.fecha_aceptacion_terminos
+        ]);
+        await client.query('DELETE FROM codigos_verificacion WHERE id = $1', [pending.id]);
+      });
       res.status(201).json({ mensaje: 'Cuenta creada correctamente.', correo });
     } catch (error) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === '23505') {
         return res.status(409).json({ error: 'Este Gmail ya está registrado. Inicie sesión.' });
       }
-      res.status(500).json({ error: 'No se pudo crear la cuenta.' });
+      throw error;
     }
-  });
+  }));
 
   router.post('/registro/reenviar', (req, res, next) => {
     req.codePurpose = 'registro';
     next();
-  }, sendLimiter, sendCodeLimiter(db), async (req, res) => {
+  }, sendLimiter, sendCodeLimiter(db), asyncRoute(async (req, res) => {
     const correo = validGmail(req.body?.correo);
     if (!correo) return res.status(400).json({ error: 'Ingrese una cuenta de Gmail válida (terminada en @gmail.com).' });
-    const pending = db.prepare(`
-      SELECT * FROM codigos_verificacion WHERE correo = ? AND proposito = 'registro'
-    `).get(correo);
+    const { rows } = await db.query(`
+      SELECT * FROM codigos_verificacion WHERE correo = $1 AND proposito = 'registro'
+    `, [correo]);
+    const pending = rows[0];
     if (!pending) return res.status(404).json({ error: 'No hay un registro pendiente. Complete el formulario nuevamente.' });
-    const recent = Date.parse(pending.creado_en.replace(' ', 'T') + 'Z');
+    const recent = Date.parse(pending.creado_en);
     if (Number.isFinite(recent) && Date.now() - recent < RESEND_INTERVAL_MS) {
       return res.status(429).json({ error: 'Espere 60 segundos antes de solicitar otro código.' });
     }
     const { code, hash } = makeCode(jwtSecret);
-    persistCode({
+    await persistCode({
       correo, codeHash: hash, proposito: 'registro', nombre: pending.nombre_completo,
-      passwordHash: pending.contrasena_hash, accepted: Boolean(pending.acepto_terminos)
+      passwordHash: pending.contrasena_hash, accepted: pending.acepto_terminos
     });
     try {
       await sendCode({ correo, nombre: pending.nombre_completo, code, purpose: 'registro' });
       res.json({ mensaje: 'Código reenviado.' });
     } catch (error) {
-      db.prepare('DELETE FROM codigos_verificacion WHERE correo = ? AND proposito = ?').run(correo, 'registro');
+      await db.query(
+        'DELETE FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+        [correo, 'registro']
+      );
       console.error('No se pudo reenviar el correo de verificación:', error);
       res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
     }
-  });
+  }));
 
-  router.post('/login', loginLimiter, (req, res) => {
+  router.post('/login', loginLimiter, asyncRoute(async (req, res) => {
     const correo = normalizeEmail(req.body?.correo);
     const password = req.body?.contrasena;
-    const user = db.prepare('SELECT * FROM usuarios WHERE correo = ? AND verificado = 1').get(correo);
-    if (!user || typeof password !== 'string' || !bcrypt.compareSync(password, user.contrasena_hash)) {
+    const { rows } = await db.query(
+      'SELECT * FROM usuarios WHERE correo = $1 AND verificado = TRUE',
+      [correo]
+    );
+    const user = rows[0];
+    if (!user || typeof password !== 'string' || !await bcrypt.compare(password, user.contrasena_hash)) {
       return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
     }
     res.json({ token: createJwt(user, jwtSecret), usuario: publicUser(user) });
-  });
+  }));
 
   router.post('/restablecer/solicitar', (req, res, next) => {
     req.codePurpose = 'restablecer';
     next();
-  }, sendLimiter, sendCodeLimiter(db), async (req, res) => {
+  }, sendLimiter, sendCodeLimiter(db), asyncRoute(async (req, res) => {
     const correo = validGmail(req.body?.correo);
     if (!correo) return res.status(400).json({ error: 'Ingrese una cuenta de Gmail válida (terminada en @gmail.com).' });
-    const user = db.prepare('SELECT id, nombre_completo FROM usuarios WHERE correo = ? AND verificado = 1').get(correo);
+    const { rows } = await db.query(
+      'SELECT id, nombre_completo FROM usuarios WHERE correo = $1 AND verificado = TRUE',
+      [correo]
+    );
+    const user = rows[0];
     if (!user) return res.json({ mensaje: 'Si la cuenta existe, recibirá un código de restablecimiento.' });
+
     const { code, hash } = makeCode(jwtSecret);
-    persistCode({ correo, codeHash: hash, proposito: 'restablecer', nombre: user.nombre_completo });
+    await persistCode({ correo, codeHash: hash, proposito: 'restablecer', nombre: user.nombre_completo });
     try {
       await sendCode({ correo, nombre: user.nombre_completo, code, purpose: 'restablecer' });
       res.json({ mensaje: 'Si la cuenta existe, recibirá un código de restablecimiento.' });
     } catch (error) {
-      db.prepare('DELETE FROM codigos_verificacion WHERE correo = ? AND proposito = ?').run(correo, 'restablecer');
+      await db.query(
+        'DELETE FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+        [correo, 'restablecer']
+      );
       console.error('No se pudo enviar el correo de restablecimiento:', error);
       res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
     }
-  });
+  }));
 
-  router.post('/restablecer/confirmar', async (req, res) => {
+  router.post('/restablecer/confirmar', asyncRoute(async (req, res) => {
     const correo = validGmail(req.body?.correo);
     const code = typeof req.body?.codigo === 'string' ? req.body.codigo.trim() : '';
     const password = req.body?.nueva_contrasena;
     if (!correo || !/^\d{6}$/.test(code) || typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Ingrese un código válido y una contraseña de al menos 8 caracteres.' });
     }
-    const pending = checkCode(correo, 'restablecer', code, res);
+    const pending = await checkCode(correo, 'restablecer', code, res);
     if (!pending) return;
-    try {
-      const passwordHash = await bcrypt.hash(password, 10);
-      const transaction = db.transaction(() => {
-        db.prepare(`
-          UPDATE usuarios SET contrasena_hash = ?, actualizado_en = CURRENT_TIMESTAMP
-          WHERE correo = ? AND verificado = 1
-        `).run(passwordHash, correo);
-        db.prepare('DELETE FROM codigos_verificacion WHERE id = ?').run(pending.id);
-      });
-      transaction();
-      res.json({ mensaje: 'Contraseña actualizada correctamente.' });
-    } catch {
-      res.status(500).json({ error: 'No se pudo actualizar la contraseña.' });
-    }
-  });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await withTransaction(db, async client => {
+      await client.query(`
+        UPDATE usuarios SET contrasena_hash = $1, actualizado_en = CURRENT_TIMESTAMP
+        WHERE correo = $2 AND verificado = TRUE
+      `, [passwordHash, correo]);
+      await client.query('DELETE FROM codigos_verificacion WHERE id = $1', [pending.id]);
+    });
+    res.json({ mensaje: 'Contraseña actualizada correctamente.' });
+  }));
 
   return router;
 }

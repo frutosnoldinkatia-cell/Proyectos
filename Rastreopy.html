@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es-PY">
+<html lang="es-PY" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,156 +8,17 @@
   <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <style>
-    /* SISTEMA DE DISEÑO INSTITUCIONAL (SOBRIO & CONFIAble) */
-    :root {
-      --navy-primary: #0B2545;
-      --navy-dark: #07192F;
-      --red-accent: #B3261E;
-      --bg-neutral: #F4F6F8;
-      --surface-white: #FFFFFF;
-      --border-color: #D0D7DE;
-      --text-main: #1F2937;
-      --text-muted: #6B7280;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: var(--navy-dark); color: var(--text-main); min-height: 100vh; display: flex; justify-content: center; }
-    
-    .app-container { width: 100%; max-width: 520px; background: var(--surface-white); min-height: 100vh; display: flex; flex-direction: column; position: relative; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); }
-    
-    /* Header Institucional */
-    header { background: var(--navy-primary); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--red-accent); }
-    .brand-title { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; color: white; }
-    
-    /* Icono Menú Hamburguesa en CSS Puro */
-    .menu-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; color: white; font-size: 12px; font-weight: 600; padding: 4px; }
-    .hamburger-icon { width: 16px; height: 12px; display: flex; flex-direction: column; justify-content: space-between; }
-    .hamburger-line { width: 100%; height: 2px; background-color: white; border-radius: 1px; }
-
-    /* Botones Rectangulares Planos */
-    .btn { border: 1px solid transparent; padding: 10px 16px; border-radius: 4px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background-color 0.15s ease; display: inline-flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; text-align: center; }
-    .btn-primary { background: var(--navy-primary); color: white; }
-    .btn-primary:hover { background: var(--navy-dark); }
-    .btn-red { background: var(--red-accent); color: white; }
-    .btn-red:hover { background: #8C1D18; }
-    .btn-outline { border-color: var(--border-color); background: white; color: var(--text-main); }
-    .btn-outline:hover { background: var(--bg-neutral); }
-    .btn-sm { padding: 5px 10px; font-size: 11px; }
-    
-    /* Drawer Lateral Slid-in */
-    .drawer-overlay { position: fixed; inset: 0; background: rgba(7, 25, 47, 0.6); z-index: 1050; }
-    .drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; background: var(--navy-dark); color: white; z-index: 1100; transform: translateX(-100%); transition: transform 0.25s ease-in-out; display: flex; flex-direction: column; justify-content: space-between; }
-    .drawer.open { transform: translateX(0); }
-    .drawer-header { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
-    .drawer-item { display: block; padding: 14px 16px; color: #E5E7EB; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.05); background: transparent; text-align: left; cursor: pointer; font-size: 13px; font-weight: 500; border-left: 3px solid transparent; width: 100%; }
-    .drawer-item:hover { background: rgba(255,255,255,0.05); border-left-color: var(--red-accent); color: white; }
-    
-    /* Componentes & Tarjetas */
-    .card { background: white; border-radius: 4px; padding: 14px; border: 1px solid var(--border-color); margin-bottom: 12px; }
-    .status-tag { padding: 2px 6px; border-radius: 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; border: 1px solid var(--border-color); display: inline-block; }
-    .status-VALIDADO { background: #E6F4EA; color: #137333; border-color: #CEEAD6; }
-    .status-PENDIENTE { background: #FEF7E0; color: #B06000; border-color: #FEEFC3; }
-    .status-EN_SEGUIMIENTO { background: #E8F0FE; color: #1A73E8; border-color: #D2E3FC; }
-    .status-LOCALIZADO, .status-CERRADO { background: #F1F3F4; color: #5F6368; border-color: #E0E0E0; }
-    .status-RECHAZADO { background: #FCE8E6; color: #C5221F; border-color: #FAD2CF; }
-
-    /* Estilos del Mapa Real */
-    .map-container { height: 260px; width: 100%; border-radius: 4px; border: 1px solid var(--border-color); position: relative; z-index: 1; }
-    .map-legend { font-size: 11px; color: var(--text-muted); background: var(--bg-neutral); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); margin-top: 6px; }
-
-    /* Formularios Sobrios */
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
-    .form-control { width: 100%; padding: 9px 12px; border-radius: 4px; border: 1px solid var(--border-color); font-size: 13px; outline: none; background: #FAFAFA; color: var(--text-main); }
-    .form-control:focus { border-color: var(--navy-primary); background: white; }
-
-    /* Utilidades */
-    .hidden { display: none !important; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .no-photo-box { width: 75px; height: 90px; background: #E5E7EB; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10px; color: var(--text-muted); padding: 4px; border-radius: 2px; flex-shrink: 0; }
-
-    /* Shared visual system for every dynamically rendered view. */
-    body { justify-content: center; background: var(--bg-neutral); }
-    .app-container { max-width: 1440px; border: 0; }
-    header#topHeader { min-height: 68px; padding: 10px clamp(16px, 4vw, 56px); background: white; color: var(--navy-primary); border-bottom: 1px solid var(--border-color); }
-    .brand-title { color: var(--navy-primary); letter-spacing: 0; }
-    #topHeader button { color: var(--navy-primary) !important; }
-    #topHeader #notifBadge { color: white !important; }
-    .hamburger-line { height: 1px; border-radius: 0; background: var(--navy-primary); }
-    .drawer { background: white; color: var(--text-main); box-shadow: 5px 0 18px rgba(11,37,69,.12); }
-    .drawer-header { border-color: var(--border-color); }
-    .drawer-header span, .drawer-header button { color: var(--navy-primary) !important; }
-    .drawer-item { color: var(--text-main); border-color: var(--border-color); border-left-width: 2px; }
-    .drawer-item:hover { background: var(--bg-neutral); border-left-color: var(--navy-primary); color: var(--navy-primary); }
-    #drawer [style*="background:rgba"] { background: var(--bg-neutral) !important; border-color: var(--border-color) !important; }
-    #drawer [style*="color:#9CA3AF"] { color: var(--text-muted) !important; }
-    #drawer [style*="border-top: 1px solid rgba"] { border-color: var(--border-color) !important; }
-    #mainContent { background: var(--bg-neutral) !important; }
-    #mainContent > div { width: 100%; max-width: 1080px; align-self: center; padding: 28px clamp(16px, 4vw, 42px) !important; }
-    .card { border-radius: 4px; border-color: var(--border-color); box-shadow: none; }
-    .btn { border-radius: 4px; box-shadow: none; transition: background-color .15s ease; }
-    .btn-primary { background: var(--navy-primary); }
-    .btn-red { background: var(--red-accent); }
-    .status-tag { border-radius: 2px; background: white !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
-    .status-VALIDADO { color: var(--navy-primary) !important; }
-    .status-PENDIENTE, .status-RECHAZADO { color: var(--red-accent) !important; }
-    .status-EN_SEGUIMIENTO { color: #315C78 !important; }
-    .status-PENDIENTE, .status-RECHAZADO { border-color: var(--border-color) !important; }
-    .card [style*="background:#FEF7E0"] { background: white !important; border-color: var(--border-color) !important; }
-    .card [style*="color:#B06000"] { color: var(--red-accent) !important; }
-    .card [style*="color:#137333"] { color: var(--navy-primary) !important; }
-    .card [style*="background:#137333"] { background: var(--navy-primary) !important; }
-    .card [style*="color:#1A73E8"], .card [style*="color:#C5221F"] { color: var(--navy-primary) !important; }
-    .drawer-item[style*="#FBBF24"] { color: var(--navy-primary) !important; }
-    .legal-view { background: white !important; color: var(--text-main) !important; }
-    .legal-view h1, .legal-view strong { color: var(--navy-primary) !important; }
-    .legal-view > div > div:nth-child(2) { background: var(--bg-neutral) !important; color: var(--text-main) !important; border-color: var(--border-color) !important; }
-    .legal-view > div > div:nth-child(2) strong { color: var(--navy-primary) !important; }
-    .legal-view label, .legal-view label span { color: var(--text-main) !important; }
-    .auth-view { background: var(--bg-neutral) !important; }
-    .auth-view h2 { font-size: 23px !important; }
-    .auth-view .card { padding: 22px; }
-    .auth-tabs { background: #E9EDF1 !important; }
-    .auth-panel { width: 100%; max-width: 460px; align-self: center; }
-    .form-group label { letter-spacing: 0; }
-    .map-container { height: 410px; border-radius: 3px; }
-    #reportMap, #leadMap { height: 300px; }
-    .map-legend { background: white; border-radius: 3px; line-height: 1.5; }
-    .map-load-error { position: absolute; z-index: 500; right: 10px; bottom: 10px; left: 10px; padding: 9px 12px; border: 1px solid var(--border-color); background: white; color: var(--text-main); font-size: 12px; }
-    .case-row { gap: 16px !important; padding: 15px !important; border: 0; border-bottom: 1px solid var(--border-color); border-radius: 0; background: white; }
-    .case-row .no-photo-box, .case-row img { width: 100px !important; height: 118px !important; border-radius: 2px !important; }
-    .no-photo-box { background: #E9EDF1; }
-    .clue-marker { width: 12px !important; height: 12px !important; border: 2px solid white !important; border-radius: 1px !important; background: #315C78 !important; box-shadow: 0 0 0 1px #315C78; }
-    .location-marker { width: 14px !important; height: 14px !important; border: 2px solid white !important; border-radius: 50% !important; background: var(--navy-primary) !important; box-shadow: 0 0 0 1px var(--navy-primary); }
-    @media (max-width: 760px) {
-      header#topHeader { gap: 8px; padding-inline: 12px; }
-      .menu-btn { gap: 6px; }
-      #topHeader > div:last-child { gap: 7px !important; }
-      #topHeader button { font-size: 11px !important; }
-      .map-container { height: 320px; }
-      #reportMap, #leadMap { height: 260px; }
-      .case-row .no-photo-box, .case-row img { width: 76px !important; height: 94px !important; }
-    }
-    @media (max-width: 430px) {
-      header#topHeader { flex-wrap: wrap; }
-      .brand-title { font-size: 12px; }
-      #mainContent > div { padding: 16px 12px !important; }
-      .case-row { gap: 10px !important; padding: 11px 0 !important; }
-      .case-row .status-tag { font-size: 8px; }
-    }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
   <div class="app-container">
+    <button id="publicThemeToggle" class="public-theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
 
     <!-- BARRA SUPERIOR SOBRIA -->
     <header id="topHeader" class="hidden">
-      <div style="display:flex; align-items:center; gap: 12px;">
-        <button onclick="toggleDrawer(true)" class="menu-btn">
+      <div>
+        <button type="button" onclick="toggleDrawer(true)" class="menu-btn" aria-label="Abrir menú">
           <div class="hamburger-icon">
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
@@ -165,88 +26,89 @@
           </div>
           <span>Menú</span>
         </button>
-        <span class="brand-title" onclick="navigateTo('feed')" style="cursor:pointer;">RASTREO PY</span>
+        <span class="brand-title" onclick="navigateTo('feed')">Rastreo PY</span>
       </div>
-      <div style="display:flex; align-items:center; gap: 12px;">
-        <button onclick="toggleNotificationsModal()" style="background:none; border:none; color:white; font-size:12px; font-weight:600; cursor:pointer;">
-          Notificaciones <span id="notifBadge" class="hidden" style="background:var(--red-accent); color:white; font-size:10px; padding:1px 5px; border-radius:2px;">0</span>
+      <div>
+        <button id="themeToggle" type="button" onclick="toggleTheme()">Tema claro</button>
+        <button type="button" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">
+          Notificaciones <span id="notifBadge" class="hidden">0</span>
         </button>
-        <button onclick="logout()" style="background:none; border:none; color:#D0D7DE; font-size:12px; cursor:pointer;">Cerrar sesión</button>
+        <button onclick="logout()">Cerrar sesión</button>
       </div>
     </header>
 
     <!-- PANEL LATERAL (DRAWER) -->
     <div id="drawerOverlay" onclick="toggleDrawer(false)" class="drawer-overlay hidden"></div>
-    <aside id="drawer" class="drawer">
+    <aside id="drawer" class="drawer" aria-label="Menú principal">
       <div>
         <div class="drawer-header">
-          <span style="font-weight:700; font-size:14px; letter-spacing:0.5px;">RASTREO PY</span>
-          <button onclick="toggleDrawer(false)" style="background:none; border:none; color:white; font-size:14px; cursor:pointer;">Cerrar</button>
+          <span>Rastreo PY</span>
+          <button type="button" onclick="toggleDrawer(false)" aria-label="Cerrar menú">Cerrar</button>
         </div>
         
-        <div style="padding:14px 16px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.1);">
-          <p id="drawerUserName" style="font-weight:600; font-size:13px; color:white;">Usuario</p>
-          <p id="drawerUserRole" style="font-size:11px; color:#9CA3AF;">Ciudadano</p>
+        <div>
+          <p id="drawerUserName">Usuario</p>
+          <p id="drawerUserRole">Ciudadano</p>
         </div>
 
-        <nav style="padding-top:8px;">
-          <button onclick="drawerNavigate('feed')" class="drawer-item">Casos activos y mapa</button>
+        <nav>
           <button onclick="drawerNavigate('lead')" class="drawer-item">Generar pista sobre alguna desaparición</button>
-          <button onclick="drawerNavigate('stats')" class="drawer-item">Ver estadísticas de personas desaparecidas</button>
+          <button onclick="drawerNavigate('stats')" class="drawer-item">Ver estadísticas de personas desaparecidas y encontradas</button>
           <button onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
-          <div id="adminDrawerOption" class="hidden" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">
-            <button onclick="drawerNavigate('admin')" class="drawer-item" style="color:#FBBF24;">Panel de administración</button>
+          <div id="adminDrawerOption" class="hidden">
+            <button onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
           </div>
         </nav>
       </div>
 
-      <div style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:8px;">
-        <button onclick="toggleSimulateTimeModal()" class="btn btn-outline" style="color:white; border-color:rgba(255,255,255,0.2); font-size:11px;">Simulador de tiempo (+3 días)</button>
-        <button onclick="logout()" class="btn btn-red" style="font-size:12px;">Cerrar sesión</button>
+      <div>
+        <button onclick="toggleSimulateTimeModal()" class="btn btn-outline">Simulador de tiempo (+3 días)</button>
+        <button onclick="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
     </aside>
 
     <!-- CONTENEDOR DINÁMICO DE VISTAS -->
-    <main id="mainContent" style="flex:1; display:flex; flex-direction:column; overflow-y:auto; background:var(--bg-neutral);">
+    <main id="mainContent">
       <!-- Vistas renderizadas dinámicamente -->
     </main>
+    <footer class="app-footer">Rastreo PY · Plataforma colaborativa de búsqueda de personas desaparecidas · Paraguay</footer>
 
   </div>
 
   <!-- NOTIFICACIÓN / TOAST -->
-  <div id="toastNotification" class="hidden" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:2000; width:90%; max-width:400px; background:var(--navy-dark); color:white; padding:14px; border-radius:4px; border-left:4px solid var(--red-accent); box-shadow:0 4px 12px rgba(0,0,0,0.3); display:flex; justify-content:space-between; align-items:center;">
+  <div id="toastNotification" class="hidden">
     <div>
-      <p id="toastTitle" style="font-weight:700; font-size:12px; color:white;">Notificación</p>
-      <p id="toastMessage" style="font-size:11px; color:#D1D5DB; margin-top:2px;">Mensaje de sistema</p>
+      <p id="toastTitle">Notificación</p>
+      <p id="toastMessage">Mensaje de sistema</p>
     </div>
-    <button onclick="hideToast()" style="background:none; border:none; color:#9CA3AF; cursor:pointer; font-size:12px;">Ocultar</button>
+    <button onclick="hideToast()">Cerrar</button>
   </div>
 
   <!-- MODAL DE CENTRO DE NOTIFICACIONES -->
-  <div id="notifModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; justify-content:center; align-items:center; padding:16px;">
-    <div style="background:white; border-radius:4px; width:100%; max-width:420px; max-height:80vh; display:flex; flex-direction:column; border:1px solid var(--border-color);">
-      <div style="padding:12px 16px; background:var(--navy-primary); color:white; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:700; font-size:13px;">Centro de Notificaciones</span>
-        <button onclick="toggleNotificationsModal()" style="background:none; border:none; color:white; font-size:12px; cursor:pointer;">Cerrar</button>
+  <div id="notifModal" class="hidden">
+    <div>
+      <div>
+        <span>Centro de Notificaciones</span>
+        <button type="button" onclick="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
       </div>
-      <div id="notifList" style="padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;">
+      <div id="notifList">
         <!-- Lista de notificaciones -->
       </div>
-      <div style="padding:10px; background:var(--bg-neutral); text-align:center; border-top:1px solid var(--border-color);">
-        <button onclick="clearNotifs()" style="background:none; border:none; color:var(--red-accent); font-size:11px; font-weight:600; cursor:pointer;">Marcar todas como leídas</button>
+      <div>
+        <button onclick="clearNotifs()">Marcar todas como leídas</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL SIMULADOR DE TIEMPO -->
-  <div id="simTimeModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; justify-content:center; align-items:center; padding:16px;">
-    <div style="background:white; border-radius:4px; width:100%; max-width:360px; padding:20px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--border-color);">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:700; font-size:14px; color:var(--navy-primary);">Simulador de seguimiento</span>
-        <button onclick="toggleSimulateTimeModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">Cerrar</button>
+  <div id="simTimeModal" class="hidden">
+    <div>
+      <div>
+        <span>Simulador de seguimiento</span>
+        <button onclick="toggleSimulateTimeModal()">Cerrar</button>
       </div>
-      <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">Avanza 3 días en el sistema para simular la consulta automática de seguimiento a los reportantes de casos activos.</p>
-      <button onclick="runTimeFastForward()" class="btn btn-primary" style="width:100%;">Avanzar 3 días ahora</button>
+      <p>Avanza 3 días en el sistema para simular la consulta automática de seguimiento a los reportantes de casos activos.</p>
+      <button onclick="runTimeFastForward()" class="btn btn-primary">Avanzar 3 días ahora</button>
     </div>
   </div>
 
@@ -426,17 +288,22 @@
       if (!store.currentUser && view !== 'otp') {
         header.classList.add('hidden');
         main.innerHTML = renderAuthScreen(params.authMode || 'login', params.identifier || '');
+        document.getElementById('publicThemeToggle').classList.remove('hidden');
+        labelButtons(main);
         return;
       }
 
       if (store.currentUser && !store.currentUser.acepto_terminos) {
         header.classList.add('hidden');
         main.innerHTML = renderLegalTerms();
+        document.getElementById('publicThemeToggle').classList.remove('hidden');
+        labelButtons(main);
         return;
       }
 
       if (store.currentUser) {
         header.classList.remove('hidden');
+        document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
       } else {
         header.classList.add('hidden');
@@ -447,7 +314,7 @@
       }
 
       if (view === 'admin' && (!store.currentUser || store.currentUser.rol !== 'administrador')) {
-        alert('Acceso restringido únicamente para personal autorizado del Ente Regulador.');
+        showToast('Acceso restringido', 'Acceso restringido únicamente para personal autorizado del Ente Regulador.', 'error');
         view = 'feed';
       }
       if (view === 'admin') {
@@ -455,7 +322,7 @@
           await apiRequest('/admin/health');
         } catch (error) {
           if (error.status === 403) {
-            alert('Acceso restringido únicamente para personal autorizado del Ente Regulador.');
+            showToast('Acceso restringido', 'Acceso restringido únicamente para personal autorizado del Ente Regulador.', 'error');
             view = 'feed';
           } else {
             showToast('Error de acceso', error.message);
@@ -531,6 +398,7 @@
           initMainLeafletMap();
       }
 
+      labelButtons(main);
       function replaceBackendCollections(casos, pistas) {
         window.backendCaseData = { casos, pistas };
       }
@@ -539,7 +407,33 @@
       updateNotifBadge();
     }
 
-    function drawerNavigate(view) { navigateTo(view); }
+    function drawerNavigate(view) {
+      document.querySelectorAll('.drawer-item').forEach(item => item.classList.remove('active'));
+      document.querySelector(`.drawer-item[onclick="drawerNavigate('${view}')"]`)?.classList.add('active');
+      navigateTo(view);
+    }
+
+    function applyTheme(theme) {
+      const selectedTheme = theme === 'light' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = selectedTheme;
+      const button = document.getElementById('themeToggle');
+      if (button) button.textContent = selectedTheme === 'dark' ? 'Tema claro' : 'Tema oscuro';
+      const publicButton = document.getElementById('publicThemeToggle');
+      if (publicButton) publicButton.textContent = selectedTheme === 'dark' ? 'Tema claro' : 'Tema oscuro';
+    }
+
+    function toggleTheme() {
+      const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('rastreo_theme', nextTheme);
+      applyTheme(nextTheme);
+    }
+
+    function labelButtons(container = document) {
+      container.querySelectorAll('button:not([aria-label])').forEach(button => {
+        const label = button.textContent.trim();
+        if (label) button.setAttribute('aria-label', label);
+      });
+    }
 
     function toggleDrawer(open) {
       const drawer = document.getElementById('drawer');
@@ -564,35 +458,35 @@
     // ==========================================
     function renderLegalTerms() {
       return `
-        <div class="legal-view" style="padding:24px; flex:1; display:flex; flex-direction:column; justify-content:space-between; background:var(--navy-dark); color:white; min-height:100vh;">
-          <div style="display:flex; flex-direction:column; gap:16px;">
-            <div style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
-              <p style="font-size:11px; font-weight:700; letter-spacing:1px; color:#9CA3AF; text-transform:uppercase;">República del Paraguay</p>
-              <h1 style="font-size:20px; font-weight:700; margin-top:4px;">Plataforma Rastreo PY</h1>
-              <p style="font-size:11px; color:#D1D5DB; margin-top:2px;">Bases y Condiciones Obligatorias de Uso</p>
+        <div class="legal-view">
+          <div>
+            <div>
+              <p>República del Paraguay</p>
+              <h1>Plataforma Rastreo PY</h1>
+              <p>Bases y Condiciones Obligatorias de Uso</p>
             </div>
 
-            <div style="background:rgba(255,255,255,0.05); border-radius:4px; padding:16px; font-size:11px; color:#D1D5DB; display:flex; flex-direction:column; gap:10px; max-height:52vh; overflow-y:auto; border:1px solid rgba(255,255,255,0.1); line-height:1.5;">
-              <p><strong style="color:white;">1. Alcance del Servicio:</strong> La plataforma Rastreo PY es un canal de difusión colaborativa y centralización de reportes. No constituye un organismo de seguridad, investigación ni administración de justicia, ni reemplaza las actuaciones de la Policía Nacional de Paraguay o del Ministerio Público.</p>
-              <p><strong style="color:white;">2. Obligatoriedad de Denuncia Oficial:</strong> El uso de esta plataforma no sustituye la radicación formal de la denuncia. Se exige al usuario realizar la denuncia correspondiente ante las instituciones públicas oficiales de manera prioritaria y previa a la carga de datos en la plataforma.</p>
-              <p><strong style="color:white;">3. Deslinde de Responsabilidad:</strong> La plataforma, sus desarrolladores y administradores quedan totalmente eximidos de cualquier responsabilidad legal, civil, penal o administrativa respecto a la conducción, seguimiento o resultados de las investigaciones, así como de la veracidad, exactitud o autenticidad de la información e imágenes ingresadas por terceros.</p>
-              <p><strong style="color:white;">4. Tratamiento de Datos Personales (Ley N.º 7593/2025):</strong> El tratamiento y difusión de los datos personales de identificación se realiza al amparo de la excepción legal orientada a la protección de la vida, la integridad física y la seguridad de las personas. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
-              <p><strong style="color:white;">5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la ficha de búsqueda permanecerá visible por un máximo de 24 horas con el estado 'Localizado', a fin de informar a la ciudadanía. Transcurrido ese plazo, la plataforma procederá al retiro y desindexación pública de la ficha. Los datos solo se conservarán, de forma restringida, para el historial interno de la autoridad administradora y como cifras estadísticas agregadas.</p>
-              <p><strong style="color:white;">6. Uso Aceptable:</strong> Queda estrictamente prohibido el ingreso de reportes falsos, difamatorios o el uso de la plataforma para cometer extorsiones, estafas o cobro indebido de recompensas.</p>
+            <div>
+              <p><strong>1. Alcance del Servicio:</strong> La plataforma Rastreo PY es un canal de difusión colaborativa y centralización de reportes. No constituye un organismo de seguridad, investigación ni administración de justicia, ni reemplaza las actuaciones de la Policía Nacional de Paraguay o del Ministerio Público.</p>
+              <p><strong>2. Obligatoriedad de Denuncia Oficial:</strong> El uso de esta plataforma no sustituye la radicación formal de la denuncia. Se exige al usuario realizar la denuncia correspondiente ante las instituciones públicas oficiales de manera prioritaria y previa a la carga de datos en la plataforma.</p>
+              <p><strong>3. Deslinde de Responsabilidad:</strong> La plataforma, sus desarrolladores y administradores quedan totalmente eximidos de cualquier responsabilidad legal, civil, penal o administrativa respecto a la conducción, seguimiento o resultados de las investigaciones, así como de la veracidad, exactitud o autenticidad de la información e imágenes ingresadas por terceros.</p>
+              <p><strong>4. Tratamiento de Datos Personales (Ley N.º 7593/2025):</strong> El tratamiento y difusión de los datos personales de identificación se realiza al amparo de la excepción legal orientada a la protección de la vida, la integridad física y la seguridad de las personas. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
+              <p><strong>5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la ficha de búsqueda permanecerá visible por un máximo de 24 horas con el estado 'Localizado', a fin de informar a la ciudadanía. Transcurrido ese plazo, la plataforma procederá al retiro y desindexación pública de la ficha. Los datos solo se conservarán, de forma restringida, para el historial interno de la autoridad administradora y como cifras estadísticas agregadas.</p>
+              <p><strong>6. Uso Aceptable:</strong> Queda estrictamente prohibido el ingreso de reportes falsos, difamatorios o el uso de la plataforma para cometer extorsiones, estafas o cobro indebido de recompensas.</p>
             </div>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
-            <label style="display:flex; align-items:center; gap:8px; font-size:11px; color:#D1D5DB; cursor:pointer;">
-              <input type="checkbox" id="checkTerms" style="accent-color:var(--red-accent);">
+          <div>
+            <label>
+              <input type="checkbox" id="checkTerms">
               <span>He leído y acepto expresamente las bases y condiciones.</span>
             </label>
-            <div id="termsSaveError" class="hidden" role="alert" style="color:#FECACA; font-size:12px; line-height:1.5;">
+            <div id="termsSaveError" class="hidden" role="alert">
               <span id="termsSaveErrorText"></span>
-              <button type="button" onclick="retryTermsAcceptance()" class="btn btn-outline btn-sm" style="width:100%; margin-top:8px;">Reintentar</button>
+              <button type="button" onclick="retryTermsAcceptance()" class="btn btn-outline btn-sm">Reintentar</button>
             </div>
             <div class="grid-2">
-              <button onclick="rejectTerms()" class="btn btn-outline" style="color:white; border-color:rgba(255,255,255,0.2);">No aceptar</button>
+              <button onclick="rejectTerms()" class="btn btn-outline">No aceptar</button>
               <button id="acceptTermsButton" onclick="acceptTerms()" class="btn btn-red">Aceptar y Continuar</button>
             </div>
           </div>
@@ -610,7 +504,7 @@
 
     async function acceptTerms() {
       if (!document.getElementById('checkTerms').checked) {
-        alert('Debe declarar la aceptación de los términos para utilizar el portal.');
+        showToast('Importante', 'Debe declarar la aceptación de los términos para utilizar el portal.', 'error');
         return;
       }
       const button = document.getElementById('acceptTermsButton');
@@ -633,7 +527,7 @@
       await acceptTerms();
     }
 
-    function rejectTerms() { alert('Acceso denegado. No es posible acceder sin aceptar las bases y condiciones.'); }
+    function rejectTerms() { showToast('Acceso denegado', 'No es posible acceder sin aceptar las bases y condiciones.', 'error'); }
 
     // ==========================================
     // VISTA 2: ACCESO E INICIO DE SESIÓN (SECCIÓN 4)
@@ -643,20 +537,20 @@
       const notice = window.authNotice || '';
       window.authNotice = '';
       return `
-        <div class="auth-view" style="padding:24px; flex:1; display:flex; flex-direction:column; justify-content:center; background:var(--bg-neutral); min-height:100vh;">
-          <div style="text-align:center; margin-bottom:20px;">
-            <h2 style="font-size:18px; font-weight:700; color:var(--navy-primary);">Portal de Acceso - Rastreo PY</h2>
-            <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">Plataforma Oficial Colaborativa</p>
+        <div class="auth-view">
+          <div>
+            <h2>Portal de Acceso - Rastreo PY</h2>
+            <p>Plataforma Oficial Colaborativa</p>
           </div>
 
-          <div class="auth-tabs" style="background:#E5E7EB; padding:3px; border-radius:4px; display:flex; margin-bottom:16px; border:1px solid var(--border-color);">
-            <button onclick="navigateTo('auth', {authMode: 'login'})" style="flex:1; padding:8px; border:none; border-radius:2px; font-weight:600; font-size:12px; cursor:pointer; background:${isLogin ? 'white' : 'transparent'}; color:${isLogin ? 'var(--navy-primary)' : 'var(--text-muted)'}">Iniciar sesión</button>
-            <button onclick="navigateTo('auth', {authMode: 'register'})" style="flex:1; padding:8px; border:none; border-radius:2px; font-weight:600; font-size:12px; cursor:pointer; background:${!isLogin ? 'white' : 'transparent'}; color:${!isLogin ? 'var(--navy-primary)' : 'var(--text-muted)'}">Crear cuenta</button>
+          <div class="auth-tabs">
+            <button class="${isLogin ? 'active' : ''}" onclick="navigateTo('auth', {authMode: 'login'})">Iniciar sesión</button>
+            <button class="${isLogin ? '' : 'active'}" onclick="navigateTo('auth', {authMode: 'register'})">Crear cuenta</button>
           </div>
 
           <div class="card auth-panel">
             ${isLogin ? renderLoginForm(identifier) : renderRegisterForm()}
-            <div id="authFeedback" class="${notice ? '' : 'hidden'}" role="status" style="margin-top:12px; color:var(--red-accent); font-size:12px; line-height:1.5;">${escapeHtml(notice)}</div>
+            <div id="authFeedback" class="${notice ? '' : 'hidden'}" role="status">${escapeHtml(notice)}</div>
           </div>
         </div>
       `;
@@ -671,15 +565,15 @@
           </div>
           <div class="form-group">
             <label>Contraseña</label>
-            <div style="position:relative;">
+            <div>
               <input type="password" id="loginPassword" required placeholder="Contraseña" class="form-control">
-              <button type="button" onclick="togglePass('loginPassword')" style="position:absolute; right:10px; top:8px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px;">Mostrar</button>
+              <button type="button" onclick="togglePass('loginPassword')">Mostrar</button>
             </div>
           </div>
-          <div style="text-align:right; margin-bottom:12px;">
-            <button type="button" onclick="handleForgotPassword()" style="background:none; border:none; color:var(--navy-primary); font-size:11px; font-weight:600; cursor:pointer;">¿Olvidaste tu contraseña?</button>
+          <div>
+            <button type="button" onclick="handleForgotPassword()">¿Olvidaste tu contraseña?</button>
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">Ingresar al sistema</button>
+          <button type="submit" class="btn btn-primary">Ingresar al sistema</button>
         </form>
       `;
     }
@@ -697,24 +591,24 @@
           </div>
           <div class="form-group">
             <label>Contraseña (mínimo 8 caracteres)</label>
-            <div style="position:relative;">
+            <div>
               <input type="password" id="regPass" required minlength="8" oninput="updatePasswordStrength()" placeholder="Mínimo 8 caracteres" class="form-control">
-              <button type="button" onclick="togglePass('regPass')" style="position:absolute; right:10px; top:8px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px;">Mostrar</button>
+              <button type="button" onclick="togglePass('regPass')">Mostrar</button>
             </div>
-            <div id="passwordStrength" aria-live="polite" style="font-size:11px; color:var(--text-muted); margin-top:4px;">Fortaleza de la contraseña: sin evaluar</div>
+            <div id="passwordStrength" aria-live="polite">Fortaleza de la contraseña: sin evaluar</div>
           </div>
           <div class="form-group">
             <label>Confirmar contraseña</label>
-            <div style="position:relative;">
+            <div>
               <input type="password" id="regPassConfirm" required minlength="8" placeholder="Repita la contraseña" class="form-control">
-              <button type="button" onclick="togglePass('regPassConfirm')" style="position:absolute; right:10px; top:8px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px;">Mostrar</button>
+              <button type="button" onclick="togglePass('regPassConfirm')">Mostrar</button>
             </div>
           </div>
-          <label style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-main); cursor:pointer; margin-bottom:12px;">
-            <input type="checkbox" id="regTerms" required style="accent-color:var(--red-accent);">
+          <label>
+            <input type="checkbox" id="regTerms" required>
             <span>He leído y acepto las bases y condiciones</span>
           </label>
-          <button type="submit" class="btn btn-red" style="width:100%;">Enviar código al Gmail</button>
+          <button type="submit" class="btn btn-red">Enviar código al Gmail</button>
         </form>
       `;
     }
@@ -778,7 +672,9 @@
       const labels = ['sin evaluar', 'débil', 'media', 'buena', 'fuerte'];
       const indicator = document.getElementById('passwordStrength');
       indicator.textContent = `Fortaleza de la contraseña: ${labels[score]}`;
-      indicator.style.color = score < 2 ? 'var(--red-accent)' : score < 4 ? '#B06000' : '#137333';
+      indicator.classList.toggle('password-weak', score < 2);
+      indicator.classList.toggle('password-medium', score >= 2 && score < 4);
+      indicator.classList.toggle('password-strong', score >= 4);
     }
 
     async function handleLogin(e) {
@@ -888,16 +784,16 @@
       activeOtpPurpose = params.purpose || activeOtpPurpose;
       const isReset = activeOtpPurpose === 'restablecer';
       return `
-        <div style="padding:24px; flex:1; display:flex; flex-direction:column; justify-content:center; background:var(--bg-neutral); min-height:100vh;">
-          <div class="card" style="text-align:center;">
-            <h3 style="font-size:15px; font-weight:700; color:var(--navy-primary); margin-bottom:6px;">${isReset ? 'Restablecer contraseña' : 'Verificar correo'}</h3>
-            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Hemos enviado un código de 6 dígitos a <strong>${escapeHtml(activeOtpEmail)}</strong></p>
-            <input type="text" id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-label="Código de 6 dígitos" style="font-size:22px; letter-spacing:6px; text-align:center; font-family:monospace;" class="form-control">
-            ${isReset ? `<div class="form-group" style="margin-top:12px;text-align:left;"><label>Nueva contraseña</label><input id="resetPassword" type="password" minlength="8" class="form-control" placeholder="Mínimo 8 caracteres"></div><div class="form-group" style="text-align:left;"><label>Confirmar contraseña</label><input id="resetPasswordConfirm" type="password" minlength="8" class="form-control" placeholder="Repita la contraseña"></div>` : ''}
-            <div id="otpFeedback" class="hidden" role="status" style="margin-top:10px; color:var(--red-accent); font-size:12px;"></div>
-            <button onclick="verifyEmailCode()" class="btn btn-primary" style="width:100%; margin-top:12px;">${isReset ? 'Cambiar contraseña' : 'Verificar y crear cuenta'}</button>
-            ${!isReset ? `<button id="resendCodeButton" onclick="resendVerificationCode()" class="btn btn-outline" disabled style="width:100%; margin-top:8px;">Reenviar código (60s)</button><button onclick="changeRegistrationEmail()" class="btn btn-outline" style="width:100%; margin-top:8px;">Cambiar correo</button>` : ''}
-            <button onclick="navigateTo('auth', {authMode:'login'})" class="btn btn-outline" style="width:100%; margin-top:8px;">Volver a iniciar sesión</button>
+        <div>
+          <div class="card">
+            <h3>${isReset ? 'Restablecer contraseña' : 'Verificar correo'}</h3>
+            <p>Hemos enviado un código de 6 dígitos a <strong>${escapeHtml(activeOtpEmail)}</strong></p>
+            <input type="text" id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-label="Código de 6 dígitos" class="form-control">
+            ${isReset ? `<div class="form-group"><label>Nueva contraseña</label><input id="resetPassword" type="password" minlength="8" class="form-control" placeholder="Mínimo 8 caracteres"></div><div class="form-group"><label>Confirmar contraseña</label><input id="resetPasswordConfirm" type="password" minlength="8" class="form-control" placeholder="Repita la contraseña"></div>` : ''}
+            <div id="otpFeedback" class="hidden" role="status"></div>
+            <button onclick="verifyEmailCode()" class="btn btn-primary">${isReset ? 'Cambiar contraseña' : 'Verificar y crear cuenta'}</button>
+            ${!isReset ? `<button id="resendCodeButton" onclick="resendVerificationCode()" class="btn btn-outline" disabled>Reenviar código (60s)</button><button onclick="changeRegistrationEmail()" class="btn btn-outline">Cambiar correo</button>` : ''}
+            <button onclick="navigateTo('auth', {authMode:'login'})" class="btn btn-outline">Volver a iniciar sesión</button>
           </div>
         </div>
       `;
@@ -973,26 +869,44 @@
     // ==========================================
     function renderFeedView() {
       const store = getStore();
+      const total = store.casos.length;
+      const encontrados = store.casos.filter(c => c.estado === 'LOCALIZADO' || c.estado === 'CERRADO').length;
+      const activos = store.casos.filter(c => c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO').length;
+      const pendientes = store.casos.filter(c => c.estado === 'PENDIENTE').length;
       return `
-        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <section class="search-hero">
+            <p>CASOS ACTIVOS Y MAPA</p>
+            <h1>Personas <span>desaparecidas</span></h1>
+            <p>Mapa de desapariciones y casos activos.</p>
+            <input type="search" class="form-control" placeholder="Buscar por nombre, apellido o ciudad" aria-label="Buscar por nombre, apellido o ciudad">
+          </section>
+
+          <section class="stats-strip" aria-label="Resumen de casos">
+            <div class="stats-cell"><strong>${total}</strong><span>Personas desaparecidas</span></div>
+            <div class="stats-cell"><strong>${encontrados}</strong><span>Personas encontradas</span></div>
+            <div class="stats-cell"><strong>${activos}</strong><span>Casos activos</span></div>
+            <div class="stats-cell"><strong>${pendientes}</strong><span>Pendientes</span></div>
+          </section>
+
           <!-- MAPA REAL -->
-          <div class="card" style="padding:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <span style="font-size:12px; font-weight:700; color:var(--navy-primary);">Mapa de desapariciones</span>
-              <div style="display:flex; gap:6px;">
+          <div class="card">
+            <div>
+              <span>Mapa de desapariciones</span>
+              <div>
                 <button onclick="useMyLocationOnMap()" class="btn btn-outline btn-sm">Mi ubicación</button>
                 <button onclick="centerMapOnParaguay()" class="btn btn-outline btn-sm">Centrar mapa</button>
               </div>
             </div>
             <div id="mainMap" class="map-container"></div>
             <div class="map-legend">
-              Punto: lugar de desaparición. Círculo: zona de alerta de 60 km. Cuadrado: ubicación de una pista.
+              Punto: lugar de desaparición. Círculo: zona de alerta de 60 km.
             </div>
           </div>
 
           <!-- LISTADO DE CASOS EN FILA HORIZONTAL SOBRIA -->
-          <div style="display:flex; flex-direction:column; gap:10px;">
-            <span style="font-weight:700; font-size:13px; color:var(--navy-primary);">Personas desaparecidas (${store.casos.length})</span>
+          <div class="case-grid">
+            <span class="case-list-title" id="caseListCount">Personas desaparecidas (${store.casos.length})</span>
             ${store.casos.map(c => renderCaseItemRow(c)).join('')}
           </div>
         </div>
@@ -1000,6 +914,7 @@
     }
 
     function renderCaseItemRow(c) {
+      const initials = c.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
       const hoursRemaining = c.visibleHasta
         ? Math.max(0, (new Date(c.visibleHasta).getTime() - Date.now()) / 3600000)
         : null;
@@ -1007,23 +922,23 @@
         ? (hoursRemaining < 1 / 60 ? 'menos de un minuto' : `${Math.ceil(hoursRemaining * 60)} ${Math.ceil(hoursRemaining * 60) === 1 ? 'minuto' : 'minutos'}`)
         : `${hoursRemaining.toFixed(1)} horas`;
       const visibilityNotice = c.estado === 'LOCALIZADO' && hoursRemaining !== null
-        ? `<p style="font-size:10px; color:var(--text-muted); margin-top:4px;">Este caso se retirará de la vista pública en ${timeRemainingText}.</p>`
+        ? `<p>Este caso se retirará de la vista pública en ${timeRemainingText}.</p>`
         : '';
       return `
-        <div id="case-${c.id}" class="case-row card" style="display:flex; gap:12px; margin-bottom:0; cursor:pointer;" onclick="focusCaseOnMap('${c.id}')">
-          <div id="case-photo-${c.id}" class="no-photo-box">Sin fotografía</div>
-          <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between; min-width:0;">
+        <div id="case-${c.id}" class="case-row card" onclick="focusCaseOnMap('${c.id}')">
+          <div id="case-photo-${c.id}" class="no-photo-box" aria-label="Sin fotografía">${initials}</div>
+          <div>
             <div>
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
-                <span style="font-weight:700; font-size:13px; color:var(--navy-primary);" class="truncate">${c.nombreCompleto}</span>
+              <div>
+                <span class="truncate">${c.nombreCompleto}</span>
                 <span class="status-tag status-${c.estado}">${c.estado.replace('_', ' ')}</span>
               </div>
-              <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${c.ciudad} • ${c.edad} años</p>
-              <p style="font-size:11px; color:var(--text-main); margin-top:4px; line-height:1.3;" class="line-clamp-2">${c.descripcionFisica}</p>
+              <p>${c.ciudad}, ${c.edad} años</p>
+              <p class="line-clamp-2">${c.descripcionFisica}</p>
               ${visibilityNotice}
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px solid var(--border-color);">
-              <span style="font-size:10px; color:var(--text-muted);">Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}</span>
+            <div>
+              <span>Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}</span>
               ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button onclick="event.stopPropagation(); navigateTo('lead', {caseId:'${c.id}'})" class="btn btn-outline btn-sm">Aportar pista</button>` : ''}
             </div>
           </div>
@@ -1041,16 +956,16 @@
         image.src = photo;
         image.alt = `Fotografía de ${caseItem.nombreCompleto}`;
         image.className = 'case-photo-image';
-        image.style.cssText = 'width:75px;height:90px;object-fit:cover;border-radius:2px;border:1px solid var(--border-color);flex-shrink:0;';
-        image.addEventListener('error', () => replaceWithMissingPhoto(image), { once: true });
+        image.addEventListener('error', () => replaceWithMissingPhoto(image, caseItem.nombreCompleto), { once: true });
         placeholder.replaceWith(image);
       });
     }
 
-    function replaceWithMissingPhoto(image) {
+    function replaceWithMissingPhoto(image, name = '') {
       const placeholder = document.createElement('div');
       placeholder.className = 'no-photo-box';
-      placeholder.textContent = 'Sin fotografía';
+      placeholder.textContent = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+      placeholder.setAttribute('aria-label', 'Sin fotografía');
       image.replaceWith(placeholder);
     }
 
@@ -1064,11 +979,12 @@
         if (!mapEl) return;
 
         try {
-          const map = L.map('mainMap').setView([-25.2867, -57.6333], 7);
+          const map = L.map('mainMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 7);
+          addTextMapZoomControl(map);
           
           L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
+            attribution: 'OpenStreetMap contributors'
           }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
           const store = getStore();
@@ -1082,12 +998,12 @@
               }).addTo(map);
 
               marker.bindPopup(`
-                <div style="font-size:12px; font-family:sans-serif; line-height:1.4;">
+                <div>
                   <strong>${c.nombreCompleto}</strong><br>
                   ${c.ciudad} (${c.edad} años)<br>
                   Fecha: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}<br>
                   Estado: ${c.estado}<br>
-                  <button onclick="viewCaseOnFeed('${c.id}')" style="margin-top:6px; background:#0B2545; color:white; border:none; padding:6px 10px; border-radius:2px; font-size:11px; cursor:pointer;">Ver caso</button>
+                  <button aria-label="Ver ficha del caso" onclick="viewCaseOnFeed('${c.id}')">Ver caso</button>
                 </div>
               `);
 
@@ -1110,14 +1026,15 @@
             if (!pista.ubicacion || !Number.isFinite(pista.ubicacion.lat) || !Number.isFinite(pista.ubicacion.lng)) return;
             const relatedCase = store.casos.find(caso => caso.id === pista.casoId);
             const clueMarker = L.marker([pista.ubicacion.lat, pista.ubicacion.lng], {
-              icon: L.divIcon({ className: 'clue-marker', html: '', iconSize: [12, 12], iconAnchor: [6, 6] })
+              icon: L.divIcon({ className: 'clue-marker', html: '', iconSize: [12, 12], iconAnchor: [6, 6] }),
+              title: 'Pista reportada'
             }).addTo(map);
-            clueMarker.bindPopup(`<div style="font-size:12px; line-height:1.5;"><strong>Pista reportada</strong><br>${relatedCase ? relatedCase.nombreCompleto : 'Caso'}<br>${pista.descripcion}<br>${new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleDateString()}</div>`);
+            clueMarker.bindPopup(`<div><strong>Pista reportada</strong><br>${relatedCase ? relatedCase.nombreCompleto : 'Caso'}<br>${pista.descripcion}<br>${new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleDateString()}</div>`);
           });
 
           activeMap = map;
         } catch (e) {
-          mapEl.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:var(--red-accent);">No se pudo cargar el mapa. Verifique su conexión.</div>';
+          mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
       }, 100);
     }
@@ -1134,6 +1051,23 @@
       mapEl.appendChild(notice);
     }
 
+    function addTextMapZoomControl(map) {
+      L.control.attribution({ prefix: false }).addTo(map);
+      L.control.zoom({
+        zoomInText: 'Acercar',
+        zoomInTitle: 'Acercar mapa',
+        zoomOutText: 'Alejar',
+        zoomOutTitle: 'Alejar mapa'
+      }).addTo(map);
+      const controls = map.getContainer().querySelectorAll('.leaflet-control-zoom a');
+      controls[0]?.setAttribute('aria-label', 'Acercar mapa');
+      controls[1]?.setAttribute('aria-label', 'Alejar mapa');
+      map.on('popupopen', event => {
+        const closeButton = event.popup.getElement()?.querySelector('.leaflet-popup-close-button');
+        closeButton?.setAttribute('aria-label', 'Cerrar ventana');
+      });
+    }
+
     function viewCaseOnFeed(caseId) {
       const card = document.getElementById(`case-${caseId}`);
       if (card) {
@@ -1144,12 +1078,12 @@
 
     function useMyLocationOnMap() {
       if (!navigator.geolocation) {
-        alert('La geolocalización no está disponible en este navegador.');
+        showToast('Información', 'La geolocalización no está disponible en este navegador.', 'error');
         return;
       }
       navigator.geolocation.getCurrentPosition(position => {
         if (activeMap) activeMap.setView([position.coords.latitude, position.coords.longitude], 13);
-      }, () => alert('No se pudo obtener la ubicación. Verifique los permisos del navegador.'));
+      }, () => showToast('Ubicación no disponible', 'No se pudo obtener la ubicación. Verifique los permisos del navegador.', 'error'));
     }
 
     function focusCaseOnMap(caseId) {
@@ -1165,10 +1099,10 @@
     // ==========================================
     function renderReportView() {
       return `
-        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; align-items:center; gap:8px;">
+        <div>
+          <div>
             <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span style="font-weight:700; font-size:15px; color:var(--navy-primary);">Reportar persona desaparecida</span>
+            <span>Reportar persona desaparecida</span>
           </div>
 
           <form onsubmit="handleReportSubmit(event)" class="card">
@@ -1205,7 +1139,7 @@
 
             <div class="form-group">
               <label>Descripción Física *</label>
-              <textarea id="repFisica" required placeholder="Estatura, tez, tono de cabello..." class="form-control" style="height:55px;"></textarea>
+              <textarea id="repFisica" required placeholder="Estatura, tez, tono de cabello..." class="form-control"></textarea>
             </div>
 
             <div class="form-group">
@@ -1220,39 +1154,39 @@
 
             <!-- GEOLOCALIZADOR CON MAPA REAL Y PIN ARRASTRABLE -->
             <div class="form-group">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <div>
                 <label>Lugar exacto de desaparición *</label>
                 <button type="button" onclick="useBrowserLocation('replat', 'replng', reportMarker, 'repCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
               </div>
               <div id="reportMap" class="map-container"></div>
               <input type="hidden" id="replat" value="-25.2867">
               <input type="hidden" id="replng" value="-57.6333">
-              <p id="repCoordsText" style="font-size:10px; color:var(--text-muted); margin-top:4px;">Coordenadas: -25.2867, -57.6333</p>
+              <p id="repCoordsText">Coordenadas: -25.2867, -57.6333</p>
             </div>
 
             <div class="form-group">
               <label>Fotografía de referencia</label>
               <input type="file" id="repFotoFile" accept="image/jpeg,image/png,image/webp" hidden onchange="handleReportPhotoSelection(event)">
               <button type="button" id="selectReportPhotoButton" class="btn btn-outline" onclick="document.getElementById('repFotoFile').click()">Seleccionar fotografía</button>
-              <div id="reportPhotoPreviewWrap" class="hidden" style="display:flex; align-items:center; gap:10px; margin-top:8px;">
-                <img id="reportPhotoPreview" alt="Vista previa de la fotografía seleccionada" style="width:72px; height:82px; object-fit:cover; border:1px solid var(--border-color);">
-                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <div id="reportPhotoPreviewWrap" class="hidden">
+                <img id="reportPhotoPreview" alt="Vista previa de la fotografía seleccionada">
+                <div>
                   <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('repFotoFile').click()">Cambiar fotografía</button>
                   <button type="button" class="btn btn-outline btn-sm" onclick="removeReportPhoto()">Quitar fotografía</button>
                 </div>
               </div>
-              <p id="reportPhotoError" class="hidden" role="alert" style="font-size:11px; color:var(--red-accent); margin-top:6px;"></p>
+              <p id="reportPhotoError" class="hidden" role="alert"></p>
             </div>
 
             <div class="form-group">
               <label>N.º Denuncia Policial (Opcional)</label>
               <input type="text" id="repDenuncia" placeholder="Ej: DEN-2026-XXXX" class="form-control">
-              <p style="font-size:10px; color:#B06000; background:#FEF7E0; padding:6px; border-radius:2px; margin-top:4px; border:1px solid #FEEFC3;">
+              <p class="notice notice-warning">
                 Aviso: Si no registra número de denuncia, el caso permanecerá en estado PENDIENTE hasta ser verificado por las autoridades.
               </p>
             </div>
 
-            <button type="submit" class="btn btn-red" style="width:100%; margin-top:6px;">Publicar reporte de búsqueda</button>
+            <button type="submit" class="btn btn-red">Publicar reporte de búsqueda</button>
           </form>
         </div>
       `;
@@ -1267,10 +1201,11 @@
         if (!mapEl) return;
 
         try {
-          const map = L.map('reportMap').setView([-25.2867, -57.6333], 12);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          const map = L.map('reportMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
+          addTextMapZoomControl(map);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OpenStreetMap contributors' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
-          reportMarker = L.marker([-25.2867, -57.6333], { draggable: true, icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
+          reportMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Lugar de desaparición', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
           reportMarker.on('dragend', function (e) {
             const coord = e.target.getLatLng();
             document.getElementById('replat').value = coord.lat.toFixed(5);
@@ -1280,7 +1215,7 @@
 
           activeMap = map;
         } catch (e) {
-          mapEl.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px;">No se pudo cargar el mapa. Verifique su conexión.</div>';
+          mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
       }, 100);
     }
@@ -1297,7 +1232,7 @@
             markerObj.setLatLng([lat, lng]);
             activeMap.setView([lat, lng], 14);
           }
-        }, () => alert('No se pudo obtener la localización del navegador.'));
+        }, () => showToast('Ubicación no disponible', 'No se pudo obtener la localización del navegador.', 'error'));
       }
     }
 
@@ -1408,7 +1343,7 @@
       // Validación Ley N.º 6534/2020: Bloqueo de datos financieros o patrimoniales
       const text = (name + ' ' + document.getElementById('repFisica').value).toLowerCase();
       if (text.includes('tarjeta') || text.includes('cuenta') || text.includes('banco') || text.includes('deuda')) {
-        alert('Se prohíbe explícitamente ingresar datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020).');
+        showToast('Importante', 'Se prohíbe explícitamente ingresar datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020).', 'error');
         return;
       }
 
@@ -1437,7 +1372,7 @@
         setReportPhotoError(error.message);
         return;
       }
-      alert('Reporte registrado correctamente.');
+      showToast('Reporte recibido', 'Reporte registrado correctamente.', 'success');
       navigateTo('feed');
     }
 
@@ -1448,23 +1383,23 @@
       const store = getStore();
       const activeCases = store.casos.filter(c => c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' && c.estado !== 'RECHAZADO');
       return `
-        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; align-items:center; gap:8px;">
+        <div>
+          <div>
             <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span style="font-weight:700; font-size:15px; color:var(--navy-primary);">Generar pista ciudadana</span>
+            <span>Generar pista ciudadana</span>
           </div>
 
           <!-- FILTROS SOBRIOS -->
-          <div style="background:var(--bg-neutral); padding:10px; border-radius:4px; border:1px solid var(--border-color);">
-            <p style="font-size:11px; font-weight:700; color:var(--navy-primary); margin-bottom:6px;">Filtros de búsqueda de casos</p>
+          <div>
+            <p>Filtros de búsqueda de casos</p>
             <div class="grid-3">
-              <input type="text" id="fCiudad" oninput="filterLeadCases()" placeholder="Ciudad" class="form-control" style="padding:6px;">
-              <select id="fSexo" onchange="filterLeadCases()" class="form-control" style="padding:6px;">
+              <input type="text" id="fCiudad" oninput="filterLeadCases()" placeholder="Ciudad" class="form-control">
+              <select id="fSexo" onchange="filterLeadCases()" class="form-control">
                 <option value="">Todos</option>
                 <option value="Femenino">Femenino</option>
                 <option value="Masculino">Masculino</option>
               </select>
-              <select id="fEdad" onchange="filterLeadCases()" class="form-control" style="padding:6px;">
+              <select id="fEdad" onchange="filterLeadCases()" class="form-control">
                 <option value="">Edades</option>
                 <option value="0-17">Menores</option>
                 <option value="18+">Adultos</option>
@@ -1482,7 +1417,7 @@
 
             <div class="form-group">
               <label>Detalle de lo visto / Información de la pista *</label>
-              <textarea id="leadDesc" required placeholder="Descripción del avistamiento, vestimenta observada o personas acompañantes..." class="form-control" style="height:65px;"></textarea>
+              <textarea id="leadDesc" required placeholder="Descripción del avistamiento, vestimenta observada o personas acompañantes..." class="form-control"></textarea>
             </div>
 
             <div class="form-group">
@@ -1492,20 +1427,20 @@
 
             <!-- GEOLOCALIZACIÓN DE LA PISTA EN MAPA REAL -->
             <div class="form-group">
-              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px;">
+              <div>
                 <label>Ubicación de la pista en el mapa *</label>
                 <button type="button" onclick="useBrowserLocation('leadlat', 'leadlng', leadMarker, 'leadCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
               </div>
               <div id="leadMap" class="map-container"></div>
               <input type="hidden" id="leadlat" value="-25.2867">
               <input type="hidden" id="leadlng" value="-57.6333">
-              <p id="leadCoordsText" style="font-size:10px; color:var(--text-muted); margin-top:4px;">Coordenadas aproximadas: -25.2867, -57.6333</p>
+              <p id="leadCoordsText">Coordenadas aproximadas: -25.2867, -57.6333</p>
               <div class="map-legend">
                 Marcador azul: punto de avistamiento reportado en la pista.
               </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:6px;">Enviar pista confidencial</button>
+            <button type="submit" class="btn btn-primary">Enviar pista confidencial</button>
           </form>
         </div>
       `;
@@ -1520,10 +1455,11 @@
         if (!mapEl) return;
 
         try {
-          const map = L.map('leadMap').setView([-25.2867, -57.6333], 12);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          const map = L.map('leadMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
+          addTextMapZoomControl(map);
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OpenStreetMap contributors' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
-          leadMarker = L.marker([-25.2867, -57.6333], { draggable: true, icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
+          leadMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Ubicación de la pista', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
           leadMarker.on('dragend', function (e) {
             const coord = e.target.getLatLng();
             document.getElementById('leadlat').value = coord.lat.toFixed(5);
@@ -1533,7 +1469,7 @@
 
           activeMap = map;
         } catch (e) {
-          mapEl.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px;">No se pudo cargar el mapa. Verifique su conexión.</div>';
+          mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
       }, 100);
     }
@@ -1573,7 +1509,7 @@
             }
           }
         });
-        alert('Pista ingresada correctamente.');
+        showToast('Listo', 'Pista ingresada correctamente.', 'success');
         navigateTo('feed');
       } catch (error) {
         showToast('No se pudo enviar la pista', error.message);
@@ -1583,70 +1519,64 @@
     // ==========================================
     // VISTA 6: ESTADÍSTICAS COMPACTAS 2x2 (SECCIÓN 8)
     // ==========================================
+    let activeStatsView = 'porMes';
+
+    function setStatsView(view) {
+      activeStatsView = view;
+      const main = document.getElementById('mainContent');
+      if (main && window.currentStatistics) {
+        main.innerHTML = renderStatsView(window.currentStatistics);
+        labelButtons(main);
+      }
+    }
+
     function renderStatsView(stats) {
+      window.currentStatistics = stats;
       const total = Number(stats.total);
       const encontrados = Number(stats.encontrados);
       const activos = Number(stats.activos);
       const pct = Number(stats.porcentajeResueltos);
-      const aggregateRows = (rows, label) => `
-        <div class="card">
-          <p style="font-size:11px; font-weight:700; color:var(--navy-primary); margin-bottom:8px;">${label}</p>
-          ${rows.length ? rows.map(row => {
-            const maximum = Math.max(...rows.map(item => Number(item.total)), 1);
-            const value = Number(row.total);
-            return `<div style="padding:5px 0; border-top:1px solid var(--border-color); font-size:11px;">
-              <div style="display:flex; justify-content:space-between;"><span>${escapeHtml(row.periodo || row.categoria)}</span><strong>${value}</strong></div>
-              <div style="height:5px; margin-top:4px; background:#E5E7EB;"><div style="height:100%; width:${value / maximum * 100}%; background:var(--navy-primary);"></div></div>
-            </div>`;
-          }).join('') : '<p style="font-size:11px; color:var(--text-muted);">Sin datos disponibles.</p>'}
-        </div>
-      `;
+      const chartViews = {
+        porMes: ['Personas localizadas por mes', stats.porMes],
+        porCiudad: ['Personas localizadas por ciudad', stats.porCiudad],
+        porSexo: ['Personas localizadas por sexo', stats.porSexo],
+        porEdad: ['Personas localizadas por edad', stats.porEdad]
+      };
+      const [chartTitle, chartRows = []] = chartViews[activeStatsView] || chartViews.porMes;
+      const maxValue = Math.max(...chartRows.map(row => Number(row.total)), 1);
+      const chart = chartRows.length ? chartRows.map(row => {
+        const value = Number(row.total);
+        const label = escapeHtml(row.periodo || row.categoria || 'Sin categoría');
+        return `<div class="chart-row">
+          <div class="chart-label"><span>${label}</span><strong>${value}</strong></div>
+          <div class="chart-track"><span class="chart-bar" style="--bar-width:${Math.max(value / maxValue * 100, 2)}%"></span></div>
+        </div>`;
+      }).join('') : '<p class="muted">Sin datos disponibles.</p>';
 
       return `
-        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; align-items:center; gap:8px;">
+        <div>
+          <div>
             <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span style="font-weight:700; font-size:15px; color:var(--navy-primary);">Estadísticas nacionales de búsqueda</span>
-          </div>
-          
-          <!-- CUADRÍCULA 2x2 MINI-TARJETAS SOBRIAS SIN ÍCONOS -->
-          <div class="grid-2">
-            <div class="card" style="text-align:center; padding:12px;">
-              <p style="font-size:20px; font-weight:700; color:var(--navy-primary);">${total}</p>
-              <p style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; margin-top:2px;">Desaparecidos</p>
-            </div>
-            <div class="card" style="text-align:center; padding:12px;">
-              <p style="font-size:20px; font-weight:700; color:#137333;">${encontrados}</p>
-              <p style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; margin-top:2px;">Encontrados</p>
-            </div>
-            <div class="card" style="text-align:center; padding:12px;">
-              <p style="font-size:20px; font-weight:700; color:var(--navy-primary);">${activos}</p>
-              <p style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; margin-top:2px;">Casos activos</p>
-            </div>
-            <div class="card" style="text-align:center; padding:12px;">
-              <p style="font-size:20px; font-weight:700; color:var(--navy-primary);">${pct}%</p>
-              <p style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; margin-top:2px;">Porcentaje resuelto</p>
-            </div>
+            <span>Estadísticas nacionales de búsqueda</span>
           </div>
 
-          <!-- GRÁFICO BARRAS LIMPIO -->
-          <div class="card">
-            <p style="font-size:11px; font-weight:700; color:var(--navy-primary); margin-bottom:10px;">Relación Desaparecidos vs. Encontrados</p>
-            <div style="height:10px; width:100%; background:#E5E7EB; border-radius:2px; overflow:hidden; display:flex;">
-              <div style="width:${pct}%; background:#137333; height:100%;"></div>
-              <div style="width:${100 - pct}%; background:var(--red-accent); height:100%;"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:8px; font-weight:600;">
-              <span style="color:#137333;">Encontrados: ${encontrados}</span>
-              <span style="color:var(--red-accent);">Búsqueda activa: ${activos}</span>
-            </div>
+          <div class="stats-strip">
+            <div><strong class="stat-cyan">${total}</strong><span>Desaparecidos</span></div>
+            <div><strong class="stat-green">${encontrados}</strong><span>Encontrados</span></div>
+            <div><strong class="stat-amber">${activos}</strong><span>Casos activos</span></div>
+            <div><strong class="stat-pink">${pct}%</strong><span>Porcentaje resuelto</span></div>
           </div>
-          ${aggregateRows(stats.porMes, 'Personas localizadas por mes')}
-          <div class="grid-2">
-            ${aggregateRows(stats.porCiudad, 'Personas localizadas por ciudad')}
-            ${aggregateRows(stats.porSexo, 'Personas localizadas por sexo')}
-          </div>
-          ${aggregateRows(stats.porEdad, 'Personas localizadas por edad')}
+
+          <section class="card stats-chart" aria-labelledby="statsChartHeading">
+            <h2 id="statsChartHeading">${chartTitle}</h2>
+            <div class="filter-chips" role="group" aria-label="Vista de estadísticas">
+              <button class="filter-chip ${activeStatsView === 'porMes' ? 'active' : ''}" onclick="setStatsView('porMes')" aria-label="Ver estadísticas por mes">Mes</button>
+              <button class="filter-chip ${activeStatsView === 'porCiudad' ? 'active' : ''}" onclick="setStatsView('porCiudad')" aria-label="Ver estadísticas por ciudad">Ciudad</button>
+              <button class="filter-chip ${activeStatsView === 'porSexo' ? 'active' : ''}" onclick="setStatsView('porSexo')" aria-label="Ver estadísticas por sexo">Sexo</button>
+              <button class="filter-chip ${activeStatsView === 'porEdad' ? 'active' : ''}" onclick="setStatsView('porEdad')" aria-label="Ver estadísticas por edad">Edad</button>
+            </div>
+            <div class="chart-list">${chart}</div>
+          </section>
         </div>
       `;
     }
@@ -1657,53 +1587,59 @@
     function renderAdminView(history) {
       const store = getStore();
       const pending = store.casos.filter(c => c.estado === 'PENDIENTE');
+      const staleCases = store.casos.filter(c =>
+        c.estado !== 'CERRADO' &&
+        c.estado !== 'LOCALIZADO' &&
+        c.estado !== 'RECHAZADO' &&
+        c.proximoSeguimiento &&
+        new Date(c.proximoSeguimiento).getTime() < Date.now()
+      );
 
       return `
-        <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; font-size:15px; color:var(--navy-primary);">Panel de administración</span>
+        <div>
+          <div>
+            <span>Panel de administración</span>
             <span class="status-tag status-PENDIENTE">Ente Regulador</span>
           </div>
 
-          <!-- BANDEJA DESTACADA DE PENDIENTES -->
-          <div class="card" style="background:#FEF7E0; border-color:#FEEFC3;">
-            <span style="font-weight:700; font-size:12px; color:#B06000;">Pendientes de revisión (Sin número de denuncia)</span>
-            <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
-              ${pending.length === 0 ? '<p style="font-size:11px; color:var(--text-muted);">No hay reportes pendientes de revisión en este momento.</p>' : ''}
-              ${pending.map(c => `
-                <div style="background:white; padding:10px; border-radius:2px; border:1px solid #FEEFC3;">
-                  <p style="font-size:12px; font-weight:700; color:var(--text-main);">${c.nombreCompleto}</p>
-                  <p style="font-size:10px; color:var(--text-muted);">${c.ciudad} •${c.edad} años</p>
-                  <div style="display:flex; gap:6px; margin-top:8px;">
-                    <button onclick="adminAccept('${c.id}')" class="btn btn-primary btn-sm" style="flex:1;">Aceptar y registrar denuncia</button>
-                    <button onclick="adminReject('${c.id}')" class="btn btn-outline btn-sm" style="flex:1; color:var(--red-accent);">Rechazar</button>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+          <nav class="admin-tabs" aria-label="Secciones del administrador">
+            <button class="admin-tab active" onclick="selectAdminTab('pending', this)">Pendientes de revisión</button>
+            <button class="admin-tab" onclick="selectAdminTab('cases', this)">Casos</button>
+            <button class="admin-tab" onclick="selectAdminTab('history', this)">Historial de localizados</button>
+            <button class="admin-tab" onclick="selectAdminTab('stale', this)">Sin actualizar</button>
+          </nav>
 
-          <!-- BANDEJA GENERAL -->
-          <div class="card">
-            <span style="font-weight:700; font-size:12px; color:var(--navy-primary); display:block; margin-bottom:8px;">Gestión de casos</span>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              ${store.casos.map(c => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color);">
-                  <div>
-                    <p style="font-size:12px; font-weight:700;">${c.nombreCompleto}</p>
-                    <p style="font-size:10px; color:var(--text-muted);">Denuncia: ${c.numeroDenuncia || 'Sin registrar'}</p>
-                  </div>
-                  <div style="display:flex; gap:4px;">
-                    ${c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' ? `<button onclick="adminMarkLocated('${c.id}')" class="btn btn-primary btn-sm">Marcar localizado</button>` : ''}
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+          <section class="admin-tab-panel card" data-admin-panel="pending">
+            <h2>Pendientes de revisión</h2>
+            ${pending.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+              ${pending.map(c => `<tr>
+                <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
+                <td data-label="Ciudad">${escapeHtml(c.ciudad)}, ${Number(c.edad)} años</td>
+                <td data-label="Estado"><span class="status-tag status-PENDIENTE">Pendiente</span></td>
+                <td data-label="Acciones"><div class="table-actions">
+                  <button onclick="adminAccept('${c.id}')" class="btn btn-primary btn-sm">Aceptar y registrar denuncia</button>
+                  <button onclick="adminReject('${c.id}')" class="btn btn-danger btn-sm">Rechazar</button>
+                </div></td>
+              </tr>`).join('')}
+            </tbody></table></div>` : '<div class="empty-state"><h3>Sin pendientes</h3><p>No hay reportes pendientes de revisión en este momento.</p></div>'}
+          </section>
 
-          <section class="card" aria-labelledby="locatedHistoryHeading">
-            <h2 id="locatedHistoryHeading" style="font-size:12px; color:var(--navy-primary); margin-bottom:10px;">Historial de casos localizados</h2>
-            <form onsubmit="searchAdminHistory(event)" class="grid-3" style="margin-bottom:10px;">
+          <section class="admin-tab-panel card hidden" data-admin-panel="cases">
+            <h2>Gestión de casos</h2>
+            ${store.casos.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Denuncia</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+              ${store.casos.map(c => `<tr>
+                <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
+                <td data-label="Ciudad">${escapeHtml(c.ciudad)}</td>
+                <td data-label="Denuncia">${escapeHtml(c.numeroDenuncia || 'Sin registrar')}</td>
+                <td data-label="Estado"><span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(c.estado)}</span></td>
+                <td data-label="Acciones">${c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' ? `<button onclick="adminMarkLocated('${c.id}')" class="btn btn-primary btn-sm">Marcar localizado</button>` : 'Sin acciones disponibles'}</td>
+              </tr>`).join('')}
+            </tbody></table></div>` : '<div class="empty-state"><h3>Sin casos</h3><p>No hay casos para administrar.</p></div>'}
+          </section>
+
+          <section class="admin-tab-panel card hidden" data-admin-panel="history" aria-labelledby="locatedHistoryHeading">
+            <h2 id="locatedHistoryHeading">Historial de casos localizados</h2>
+            <form onsubmit="searchAdminHistory(event)" class="grid-3">
               <input id="historySearch" type="search" class="form-control" placeholder="Nombre o ciudad" aria-label="Buscar por nombre o ciudad">
               <input id="historyFrom" type="date" class="form-control" aria-label="Desde">
               <input id="historyTo" type="date" class="form-control" aria-label="Hasta">
@@ -1711,43 +1647,64 @@
             </form>
             <div id="adminHistoryResults">${renderAdminHistory(history)}</div>
           </section>
+
+          <section class="admin-tab-panel card hidden" data-admin-panel="stale">
+            <h2>Casos sin actualizar</h2>
+            ${staleCases.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Seguimiento previsto</th><th>Estado</th></tr></thead><tbody>
+              ${staleCases.map(c => `<tr>
+                <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
+                <td data-label="Ciudad">${escapeHtml(c.ciudad)}</td>
+                <td data-label="Seguimiento previsto">${new Date(c.proximoSeguimiento).toLocaleString()}</td>
+                <td data-label="Estado">${escapeHtml(c.estado)}</td>
+              </tr>`).join('')}
+            </tbody></table></div>` : '<div class="empty-state"><h3>Sin casos pendientes de actualización</h3><p>No hay casos que requieran seguimiento vencido.</p></div>'}
+          </section>
         </div>
       `;
     }
 
+    function selectAdminTab(panel, button) {
+      document.querySelectorAll('[data-admin-panel]').forEach(section => {
+        section.classList.toggle('hidden', section.dataset.adminPanel !== panel);
+      });
+      document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.toggle('active', tab === button));
+    }
+
     function renderAdminHistory(history) {
       if (!history?.casos?.length) {
-        return '<p style="font-size:11px; color:var(--text-muted);">No hay casos localizados en este historial.</p>';
+        return '<p>No hay casos localizados en este historial.</p>';
       }
-      return `${history.casos.map(c => `
-        <article class="card" style="margin:8px 0; padding:10px;">
-          <div style="display:flex; gap:10px;">
-            ${c.fotoUrl ? `<img src="data:," data-photo-url="${c.fotoUrl}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo style="width:75px;height:90px;object-fit:cover;border:1px solid var(--border-color);">` : ''}
-            <div>
-              <strong style="font-size:12px;">${escapeHtml(c.nombreCompleto)}</strong>
-              <p style="font-size:10px; color:var(--text-muted);">${escapeHtml(c.ciudad)} · ${Number(c.edad)} años · ${escapeHtml(c.sexo)}</p>
-              <p style="font-size:10px; margin-top:4px;">Localizado: ${c.localizadoEn ? new Date(c.localizadoEn).toLocaleString() : 'Sin fecha'}</p>
-              <p style="font-size:10px;">Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleString()} · Estado: ${escapeHtml(c.estado)}</p>
-              <p style="font-size:10px;">Denuncia: ${escapeHtml(c.numeroDenuncia || 'Sin registrar')} · Contacto: ${escapeHtml(c.contactoReportante || 'No disponible')}</p>
-            </div>
-          </div>
-          <p style="font-size:11px; margin-top:8px;"><strong>Descripción:</strong> ${escapeHtml(c.descripcionFisica)}</p>
-          <p style="font-size:11px;"><strong>Vestimenta:</strong> ${escapeHtml(c.vestimenta)}</p>
-          <p style="font-size:11px;"><strong>Señas particulares:</strong> ${escapeHtml(c.senasParticulares || 'No registradas')}</p>
-          <p style="font-size:11px;"><strong>Ubicación:</strong> ${escapeHtml(c.ubicacion?.direccion || c.ciudad)} (${Number(c.ubicacion?.lat)}, ${Number(c.ubicacion?.lng)})</p>
-          <div style="margin-top:8px; font-size:10px;">
-            <strong>Pistas (${c.pistas?.length || 0})</strong>
-            ${(c.pistas || []).map(p => `<p style="border-top:1px solid var(--border-color); padding-top:4px; margin-top:4px;">${escapeHtml(p.descripcion)} · ${new Date(p.fechaHoraAvistamiento).toLocaleString()} · ${escapeHtml(p.nombreUsuario || p.correoUsuario || 'Usuario no disponible')} · ${Number(p.ubicacion?.lat)}, ${Number(p.ubicacion?.lng)}</p>`).join('') || '<p>Sin pistas registradas.</p>'}
-          </div>
-          <div style="margin-top:8px; font-size:10px;">
-            <strong>Cambios de estado</strong>
-            ${(c.cambiosEstado || []).map(change => `<p style="border-top:1px solid var(--border-color); padding-top:4px; margin-top:4px;">${escapeHtml(change.estadoAnterior || 'Nuevo')} → ${escapeHtml(change.estadoNuevo)} · ${escapeHtml(change.nombreAdministrador || 'Sistema')} · ${new Date(change.cambiadoEn).toLocaleString()}</p>`).join('') || '<p>Sin historial de cambios.</p>'}
-          </div>
-        </article>
-      `).join('')}
-      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
-        <span>Página ${history.pagina} · ${history.total} casos</span>
-        <div style="display:flex; gap:6px;">
+      return `<div class="table-scroll"><table class="history-table">
+        <thead><tr><th>Persona</th><th>Localización</th><th>Detalle del caso</th><th>Pistas</th><th>Cambios de estado</th></tr></thead>
+        <tbody>${history.casos.map(c => `
+          <tr>
+            <td data-label="Persona">
+              ${c.fotoUrl ? `<img class="history-photo" src="data:," data-photo-url="${c.fotoUrl}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo>` : ''}
+              <strong>${escapeHtml(c.nombreCompleto)}</strong>
+              <p>${escapeHtml(c.ciudad)}, ${Number(c.edad)} años, ${escapeHtml(c.sexo)}</p>
+            </td>
+            <td data-label="Localización">${c.localizadoEn ? new Date(c.localizadoEn).toLocaleString() : 'Sin fecha'}</td>
+            <td data-label="Detalle del caso">
+              <p>Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleString()}, estado: ${escapeHtml(c.estado)}</p>
+              <p>Denuncia: ${escapeHtml(c.numeroDenuncia || 'Sin registrar')}</p>
+              <p>Contacto del reportante: ${escapeHtml(c.contactoReportante || 'No disponible')}</p>
+              <p>Descripción: ${escapeHtml(c.descripcionFisica)}</p>
+              <p>Vestimenta: ${escapeHtml(c.vestimenta)}</p>
+              <p>Señas particulares: ${escapeHtml(c.senasParticulares || 'No registradas')}</p>
+              <p>Ubicación: ${escapeHtml(c.ubicacion?.direccion || c.ciudad)} (${Number(c.ubicacion?.lat)}, ${Number(c.ubicacion?.lng)})</p>
+            </td>
+            <td data-label="Pistas">
+              ${(c.pistas || []).map(p => `<p>${escapeHtml(p.descripcion)}, ${new Date(p.fechaHoraAvistamiento).toLocaleString()}, ${escapeHtml(p.nombreUsuario || p.correoUsuario || 'Usuario no disponible')}, ${Number(p.ubicacion?.lat)}, ${Number(p.ubicacion?.lng)}</p>`).join('') || '<p>Sin pistas registradas.</p>'}
+            </td>
+            <td data-label="Cambios de estado">
+              ${(c.cambiosEstado || []).map(change => `<p>${escapeHtml(change.estadoAnterior || 'Nuevo')} a ${escapeHtml(change.estadoNuevo)}, ${escapeHtml(change.nombreAdministrador || 'Sistema')}, ${new Date(change.cambiadoEn).toLocaleString()}</p>`).join('') || '<p>Sin historial de cambios.</p>'}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+      <div class="history-pagination">
+        <span>Página ${history.pagina}, ${history.total} casos</span>
+        <div>
           <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina - 1})" ${history.pagina <= 1 ? 'disabled' : ''}>Anterior</button>
           <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina + 1})" ${history.pagina * history.limite >= history.total ? 'disabled' : ''}>Siguiente</button>
         </div>
@@ -1767,6 +1724,7 @@
         if (container) {
           container.innerHTML = renderAdminHistory(history);
           loadAdminHistoryPhotos(container);
+          labelButtons(container);
         }
       } catch (error) {
         showToast('Error al cargar el historial', error.message);
@@ -1803,7 +1761,7 @@
         await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
           method: 'POST', body: { estado: 'VALIDADO', numeroDenuncia: denuncia }
         });
-        alert('Caso validado y publicado en el mapa.');
+        showToast('Listo', 'Caso validado y publicado en el mapa.', 'success');
         navigateTo('admin');
       } catch (error) {
         showToast('No se pudo validar el caso', error.message);
@@ -1817,7 +1775,7 @@
         await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
           method: 'POST', body: { estado: 'RECHAZADO', motivo }
         });
-        alert('Reporte rechazado.');
+        showToast('Listo', 'Reporte rechazado.', 'success');
         navigateTo('admin');
       } catch (error) {
         showToast('No se pudo rechazar el caso', error.message);
@@ -1830,7 +1788,7 @@
         await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
           method: 'POST', body: { estado: 'LOCALIZADO' }
         });
-        alert('Caso marcado como localizado. Se notificará a las personas suscritas.');
+        showToast('Listo', 'Caso marcado como localizado. Se notificará a las personas suscritas.', 'success');
         navigateTo('admin');
       } catch (error) {
         showToast('No se pudo actualizar el caso', error.message);
@@ -1855,14 +1813,14 @@
         console.error('No se pudieron cargar las notificaciones:', error.message);
       }
       if (store.notificaciones.length === 0) {
-        container.innerHTML = '<p style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px;">Sin notificaciones registradas.</p>';
+        container.innerHTML = '<p>Sin notificaciones registradas.</p>';
         return;
       }
       container.innerHTML = store.notificaciones.map(n => `
-        <div style="padding:8px 10px; background:var(--bg-neutral); border-radius:2px; border:1px solid var(--border-color);">
-          <p style="font-size:11px; font-weight:700; color:var(--navy-primary);">${n.titulo}</p>
-          <p style="font-size:11px; color:var(--text-main); margin-top:2px;">${n.mensaje}</p>
-          <span style="font-size:9px; color:var(--text-muted);">${new Date(n.fecha).toLocaleTimeString()}</span>
+        <div>
+          <p>${n.titulo}</p>
+          <p>${n.mensaje}</p>
+          <span>${new Date(n.fecha).toLocaleTimeString()}</span>
         </div>
       `).join('');
     }
@@ -1876,17 +1834,26 @@
       });
       saveStore(store);
       toggleSimulateTimeModal();
-      alert('Se avanzaron 3 días en el cronograma. Los casos validados pasaron a estado En seguimiento.');
+      showToast('Listo', 'Se avanzaron 3 días en el cronograma. Los casos validados pasaron a estado En seguimiento.', 'success');
       navigateTo('home');
     }
 
-    function showToast(title, msg) {
+    let toastTimeout = null;
+    function showToast(title, msg, type = 'info') {
+      const toast = document.getElementById('toastNotification');
       document.getElementById('toastTitle').innerText = title;
       document.getElementById('toastMessage').innerText = msg;
-      document.getElementById('toastNotification').classList.remove('hidden');
+      toast.dataset.type = type;
+      toast.classList.remove('hidden');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(hideToast, 7000);
     }
 
-    function hideToast() { document.getElementById('toastNotification').classList.add('hidden'); }
+    function hideToast() {
+      document.getElementById('toastNotification').classList.add('hidden');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = null;
+    }
 
     async function updateNotifBadge() {
       const store = getStore();
@@ -1927,6 +1894,8 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       try {
+        applyTheme(localStorage.getItem('rastreo_theme') || 'dark');
+        labelButtons();
         const token = sessionStorage.getItem('rastreo_token');
         if (token) {
           try {
@@ -1940,7 +1909,7 @@
         navigateTo('home');
       } catch (error) {
         console.error('No se pudo inicializar la sesión.', error);
-        alert('No se pudo comprobar la sesión. Recarga la página e inténtalo nuevamente.');
+        showToast('Error de sesión', 'No se pudo comprobar la sesión. Recarga la página e inténtalo nuevamente.', 'error');
       }
     });
   </script>

@@ -9,7 +9,8 @@
   "scripts": {
     "migrate:sqlite": "node migrate-sqlite.js",
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "seed:demo": "node seed-demo.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

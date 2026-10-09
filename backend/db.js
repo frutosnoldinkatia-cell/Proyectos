@@ -9,7 +9,7 @@ export function createDatabase(connectionString = process.env.DATABASE_URL) {
   }
   return new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   });
 }
 

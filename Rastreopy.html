@@ -3,14 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b2545">
+  <!-- Tinte del cromo del navegador alineado con --bg de cada tema -->
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#070b16" media="(prefers-color-scheme: dark)">
   <title>Rastreo PY - Plataforma Colaborativa de Búsqueda de Personas Desaparecidas</title>
+  <meta name="description" content="Plataforma colaborativa de búsqueda de personas desaparecidas en Paraguay: consultá reportes públicos, aportá pistas verificables y seguí el estado de cada caso.">
+  <link rel="icon" href="/icons/rastreopy.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/rastreopy.svg">
   <link rel="manifest" href="/manifest.webmanifest">
-  
+
   <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="/styles.css">
+  <script>
+    // Aplica el tema guardado antes del primer pintado. Sin esto la página
+    // se dibuja en claro y recién después salta a oscuro: se ve un flash.
+    try {
+      const saved = localStorage.getItem('rastreo_theme');
+      if (saved === 'dark' || saved === 'light') document.documentElement.dataset.theme = saved;
+    } catch (error) {
+      /* Modo privado o almacenamiento bloqueado: se queda el tema claro por defecto. */
+    }
+  </script>
 </head>
 <body>
 
@@ -48,7 +63,7 @@
         <button type="button" data-nav-view="feed" onclick="navigateTo('home')"><span aria-hidden="true">⌂</span> Inicio</button>
         <button type="button" data-hide-admin-nav data-nav-view="report" onclick="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
         <button type="button" data-nav-view="lead" onclick="navigateTo('lead')"><span aria-hidden="true">⌖</span> Generar pista</button>
-        <button type="button" onclick="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
+        <button type="button" data-nav-view="alerts" onclick="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
         <button type="button" data-nav-view="stats" onclick="navigateTo('stats')"><span aria-hidden="true">▥</span> Estadísticas</button>
         <button type="button" data-role-nav="citizen" data-nav-view="my-cases" onclick="navigateTo('my-cases')"><span aria-hidden="true">▤</span> Mis casos</button>
         <button type="button" data-role-nav="admin" data-nav-view="admin" onclick="navigateTo('admin')"><span aria-hidden="true">▦</span> Panel <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
@@ -56,11 +71,11 @@
       <div class="header-actions">
         <button id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
         <button type="button" class="header-notifications" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
-        <div id="headerProfile" class="header-profile hidden">
+        <button type="button" id="headerProfile" class="header-profile hidden" onclick="toggleDrawer(true)" aria-label="Abrir menú de cuenta">
           <span id="headerProfileAvatar" class="header-profile-avatar" aria-hidden="true"></span>
           <span class="header-profile-copy"><span id="headerProfileName"></span>
-            <span id="headerProfileRole" class="role-badge">CIUDADANO</span></span>
-        </div>
+            <span id="headerProfileRole" class="role-badge role-badge-citizen">CIUDADANO</span></span>
+        </button>
         <button id="headerAuthAction" class="header-auth-action" type="button" onclick="navigateTo('auth')">♙ Ingresar</button>
       </div>
     </header>
@@ -74,19 +89,25 @@
           <button type="button" onclick="toggleDrawer(false)" aria-label="Cerrar menú">Cerrar</button>
         </div>
         
-        <div>
+        <!-- Oculto hasta que haya sesión: antes mostraba "Usuario / CIUDADANO"
+             a cualquier visitante y parecía que ya había entrado. -->
+        <div id="drawerIdentity" class="drawer-identity hidden">
           <p id="drawerUserName">Usuario</p>
-          <p id="drawerUserRole" class="role-badge">CIUDADANO</p>
+          <p id="drawerUserRole" class="role-badge role-badge-citizen">CIUDADANO</p>
         </div>
 
+        <!-- Cada ítem lleva data-nav-view: navigateTo() le pone aria-current="page"
+             venga la navegación de acá o de la barra superior, así el menú nunca
+             queda marcando una sección donde ya no estás. El texto de cada ítem
+             coincide con el <h1> de su vista. -->
         <nav class="drawer-navigation" aria-label="Secciones">
-          <button type="button" onclick="drawerNavigate('feed')" class="drawer-item">Inicio</button>
-          <button type="button" data-role-nav="citizen" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
-          <button type="button" onclick="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
-          <button type="button" onclick="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
-          <button type="button" onclick="drawerNavigate('stats')" class="drawer-item">Ver estadísticas</button>
-          <button type="button" data-role-nav="citizen" onclick="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
-          <button type="button" data-role-nav="admin" onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
+          <button type="button" data-nav-view="feed" onclick="drawerNavigate('feed')" class="drawer-item">Inicio</button>
+          <button type="button" data-role-nav="citizen" data-nav-view="report" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
+          <button type="button" data-nav-view="lead" onclick="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
+          <button type="button" data-nav-view="alerts" onclick="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
+          <button type="button" data-nav-view="stats" onclick="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
+          <button type="button" data-role-nav="citizen" data-nav-view="my-cases" onclick="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
+          <button type="button" data-role-nav="admin" data-nav-view="admin" onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
         </nav>
       </div>
 
@@ -623,7 +644,161 @@
     }
 
     // ENRUTADOR Y GESTIÓN DE VISTAS SPA
-    async function navigateTo(view, params = {}) {
+    // Cache en memoria de lo ultimo que devolvio el backend. Vive aca y no
+    // dentro de navigateTo porque tambien la usan las sincronizaciones
+    // periodicas, que corren fuera de ese alcance.
+    function replaceBackendCollections(casos, pistas) {
+      window.backendCaseData = { casos, pistas };
+    }
+
+    /* ============================================================
+       Ruteo por URL
+       Cada vista tiene su propia direccion (#/estadisticas, #/caso/12).
+       Se usa hash y no una ruta real para que la app siga funcionando
+       servida como archivo estatico, sin configurar nada en el servidor
+       y sin romper el service worker.
+
+       Privacidad: en la URL solo viajan identificadores publicos. El
+       correo del flujo de verificacion nunca se serializa, por eso
+       #/verificar solo es valido mientras el dato siga en memoria.
+       ============================================================ */
+
+    // Direccion que la app considera activa. Evita que un pushState y el
+    // evento de historial se pisen entre si y entren en bucle.
+    let currentRouteUrl = '';
+    let routeApplyToken = 0;
+
+    // Seccion que el visitante quiso abrir y quedo esperando a que inicie
+    // sesion. Se consume una sola vez, al entrar.
+    let pendingDestination = null;
+
+    function consumePendingDestination() {
+      const destino = pendingDestination;
+      pendingDestination = null;
+      return destino;
+    }
+
+    function buildRoute(view, params = {}) {
+      switch (view) {
+        case 'report': return '#/reportar';
+        case 'lead': return params.caseId ? `#/pista/${encodeURIComponent(params.caseId)}` : '#/pista';
+        case 'case': return `#/caso/${encodeURIComponent(params.caseId)}`;
+        case 'stats': return '#/estadisticas';
+        case 'my-cases': return '#/mis-casos';
+        case 'alerts': return '#/alertas';
+        case 'admin': return params.tab && params.tab !== 'overview' ? `#/panel/${encodeURIComponent(params.tab)}` : '#/panel';
+        case 'auth': return params.authMode === 'register' ? '#/crear-cuenta' : '#/ingresar';
+        case 'otp': return '#/verificar';
+        case 'legal': return '#/bases';
+        default: return '#/';
+      }
+    }
+
+    function parseRoute(hash = location.hash) {
+      // Enlaces viejos compartidos antes del ruteo: #caso=<id>
+      if (hash.startsWith('#caso=')) {
+        const legacyId = new URLSearchParams(hash.slice(1)).get('caso');
+        if (legacyId) return { view: 'feed', params: {}, caseId: legacyId };
+      }
+      const segments = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+      const head = segments[0];
+      let tail = '';
+      try {
+        tail = segments[1] ? decodeURIComponent(segments[1]) : '';
+      } catch (error) {
+        tail = '';
+      }
+      switch (head) {
+        case 'reportar': return { view: 'report', params: {} };
+        case 'pista': return { view: 'lead', params: tail ? { caseId: tail } : {} };
+        case 'caso': return tail ? { view: 'feed', params: {}, caseId: tail } : { view: 'feed', params: {} };
+        case 'estadisticas': return { view: 'stats', params: {} };
+        case 'mis-casos': return { view: 'my-cases', params: {} };
+        case 'alertas': return { view: 'alerts', params: {} };
+        case 'panel': return { view: 'admin', params: tail ? { tab: tail } : {} };
+        case 'ingresar': return { view: 'auth', params: { authMode: 'login' } };
+        case 'crear-cuenta': return { view: 'auth', params: { authMode: 'register' } };
+        case 'verificar': return { view: 'otp', params: {} };
+        case 'bases': return { view: 'legal', params: {} };
+        default: return { view: 'feed', params: {} };
+      }
+    }
+
+    // Identifica que hay que volver a dibujar. La ficha de caso queda
+    // fuera a proposito: se superpone al feed, no lo reemplaza.
+    function routeRenderKey(view, params = {}) {
+      return `${view}|${params.caseId || ''}|${params.authMode || ''}`;
+    }
+
+    function syncUrl(view, params = {}, { replace = false, caseId = '' } = {}) {
+      const url = caseId ? buildRoute('case', { caseId }) : buildRoute(view, params);
+      if (url === currentRouteUrl) return;
+      currentRouteUrl = url;
+      try {
+        if (replace) history.replaceState({ url }, '', url);
+        else history.pushState({ url }, '', url);
+      } catch (error) {
+        console.error('No se pudo actualizar la direccion del navegador.', error);
+      }
+    }
+
+    // Lee la direccion actual y deja la pantalla acorde. Es el unico
+    // camino que usan el boton atras, el adelante y la carga inicial.
+    async function applyCurrentRoute() {
+      let route = parseRoute();
+      const store = getStore();
+
+      // Las bases solo existen como pantalla mientras falte aceptarlas.
+      if (route.view === 'legal' && !(store.currentUser && !store.currentUser.acepto_terminos)) {
+        route = { view: 'feed', params: {} };
+      }
+      // La verificacion por codigo no se puede retomar en frio: el correo
+      // vive en memoria y no se pone en la URL.
+      if (route.view === 'otp' && !activeOtpEmail) {
+        route = { view: 'auth', params: { authMode: 'login' } };
+      }
+
+      const target = route.caseId
+        ? buildRoute('case', { caseId: route.caseId })
+        : buildRoute(route.view, route.params);
+
+      // Cuando el router corrige la direccion pedida (ruta inexistente,
+      // bases ya aceptadas, verificacion sin flujo activo) hay que
+      // reescribir la barra antes de dibujar. Si no, la URL dice una cosa
+      // y la pantalla muestra otra. La raiz admite las dos formas, '' y
+      // '#/', y no se reescribe para no ensuciar el enlace limpio.
+      const actualHash = location.hash || '#/';
+      if (target !== actualHash && !(target === '#/' && actualHash === '#/')) {
+        try {
+          history.replaceState({ url: target }, '', target);
+        } catch (error) {
+          console.error('No se pudo corregir la direccion del navegador.', error);
+        }
+      }
+
+      if (target === currentRouteUrl) return;
+      currentRouteUrl = target;
+
+      const token = ++routeApplyToken;
+      const alreadyRendered = window.rastreoCurrentView
+        && routeRenderKey(route.view, route.params)
+          === routeRenderKey(window.rastreoCurrentView, window.rastreoCurrentParams || {});
+
+      if (!alreadyRendered) {
+        await navigateTo(route.view, route.params, { fromHistory: true });
+        if (token !== routeApplyToken) return;
+      }
+      if (route.caseId) openCaseDetail(route.caseId, { fromHistory: true });
+      else closeCaseDetail({ fromHistory: true });
+    }
+
+    // popstate cubre atras/adelante; hashchange cubre que alguien edite la
+    // direccion a mano. applyCurrentRoute ignora la repetida, asi que no
+    // molesta que los dos disparen.
+    window.addEventListener('popstate', () => { applyCurrentRoute(); });
+    window.addEventListener('hashchange', () => { applyCurrentRoute(); });
+
+    async function navigateTo(view, params = {}, options = {}) {
       if (locatedExpiryTimer) {
         clearTimeout(locatedExpiryTimer);
         locatedExpiryTimer = null;
@@ -642,19 +817,28 @@
       if (view === 'home') {
         view = 'feed';
       }
+      // Si la app termina mostrando algo distinto a lo pedido (sesion
+      // caducada, permiso faltante), la direccion tiene que corregirse
+      // aunque la navegacion venga del historial: si no, la barra del
+      // navegador queda diciendo una cosa y la pantalla muestra otra.
+      const requestedView = view;
 
-      if (!store.currentUser && view === 'report') {
+      if (!store.currentUser && ACCESS_GATED_VIEWS[view]) {
+        // Se recuerda adonde queria ir para devolverlo ahi despues del login.
+        pendingDestination = { view, params };
         window.rastreoCurrentView = view;
+        window.rastreoCurrentParams = params;
         document.querySelectorAll('[data-nav-view]').forEach(button => {
-          if (button.dataset.navView === 'report') button.setAttribute('aria-current', 'page');
+          if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
           else button.removeAttribute('aria-current');
         });
         header.classList.remove('hidden');
         document.getElementById('workshopBar').classList.remove('hidden');
         document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
-        main.innerHTML = renderReportAccessView();
+        main.innerHTML = renderAccessView(view);
         labelButtons(main);
+        if (!options.fromHistory) syncUrl(view, params, { replace: options.replace });
         return;
       }
 
@@ -664,6 +848,20 @@
         main.innerHTML = renderAuthScreen(params.authMode || 'login', params.identifier || '');
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
+        window.rastreoCurrentView = 'auth';
+        window.rastreoCurrentParams = { authMode: params.authMode || 'login' };
+        const authRedirect = requestedView !== 'auth';
+        if (!options.fromHistory || authRedirect) {
+          syncUrl('auth', window.rastreoCurrentParams, { replace: options.replace || authRedirect });
+        }
+        return;
+      }
+
+      if (view === 'alerts' && store.currentUser) {
+        await navigateTo('feed', {}, options);
+        const notifModal = document.getElementById('notifModal');
+        notifModal.classList.remove('hidden');
+        renderNotifList();
         return;
       }
 
@@ -673,6 +871,9 @@
         main.innerHTML = renderLegalTerms();
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
+        window.rastreoCurrentView = 'legal';
+        window.rastreoCurrentParams = {};
+        if (!options.fromHistory || requestedView !== 'legal') syncUrl('legal', {}, { replace: true });
         return;
       }
 
@@ -682,7 +883,7 @@
         document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
       } else {
-        const showPublicNavigation = ['feed', 'stats'].includes(view);
+        const showPublicNavigation = ['feed', 'stats', 'lead'].includes(view);
         header.classList.toggle('hidden', !showPublicNavigation);
         document.getElementById('workshopBar').classList.toggle('hidden', !showPublicNavigation);
         document.getElementById('publicThemeToggle').classList.toggle('hidden', showPublicNavigation);
@@ -695,6 +896,11 @@
         view = 'feed';
       }
       window.rastreoCurrentView = view;
+      window.rastreoCurrentParams = params;
+      const wasRedirected = view !== requestedView;
+      if (!options.fromHistory || wasRedirected) {
+        syncUrl(view, params, { replace: options.replace || wasRedirected });
+      }
       document.querySelectorAll('[data-nav-view]').forEach(button => {
         if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
@@ -803,10 +1009,6 @@
           scheduleLocatedExpiry();
           startPublicStatsPolling();
           startLiveSyncPolling('feed');
-          if (location.hash.startsWith('#caso=')) {
-            const sharedCaseId = new URLSearchParams(location.hash.slice(1)).get('caso');
-            requestAnimationFrame(() => openCaseDetail(sharedCaseId));
-          }
           break;
         case 'report':
           removeReportPhoto();
@@ -833,6 +1035,7 @@
         case 'admin':
           main.innerHTML = renderAdminView(adminHistory, adminClues, adminAudit);
           loadAdminHistoryPhotos(main);
+          if (params.tab) selectAdminTab(params.tab, null, { silent: true });
           startLiveSyncPolling('admin');
           break;
         case 'otp':
@@ -844,9 +1047,6 @@
       }
 
       labelButtons(main);
-      function replaceBackendCollections(casos, pistas) {
-        window.backendCaseData = { casos, pistas };
-      }
 
       toggleDrawer(false);
       if (store.currentUser) updateNotifBadge();
@@ -897,8 +1097,9 @@
       document.querySelectorAll('[data-role-nav="admin"]').forEach(item => item.classList.toggle('hidden', !isAdministrator));
       document.querySelectorAll('[data-role-nav="citizen"]').forEach(item => item.classList.toggle('hidden', !isCitizen));
       document.querySelectorAll('[data-hide-admin-nav]').forEach(item => item.classList.toggle('hidden', isAdministrator));
-      document.getElementById('reportNavLabel').textContent = store.currentUser ? 'Nuevo reporte' : 'Reportar';
+      document.getElementById('reportNavLabel').textContent = 'Reportar';
       profile?.classList.toggle('hidden', !store.currentUser);
+      document.getElementById('drawerIdentity')?.classList.toggle('hidden', !store.currentUser);
       document.getElementById('headerProfileName').textContent = displayName;
       const avatar = document.getElementById('headerProfileAvatar');
       avatar.textContent = displayName.trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toLocaleUpperCase('es-PY');
@@ -1014,7 +1215,7 @@
       return `
         <div class="auth-view">
           <div>
-            <h2>Portal de Acceso - Rastreo PY</h2>
+            <h1>Portal de acceso · Rastreo PY</h1>
             <p>Plataforma Oficial Colaborativa</p>
           </div>
 
@@ -1161,7 +1362,8 @@
         const result = await apiRequest('/auth/login', { method: 'POST', body: { correo: email, contrasena: password } });
         sessionStorage.setItem('rastreo_token', result.token);
         window.backendCurrentUser = result.usuario;
-        navigateTo('home');
+        const destino = consumePendingDestination();
+        navigateTo(destino ? destino.view : 'home', destino ? destino.params : {}, { replace: true });
       } catch (error) {
         handleAuthError(error);
       }
@@ -1383,7 +1585,7 @@
               <p class="hero-description">Un canal de difusión y ayuda colaborativa para encontrar personas desaparecidas en Paraguay. <strong>No reemplaza la denuncia policial</strong>: la complementa con alertas por zona, pistas ciudadanas con foto y ubicación, y un seguimiento automático de cada caso.</p>
               <div class="hero-actions">
                 <button type="button" onclick="navigateTo('report')" class="btn btn-primary">＋ Reportar persona desaparecida</button>
-                <button type="button" onclick="navigateTo('lead')" class="btn btn-outline">⌖ Generar una pista</button>
+                <button type="button" onclick="navigateTo('lead')" class="btn btn-outline">⌖ Generar pista</button>
                 <a href="tel:911" class="btn btn-emergency">☎ 911</a>
               </div>
             </div>
@@ -1570,10 +1772,14 @@
       if (isVisible && activeMap) requestAnimationFrame(() => activeMap.invalidateSize());
     }
 
-    function openCaseDetail(caseId) {
+    function openCaseDetail(caseId, options = {}) {
       const c = getStore().casos.find(item => item.id === caseId);
       if (!c) {
         showToast('Caso no disponible', 'La ficha ya no está disponible para consulta.', 'error');
+        // El enlace apunta a una ficha que ya no existe. Se corrige siempre,
+        // incluso si vino del historial: dejar la direccion de una ficha
+        // inexistente haria que recargar vuelva a fallar.
+        syncUrl('feed', {}, { replace: true });
         return;
       }
       const content = document.getElementById('caseDetailContent');
@@ -1594,16 +1800,24 @@
         <div class="case-detail-actions">
           <a class="btn btn-outline btn-sm" href="tel:911">Llamar al 911</a>
           <button type="button" class="btn btn-outline btn-sm" onclick="shareCase('${escapeHtml(c.id)}')">Compartir ficha</button>
-          ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button type="button" class="btn btn-primary btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="closeCaseDetail(); navigateTo('lead', {caseId:this.dataset.caseId})">Enviar pista</button>` : ''}
+          ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button type="button" class="btn btn-primary btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="closeCaseDetail({silent:true}); navigateTo('lead', {caseId:this.dataset.caseId}, {replace:true})">Enviar pista</button>` : ''}
         </div>
         <p class="muted">El contacto del reportante se mantiene restringido y no se publica en esta ficha.</p>
       `;
       document.getElementById('caseDetailModal').classList.remove('hidden');
       document.getElementById('caseDetailModal').querySelector('button').focus();
+      if (!options.fromHistory) syncUrl('feed', {}, { caseId: c.id });
     }
 
-    function closeCaseDetail() {
-      document.getElementById('caseDetailModal').classList.add('hidden');
+    // silent: cerrar sin tocar el historial, para cuando justo despues se
+    // navega a otra vista y esa navegacion es la que manda en la direccion.
+    function closeCaseDetail(options = {}) {
+      const modal = document.getElementById('caseDetailModal');
+      const wasOpen = !modal.classList.contains('hidden');
+      modal.classList.add('hidden');
+      if (wasOpen && !options.fromHistory && !options.silent) {
+        syncUrl(window.rastreoCurrentView || 'feed', window.rastreoCurrentParams || {}, { replace: true });
+      }
     }
 
     async function shareCase(caseId) {
@@ -1612,7 +1826,7 @@
       const shareData = {
         title: `Rastreo PY: ${c.nombreCompleto}`,
         text: `Caso de búsqueda en ${c.ciudad}.`,
-        url: `${location.origin}${location.pathname}#caso=${encodeURIComponent(c.id)}`
+        url: `${location.origin}${location.pathname}${buildRoute('case', { caseId: c.id })}`
       };
       try {
         if (navigator.share) await navigator.share(shareData);
@@ -1780,17 +1994,37 @@
     // ==========================================
     // VISTA 4: REPORTAR DESAPARECIDO (SECCIÓN 6)
     // ==========================================
-    function renderReportAccessView() {
+    // Secciones que requieren cuenta. En vez de soltar al visitante en un
+    // login pelado, se le explica que seccion pidio y por que hace falta
+    // una cuenta. Despues de entrar vuelve justo ahi.
+    const ACCESS_GATED_VIEWS = {
+      report: {
+        titulo: 'Reportar persona desaparecida',
+        motivo: 'Para registrar una desaparición hace falta una cuenta de ciudadano: el reporte queda asociado a vos y por ahí te llegan los avisos de seguimiento. Buscar casos y enviar pistas no requiere cuenta.'
+      },
+      'my-cases': {
+        titulo: 'Mis casos',
+        motivo: 'Acá se listan los reportes que registraste vos, así que primero necesitamos saber quién sos.'
+      },
+      alerts: {
+        titulo: 'Alertas',
+        motivo: 'Las alertas son avisos sobre los casos que seguís y sobre búsquedas cerca tuyo. Como son personales, hace falta una cuenta para verlas.'
+      },
+      admin: {
+        titulo: 'Panel de administración',
+        motivo: 'El panel es de uso interno. Ingresá con una cuenta autorizada del Ente Regulador.'
+      }
+    };
+
+    function renderAccessView(targetView) {
+      const info = ACCESS_GATED_VIEWS[targetView] || ACCESS_GATED_VIEWS.report;
       return `
         <div class="access-page">
-          <nav class="breadcrumbs" aria-label="Ruta de navegación">
-            <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><span>Ingreso requerido</span>
-          </nav>
           <section class="access-card card">
             <span class="access-icon" aria-hidden="true">♙</span>
             <p class="section-kicker">Acceso ciudadano</p>
-            <h1>Necesitás ingresar</h1>
-            <p>Para reportar una desaparición y seguir tus casos se requiere una cuenta de ciudadano. Buscar y enviar pistas no la requiere.</p>
+            <h1>${escapeHtml(info.titulo)}</h1>
+            <p>${escapeHtml(info.motivo)}</p>
             <button type="button" class="btn btn-primary" onclick="navigateTo('auth')">Ingresar / Crear cuenta</button>
           </section>
         </div>
@@ -1800,10 +2034,11 @@
     function renderReportView() {
       return `
         <div>
-          <div>
-            <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span>Reportar persona desaparecida</span>
-          </div>
+          <header class="page-heading">
+            <span class="section-kicker">Denuncia ciudadana</span>
+            <h1>Reportar persona desaparecida</h1>
+            <p>Completá los datos de la persona. El reporte pasa por validación antes de publicarse.</p>
+          </header>
 
           <form onsubmit="handleReportSubmit(event)" class="card">
             <div class="form-group">
@@ -2115,12 +2350,9 @@
         ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado));
       return `
         <div class="lead-flow">
-          <nav class="breadcrumbs" aria-label="Ruta de navegación">
-            <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><span>Generar una pista</span>
-          </nav>
-          <header class="lead-step-heading">
+          <header class="page-heading">
             <span class="section-kicker">Colaboración ciudadana</span>
-            <h1>Generar una pista</h1>
+            <h1>Generar pista</h1>
             <p>Paso 1 de 2 · Buscá el caso sobre el que viste algo.</p>
           </header>
           <label class="lead-search-field"><span class="sr-only">Buscar un caso</span>
@@ -2161,9 +2393,9 @@
       return `
         <div class="lead-flow">
           <nav class="breadcrumbs" aria-label="Ruta de navegación">
-            <button type="button" onclick="navigateTo('lead')">Paso 1 de 2</button><span aria-hidden="true">›</span><span>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</span>
+            <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><button type="button" onclick="navigateTo('lead')">Generar pista</button><span aria-hidden="true">›</span><span>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</span>
           </nav>
-          <header class="lead-step-heading">
+          <header class="page-heading">
             <span class="section-kicker">Paso 2 de 2 · Contanos qué viste.</span>
             <h1>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</h1>
             <button type="button" class="inline-detail-link" data-case-id="${escapeHtml(selectedCase.id)}" onclick="openCaseDetail(this.dataset.caseId)">Ver ficha del caso <span aria-hidden="true">›</span></button>
@@ -2409,10 +2641,11 @@
 
       return `
         <div>
-          <div>
-            <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span>Estadísticas nacionales de búsqueda</span>
-          </div>
+          <header class="page-heading">
+            <span class="section-kicker">Datos públicos</span>
+            <h1>Estadísticas nacionales de búsqueda</h1>
+            <p>Indicadores agregados de los casos publicados y de la referencia histórica 2025.</p>
+          </header>
 
           <p class="stats-disclaimer">Datos agregados y anónimos de personas. La referencia 2025 proviene del documento del proyecto; la distribución mensual es ilustrativa.</p>
           <section class="historical-metrics" aria-label="Indicadores de referencia y datos en vivo">
@@ -2476,7 +2709,7 @@
                 const needsResponse = ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado);
                 return `<article class="my-case-card">
                   <div class="my-case-card-heading"><div><h3>${escapeHtml(c.nombreCompleto)}</h3>
-                    <p>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}, ${escapeHtml(c.departamento || '')}</p></div>
+                    <p>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</p></div>
                     <span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(statusLabel(c.estado))}</span></div>
                   <p class="my-case-meta">Reportado ${new Date(c.fechaCreacion).toLocaleString('es-PY')}</p>
                   ${c.estado === 'PENDIENTE' ? '<p class="my-case-notice">Tu reporte está en revisión. Recibirás un aviso cuando se actualice.</p>' : ''}
@@ -2564,10 +2797,10 @@
 
           <nav class="admin-tabs" aria-label="Secciones del administrador">
             <button class="admin-tab active" data-admin-tab="overview" onclick="selectAdminTab('overview', this)">Resumen</button>
-            <button class="admin-tab" data-admin-tab="validation" onclick="selectAdminTab('validation', this)">Bandeja de validación <span class="tab-count">${pending.length}</span></button>
+            <button class="admin-tab" data-admin-tab="validation" onclick="selectAdminTab('validation', this)">Bandeja de validación ${pending.length ? `<span class="tab-count">${pending.length}</span>` : ''}</button>
             <button class="admin-tab" data-admin-tab="cases" onclick="selectAdminTab('cases', this)">Casos</button>
-            <button class="admin-tab" data-admin-tab="followup" onclick="selectAdminTab('followup', this)">Seguimiento <span class="tab-count">${staleCases.length}</span></button>
-            <button class="admin-tab" data-admin-tab="clues" onclick="selectAdminTab('clues', this)">Pistas <span class="tab-count">${pendingClues.length}</span></button>
+            <button class="admin-tab" data-admin-tab="followup" onclick="selectAdminTab('followup', this)">Seguimiento ${staleCases.length ? `<span class="tab-count">${staleCases.length}</span>` : ''}</button>
+            <button class="admin-tab" data-admin-tab="clues" onclick="selectAdminTab('clues', this)">Pistas ${pendingClues.length ? `<span class="tab-count">${pendingClues.length}</span>` : ''}</button>
             <button class="admin-tab" data-admin-tab="audit" onclick="selectAdminTab('audit', this)">Auditoría</button>
             <button class="admin-tab" data-admin-tab="history" onclick="selectAdminTab('history', this)">Historial</button>
           </nav>
@@ -2703,11 +2936,15 @@
       document.getElementById(`followup-case-${caseId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    function selectAdminTab(panel, button) {
+    function selectAdminTab(panel, button, options = {}) {
+      const targetPanel = document.querySelector(`[data-admin-panel="${CSS.escape(panel)}"]`) ? panel : 'overview';
+      const activeTab = button || document.querySelector(`.admin-tab[data-admin-tab="${CSS.escape(targetPanel)}"]`);
       document.querySelectorAll('[data-admin-panel]').forEach(section => {
-        section.classList.toggle('hidden', section.dataset.adminPanel !== panel);
+        section.classList.toggle('hidden', section.dataset.adminPanel !== targetPanel);
       });
-      document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.toggle('active', tab === button));
+      document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.toggle('active', tab === activeTab));
+      window.rastreoCurrentParams = { ...(window.rastreoCurrentParams || {}), tab: targetPanel };
+      if (!options.silent) syncUrl('admin', { tab: targetPanel }, { replace: true });
     }
 
     function renderAdminHistory(history) {
@@ -2925,9 +3162,9 @@
     }
 
     // AUXILIARES Y NOTIFICACIONES
-    function toggleNotificationsModal() { 
+    function toggleNotificationsModal() {
       if (!getStore().currentUser) {
-        navigateTo('auth');
+        navigateTo('alerts');
         return;
       }
       const modal = document.getElementById('notifModal');
@@ -2940,11 +3177,12 @@
       const container = document.getElementById('notifList');
       try {
         const result = await apiRequest('/notificaciones');
-        store.notificaciones = result.notificaciones;
+        store.notificaciones = Array.isArray(result.notificaciones) ? result.notificaciones : [];
         saveStore(store);
       } catch (error) {
         console.error('No se pudieron cargar las notificaciones:', error.message);
       }
+      if (!Array.isArray(store.notificaciones)) store.notificaciones = [];
       if (store.notificaciones.length === 0) {
         container.innerHTML = '<p>Sin notificaciones registradas.</p>';
         return;
@@ -3022,17 +3260,17 @@
       const badge = document.getElementById('notifBadge');
       try {
         const result = await apiRequest('/notificaciones');
-        store.notificaciones = result.notificaciones;
+        store.notificaciones = Array.isArray(result.notificaciones) ? result.notificaciones : [];
         saveStore(store);
         try {
-          await deliverSystemNotifications(result.notificaciones);
+          await deliverSystemNotifications(store.notificaciones);
         } catch (error) {
           console.error('No se pudo mostrar una notificación del sistema:', error.message);
         }
       } catch (error) {
         console.error('No se pudo actualizar el contador de notificaciones:', error.message);
       }
-      const unread = store.notificaciones.filter(n => !n.leida).length;
+      const unread = (Array.isArray(store.notificaciones) ? store.notificaciones : []).filter(n => !n.leida).length;
       [badge, document.getElementById('headerNotifBadge')].forEach(item => {
         if (unread > 0) {
           item.innerText = unread;
@@ -3098,7 +3336,7 @@
           tag: `rastreo-${item.id}`,
           data: {
             url: item.casoId
-              ? `${location.origin}${location.pathname}#caso=${encodeURIComponent(item.casoId)}`
+              ? `${location.origin}${location.pathname}${buildRoute('case', { caseId: item.casoId })}`
               : location.href
           }
         });
@@ -3125,6 +3363,7 @@
       sessionStorage.removeItem('rastreo_token');
       window.backendCurrentUser = null;
       window.backendCaseData = null;
+      pendingDestination = null;
       navigateTo('auth', { authMode: 'login' });
     }
 
@@ -3144,7 +3383,7 @@
             window.backendCurrentUser = null;
           }
         }
-        navigateTo('home');
+        await applyCurrentRoute();
       } catch (error) {
         console.error('No se pudo inicializar la sesión.', error);
         showToast('Error de sesión', 'No se pudo comprobar la sesión. Recarga la página e inténtalo nuevamente.', 'error');

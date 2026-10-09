@@ -5,3 +5,8 @@ node_modules/
 *.db
 *.db-shm
 *.db-wal
+
+design_system.md
+requisitos.txt
+notas-coherencia.txt
+.claude/

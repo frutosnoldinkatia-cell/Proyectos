@@ -18,14 +18,14 @@
     <button id="publicThemeToggle" class="public-theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
 
     <div id="workshopBar" class="workshop-bar hidden">
-      <strong class="workshop-label">MODO DEMO <span>· Workshop</span></strong>
+      <strong class="workshop-label"><span class="workshop-mode">MODO DEMO</span><span class="workshop-separator">·</span><span>Workshop</span></strong>
       <div class="workshop-role-switch" role="group" aria-label="Navegación por vistas">
         <button type="button" data-demo-view="feed" onclick="navigateTo('feed')" aria-current="page">Vista Ciudadano</button>
         <button type="button" data-demo-view="admin" onclick="navigateTo('admin')">Vista Administrador</button>
       </div>
       <div class="workshop-tools">
-        <button type="button" class="workshop-simulate hidden" id="workshopSimulate" onclick="toggleSimulateTimeModal()">◷ <span>Simular +48 h</span></button>
-        <button type="button" class="workshop-reset" disabled title="El restablecimiento solo está disponible en un entorno de demostración aislado.">Restablecer datos semilla</button>
+        <button type="button" class="workshop-simulate hidden" id="workshopSimulate" onclick="toggleSimulateTimeModal()"><span aria-hidden="true">◷</span> <span>Simular +48 h</span></button>
+        <button type="button" class="workshop-reset" disabled title="El restablecimiento solo está disponible en un entorno de demostración aislado."><span aria-hidden="true">↻</span> Restablecer datos semilla</button>
       </div>
       <div class="workshop-clock" aria-label="Fecha y hora actual de Paraguay">
         <span>Reloj: <time id="workshopDateTime"></time></span>
@@ -46,7 +46,7 @@
       </div>
       <nav class="main-nav" aria-label="Navegación principal">
         <button type="button" data-nav-view="feed" onclick="navigateTo('home')"><span aria-hidden="true">⌂</span> Inicio</button>
-        <button type="button" data-nav-view="report" onclick="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
+        <button type="button" data-hide-admin-nav data-nav-view="report" onclick="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
         <button type="button" data-nav-view="lead" onclick="navigateTo('lead')"><span aria-hidden="true">⌖</span> Generar pista</button>
         <button type="button" onclick="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
         <button type="button" data-nav-view="stats" onclick="navigateTo('stats')"><span aria-hidden="true">▥</span> Estadísticas</button>
@@ -57,8 +57,9 @@
         <button id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
         <button type="button" class="header-notifications" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
         <div id="headerProfile" class="header-profile hidden">
-          <span id="headerProfileName"></span>
-          <span id="headerProfileRole" class="role-badge">CIUDADANO</span>
+          <span id="headerProfileAvatar" class="header-profile-avatar" aria-hidden="true"></span>
+          <span class="header-profile-copy"><span id="headerProfileName"></span>
+            <span id="headerProfileRole" class="role-badge">CIUDADANO</span></span>
         </div>
         <button id="headerAuthAction" class="header-auth-action" type="button" onclick="navigateTo('auth')">♙ Ingresar</button>
       </div>
@@ -895,9 +896,14 @@
       const displayName = store.currentUser?.nombre || store.currentUser?.nombre_completo || store.currentUser?.correo || '';
       document.querySelectorAll('[data-role-nav="admin"]').forEach(item => item.classList.toggle('hidden', !isAdministrator));
       document.querySelectorAll('[data-role-nav="citizen"]').forEach(item => item.classList.toggle('hidden', !isCitizen));
+      document.querySelectorAll('[data-hide-admin-nav]').forEach(item => item.classList.toggle('hidden', isAdministrator));
       document.getElementById('reportNavLabel').textContent = store.currentUser ? 'Nuevo reporte' : 'Reportar';
       profile?.classList.toggle('hidden', !store.currentUser);
       document.getElementById('headerProfileName').textContent = displayName;
+      const avatar = document.getElementById('headerProfileAvatar');
+      avatar.textContent = displayName.trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toLocaleUpperCase('es-PY');
+      avatar.classList.toggle('header-profile-avatar-admin', isAdministrator);
+      avatar.classList.toggle('header-profile-avatar-citizen', !isAdministrator);
       const roleBadge = document.getElementById('headerProfileRole');
       roleBadge.textContent = isAdministrator ? 'ADMIN' : 'CIUDADANO';
       roleBadge.classList.toggle('role-badge-admin', isAdministrator);
@@ -905,6 +911,7 @@
       if (authAction) {
         authAction.textContent = store.currentUser ? 'Cerrar sesión' : '♙ Ingresar';
         authAction.onclick = store.currentUser ? logout : () => navigateTo('auth');
+        authAction.classList.toggle('hidden', Boolean(store.currentUser));
       }
       document.getElementById('workshopSimulate')?.classList.toggle('hidden', !isAdministrator);
       document.querySelectorAll('[data-demo-view="admin"]').forEach(button => {

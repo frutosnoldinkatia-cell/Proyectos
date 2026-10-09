@@ -12,6 +12,7 @@ import {
   seedAdministrator
 } from './db.js';
 import { authenticate, createAuthRouter, requireAdministrator } from './auth-routes.js';
+import { createCaseRouter } from './case-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -46,7 +47,8 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
       return callback(new Error('Origen no permitido por CORS.'));
     }
   }));
-  app.use(express.json({ limit: '20kb' }));
+  app.use(express.json({ limit: '12mb' }));
+  app.use('/api', createCaseRouter({ db, jwtSecret }));
   app.use('/api/auth', createAuthRouter({ db, mailer, jwtSecret }));
   app.get('/api/auth/me', authenticate(jwtSecret), asyncRoute(async (req, res) => {
     const { rows } = await db.query(

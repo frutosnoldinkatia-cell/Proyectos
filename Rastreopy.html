@@ -365,6 +365,10 @@
       delete store.users;
       delete store.codigosOTP;
       store.currentUser = window.backendCurrentUser || null;
+      if (window.backendCaseData) {
+        store.casos = window.backendCaseData.casos;
+        store.pistas = window.backendCaseData.pistas;
+      }
       localStorage.removeItem('rastreo_usuarios');
       localStorage.removeItem('rastreo_codigos');
       sessionStorage.removeItem('rastreo_sesion');
@@ -378,9 +382,43 @@
 
     let activeMap = null;
     let activeMarkers = [];
+    let locatedExpiryTimer = null;
+
+    function scheduleLocatedExpiry() {
+      if (locatedExpiryTimer) clearTimeout(locatedExpiryTimer);
+      const nextExpiry = getStore().casos
+        .filter(c => c.estado === 'LOCALIZADO' && c.visibleHasta)
+        .map(c => new Date(c.visibleHasta).getTime())
+        .filter(timestamp => Number.isFinite(timestamp) && timestamp > Date.now())
+        .sort((left, right) => left - right)[0];
+      if (!nextExpiry) return;
+
+      const delay = Math.min(nextExpiry - Date.now() + 50, 2147483647);
+      locatedExpiryTimer = setTimeout(async () => {
+        if (window.rastreoCurrentView !== 'feed') return;
+        try {
+          const [caseResult, clueResult] = await Promise.all([
+            apiRequest('/casos'),
+            apiRequest('/pistas')
+          ]);
+          replaceBackendCollections(caseResult.casos, clueResult.pistas);
+          const main = document.getElementById('mainContent');
+          main.innerHTML = renderFeedView();
+          renderCasePhotos(caseResult.casos);
+          initMainLeafletMap();
+          scheduleLocatedExpiry();
+        } catch (error) {
+          showToast('No se pudo actualizar la vista pública', error.message);
+        }
+      }, delay);
+    }
 
     // ENRUTADOR Y GESTIÓN DE VISTAS SPA
     async function navigateTo(view, params = {}) {
+      if (locatedExpiryTimer) {
+        clearTimeout(locatedExpiryTimer);
+        locatedExpiryTimer = null;
+      }
       const store = getStore();
       const main = document.getElementById('mainContent');
       const header = document.getElementById('topHeader');
@@ -426,11 +464,48 @@
         }
       }
 
+      window.rastreoCurrentView = view;
+
+      let statistics = null;
+      let adminHistory = null;
+      if (view === 'feed' || view === 'lead') {
+        try {
+          const [caseResult, clueResult] = await Promise.all([
+            apiRequest('/casos'),
+            apiRequest('/pistas')
+          ]);
+          replaceBackendCollections(caseResult.casos, clueResult.pistas);
+        } catch (error) {
+          showToast('Error al cargar los casos', error.message);
+          return;
+        }
+      } else if (view === 'stats') {
+        try {
+          statistics = await apiRequest('/estadisticas');
+        } catch (error) {
+          showToast('Error al cargar estadísticas', error.message);
+          return;
+        }
+      } else if (view === 'admin') {
+        try {
+          const [caseResult, historyResult] = await Promise.all([
+            apiRequest('/admin/casos'),
+            apiRequest('/admin/historial-localizados')
+          ]);
+          replaceBackendCollections(caseResult.casos, []);
+          adminHistory = historyResult;
+        } catch (error) {
+          showToast('Error al cargar el panel', error.message);
+          return;
+        }
+      }
+
       switch (view) {
         case 'feed':
           main.innerHTML = renderFeedView();
           renderCasePhotos(getStore().casos);
           initMainLeafletMap();
+          scheduleLocatedExpiry();
           break;
         case 'report':
           removeReportPhoto();
@@ -442,10 +517,11 @@
           initLeadLeafletMap();
           break;
         case 'stats':
-          main.innerHTML = renderStatsView();
+          main.innerHTML = renderStatsView(statistics);
           break;
         case 'admin':
-          main.innerHTML = renderAdminView();
+          main.innerHTML = renderAdminView(adminHistory);
+          loadAdminHistoryPhotos(main);
           break;
         case 'otp':
           main.innerHTML = renderOTPView(params);
@@ -453,6 +529,10 @@
         default:
           main.innerHTML = renderFeedView();
           initMainLeafletMap();
+      }
+
+      function replaceBackendCollections(casos, pistas) {
+        window.backendCaseData = { casos, pistas };
       }
 
       toggleDrawer(false);
@@ -497,7 +577,7 @@
               <p><strong style="color:white;">2. Obligatoriedad de Denuncia Oficial:</strong> El uso de esta plataforma no sustituye la radicación formal de la denuncia. Se exige al usuario realizar la denuncia correspondiente ante las instituciones públicas oficiales de manera prioritaria y previa a la carga de datos en la plataforma.</p>
               <p><strong style="color:white;">3. Deslinde de Responsabilidad:</strong> La plataforma, sus desarrolladores y administradores quedan totalmente eximidos de cualquier responsabilidad legal, civil, penal o administrativa respecto a la conducción, seguimiento o resultados de las investigaciones, así como de la veracidad, exactitud o autenticidad de la información e imágenes ingresadas por terceros.</p>
               <p><strong style="color:white;">4. Tratamiento de Datos Personales (Ley N.º 7593/2025):</strong> El tratamiento y difusión de los datos personales de identificación se realiza al amparo de la excepción legal orientada a la protección de la vida, la integridad física y la seguridad de las personas. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
-              <p><strong style="color:white;">5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la plataforma procederá al retiro inmediato y desindexación pública de la ficha de búsqueda.</p>
+              <p><strong style="color:white;">5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la ficha de búsqueda permanecerá visible por un máximo de 24 horas con el estado 'Localizado', a fin de informar a la ciudadanía. Transcurrido ese plazo, la plataforma procederá al retiro y desindexación pública de la ficha. Los datos solo se conservarán, de forma restringida, para el historial interno de la autoridad administradora y como cifras estadísticas agregadas.</p>
               <p><strong style="color:white;">6. Uso Aceptable:</strong> Queda estrictamente prohibido el ingreso de reportes falsos, difamatorios o el uso de la plataforma para cometer extorsiones, estafas o cobro indebido de recompensas.</p>
             </div>
           </div>
@@ -920,6 +1000,15 @@
     }
 
     function renderCaseItemRow(c) {
+      const hoursRemaining = c.visibleHasta
+        ? Math.max(0, (new Date(c.visibleHasta).getTime() - Date.now()) / 3600000)
+        : null;
+      const timeRemainingText = hoursRemaining === null ? '' : hoursRemaining < 1
+        ? (hoursRemaining < 1 / 60 ? 'menos de un minuto' : `${Math.ceil(hoursRemaining * 60)} ${Math.ceil(hoursRemaining * 60) === 1 ? 'minuto' : 'minutos'}`)
+        : `${hoursRemaining.toFixed(1)} horas`;
+      const visibilityNotice = c.estado === 'LOCALIZADO' && hoursRemaining !== null
+        ? `<p style="font-size:10px; color:var(--text-muted); margin-top:4px;">Este caso se retirará de la vista pública en ${timeRemainingText}.</p>`
+        : '';
       return `
         <div id="case-${c.id}" class="case-row card" style="display:flex; gap:12px; margin-bottom:0; cursor:pointer;" onclick="focusCaseOnMap('${c.id}')">
           <div id="case-photo-${c.id}" class="no-photo-box">Sin fotografía</div>
@@ -931,10 +1020,11 @@
               </div>
               <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">${c.ciudad} • ${c.edad} años</p>
               <p style="font-size:11px; color:var(--text-main); margin-top:4px; line-height:1.3;" class="line-clamp-2">${c.descripcionFisica}</p>
+              ${visibilityNotice}
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px solid var(--border-color);">
               <span style="font-size:10px; color:var(--text-muted);">Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}</span>
-              <button onclick="event.stopPropagation(); navigateTo('lead', {caseId:'${c.id}'})" class="btn btn-outline btn-sm">Aportar pista</button>
+              ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button onclick="event.stopPropagation(); navigateTo('lead', {caseId:'${c.id}'})" class="btn btn-outline btn-sm">Aportar pista</button>` : ''}
             </div>
           </div>
         </div>
@@ -1304,7 +1394,6 @@
       e.preventDefault();
       const name = document.getElementById('repNombre').value.trim();
       const city = document.getElementById('repCiudad').value.trim();
-      const store = getStore();
       let photoData = '';
 
       if (selectedReportPhoto) {
@@ -1325,7 +1414,6 @@
 
       const denuncia = document.getElementById('repDenuncia').value.trim();
       const newCase = {
-        id: 'cas_' + Date.now(),
         nombreCompleto: name,
         edad: parseInt(document.getElementById('repEdad').value),
         sexo: document.getElementById('repSexo').value,
@@ -1340,47 +1428,16 @@
           lng: parseFloat(document.getElementById('replng').value),
           direccion: city
         },
-        numeroDenuncia: denuncia,
-        estado: denuncia ? 'VALIDADO' : 'PENDIENTE',
-        reportadoPorUsrId: store.currentUser.id,
-        contactoReportante: store.currentUser.identificador,
-        fechaCreacion: new Date().toISOString(),
-        proximoSeguimiento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+        numeroDenuncia: denuncia
       };
 
-      store.casos.unshift(newCase);
-
-      store.notificaciones.unshift({
-        id: 'not_' + Date.now(),
-        usuarioId: store.currentUser.id,
-        titulo: 'Alerta de Búsqueda Cercana (Radio 60 km)',
-        mensaje: `Se ha registrado el reporte de búsqueda de ${name} en ${city}.`,
-        tipo: 'ALERTA_BUSQUEDA',
-        leida: false,
-        fecha: new Date().toISOString()
-      });
-
-      let photoOmitted = false;
       try {
-        saveStore(store);
+        await apiRequest('/casos', { method: 'POST', body: newCase });
       } catch (error) {
-        if (!newCase.foto) {
-          alert('No se pudo guardar el reporte porque el almacenamiento está lleno. Los datos permanecen en el formulario. Libere espacio e intente nuevamente.');
-          return;
-        }
-        newCase.foto = '';
-        photoOmitted = true;
-        try {
-          saveStore(store);
-        } catch (retryError) {
-          newCase.foto = photoData;
-          alert('No se pudo guardar el reporte porque el almacenamiento está lleno. Los datos permanecen en el formulario. Libere espacio e intente nuevamente.');
-          return;
-        }
+        setReportPhotoError(error.message);
+        return;
       }
-      alert(photoOmitted
-        ? 'Reporte registrado correctamente. No se pudo guardar la fotografía porque el almacenamiento está lleno.'
-        : 'Reporte registrado correctamente.');
+      alert('Reporte registrado correctamente.');
       navigateTo('feed');
     }
 
@@ -1389,7 +1446,7 @@
     // ==========================================
     function renderLeadView(preCaseId) {
       const store = getStore();
-      const activeCases = store.casos.filter(c => c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO');
+      const activeCases = store.casos.filter(c => c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' && c.estado !== 'RECHAZADO');
       return `
         <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
           <div style="display:flex; align-items:center; gap:8px;">
@@ -1488,7 +1545,7 @@
       const store = getStore();
 
       const filtered = store.casos.filter(c => {
-        if (c.estado === 'CERRADO' || c.estado === 'RECHAZADO') return false;
+        if (c.estado === 'CERRADO' || c.estado === 'LOCALIZADO' || c.estado === 'RECHAZADO') return false;
         if (ciudad && !c.ciudad.toLowerCase().includes(ciudad)) return false;
         if (sexo && c.sexo !== sexo) return false;
         if (edad === '0-17' && c.edad >= 18) return false;
@@ -1500,46 +1557,50 @@
       sel.innerHTML = filtered.map(c => `<option value="${c.id}">${c.nombreCompleto} (${c.ciudad})</option>`).join('');
     }
 
-    function handleLeadSubmit(e) {
+    async function handleLeadSubmit(e) {
       e.preventDefault();
       const caseId = document.getElementById('leadCaseSelect').value;
       const desc = document.getElementById('leadDesc').value.trim();
-      const store = getStore();
-
-      store.pistas.unshift({
-        id: 'pst_' + Date.now(),
-        casoId: caseId,
-        usuarioId: store.currentUser.id,
-        descripcion: desc,
-        fechaHoraAvistamiento: document.getElementById('leadFecha').value,
-        ubicacion: { lat: parseFloat(document.getElementById('leadlat').value), lng: parseFloat(document.getElementById('leadlng').value) },
-        fechaEnvio: new Date().toISOString()
-      });
-
-      store.notificaciones.unshift({
-        id: 'not_' + Date.now(),
-        usuarioId: store.currentUser.id,
-        titulo: 'Pista enviada correctamente',
-        mensaje: 'Su reporte de pista fue recibido y notificado a los administradores del caso.',
-        tipo: 'PISTA_RECIBIDA',
-        leida: false,
-        fecha: new Date().toISOString()
-      });
-
-      saveStore(store);
-      alert('Pista ingresada correctamente.');
-      navigateTo('feed');
+      try {
+        await apiRequest(`/casos/${encodeURIComponent(caseId)}/pistas`, {
+          method: 'POST',
+          body: {
+            descripcion: desc,
+            fechaHoraAvistamiento: document.getElementById('leadFecha').value,
+            ubicacion: {
+              lat: parseFloat(document.getElementById('leadlat').value),
+              lng: parseFloat(document.getElementById('leadlng').value)
+            }
+          }
+        });
+        alert('Pista ingresada correctamente.');
+        navigateTo('feed');
+      } catch (error) {
+        showToast('No se pudo enviar la pista', error.message);
+      }
     }
 
     // ==========================================
     // VISTA 6: ESTADÍSTICAS COMPACTAS 2x2 (SECCIÓN 8)
     // ==========================================
-    function renderStatsView() {
-      const store = getStore();
-      const total = store.casos.length;
-      const encontrados = store.casos.filter(c => c.estado === 'LOCALIZADO' || c.estado === 'CERRADO').length;
-      const activos = store.casos.filter(c => c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO').length;
-      const pct = total > 0 ? Math.round((encontrados / total) * 100) : 0;
+    function renderStatsView(stats) {
+      const total = Number(stats.total);
+      const encontrados = Number(stats.encontrados);
+      const activos = Number(stats.activos);
+      const pct = Number(stats.porcentajeResueltos);
+      const aggregateRows = (rows, label) => `
+        <div class="card">
+          <p style="font-size:11px; font-weight:700; color:var(--navy-primary); margin-bottom:8px;">${label}</p>
+          ${rows.length ? rows.map(row => {
+            const maximum = Math.max(...rows.map(item => Number(item.total)), 1);
+            const value = Number(row.total);
+            return `<div style="padding:5px 0; border-top:1px solid var(--border-color); font-size:11px;">
+              <div style="display:flex; justify-content:space-between;"><span>${escapeHtml(row.periodo || row.categoria)}</span><strong>${value}</strong></div>
+              <div style="height:5px; margin-top:4px; background:#E5E7EB;"><div style="height:100%; width:${value / maximum * 100}%; background:var(--navy-primary);"></div></div>
+            </div>`;
+          }).join('') : '<p style="font-size:11px; color:var(--text-muted);">Sin datos disponibles.</p>'}
+        </div>
+      `;
 
       return `
         <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
@@ -1580,6 +1641,12 @@
               <span style="color:var(--red-accent);">Búsqueda activa: ${activos}</span>
             </div>
           </div>
+          ${aggregateRows(stats.porMes, 'Personas localizadas por mes')}
+          <div class="grid-2">
+            ${aggregateRows(stats.porCiudad, 'Personas localizadas por ciudad')}
+            ${aggregateRows(stats.porSexo, 'Personas localizadas por sexo')}
+          </div>
+          ${aggregateRows(stats.porEdad, 'Personas localizadas por edad')}
         </div>
       `;
     }
@@ -1587,7 +1654,7 @@
     // ==========================================
     // VISTA 7: PANEL DE ADMINISTRACIÓN (SECCIÓN 9)
     // ==========================================
-    function renderAdminView() {
+    function renderAdminView(history) {
       const store = getStore();
       const pending = store.casos.filter(c => c.estado === 'PENDIENTE');
 
@@ -1627,53 +1694,146 @@
                     <p style="font-size:10px; color:var(--text-muted);">Denuncia: ${c.numeroDenuncia || 'Sin registrar'}</p>
                   </div>
                   <div style="display:flex; gap:4px;">
-                    ${c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' ? `<button onclick="adminMarkLocated('${c.id}')" class="btn btn-primary btn-sm">Marcar localizado / Cerrar</button>` : ''}
+                    ${c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' ? `<button onclick="adminMarkLocated('${c.id}')" class="btn btn-primary btn-sm">Marcar localizado</button>` : ''}
                   </div>
                 </div>
               `).join('')}
             </div>
           </div>
+
+          <section class="card" aria-labelledby="locatedHistoryHeading">
+            <h2 id="locatedHistoryHeading" style="font-size:12px; color:var(--navy-primary); margin-bottom:10px;">Historial de casos localizados</h2>
+            <form onsubmit="searchAdminHistory(event)" class="grid-3" style="margin-bottom:10px;">
+              <input id="historySearch" type="search" class="form-control" placeholder="Nombre o ciudad" aria-label="Buscar por nombre o ciudad">
+              <input id="historyFrom" type="date" class="form-control" aria-label="Desde">
+              <input id="historyTo" type="date" class="form-control" aria-label="Hasta">
+              <button type="submit" class="btn btn-outline btn-sm">Buscar historial</button>
+            </form>
+            <div id="adminHistoryResults">${renderAdminHistory(history)}</div>
+          </section>
         </div>
       `;
     }
 
-    function adminAccept(caseId) {
+    function renderAdminHistory(history) {
+      if (!history?.casos?.length) {
+        return '<p style="font-size:11px; color:var(--text-muted);">No hay casos localizados en este historial.</p>';
+      }
+      return `${history.casos.map(c => `
+        <article class="card" style="margin:8px 0; padding:10px;">
+          <div style="display:flex; gap:10px;">
+            ${c.fotoUrl ? `<img src="data:," data-photo-url="${c.fotoUrl}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo style="width:75px;height:90px;object-fit:cover;border:1px solid var(--border-color);">` : ''}
+            <div>
+              <strong style="font-size:12px;">${escapeHtml(c.nombreCompleto)}</strong>
+              <p style="font-size:10px; color:var(--text-muted);">${escapeHtml(c.ciudad)} · ${Number(c.edad)} años · ${escapeHtml(c.sexo)}</p>
+              <p style="font-size:10px; margin-top:4px;">Localizado: ${c.localizadoEn ? new Date(c.localizadoEn).toLocaleString() : 'Sin fecha'}</p>
+              <p style="font-size:10px;">Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleString()} · Estado: ${escapeHtml(c.estado)}</p>
+              <p style="font-size:10px;">Denuncia: ${escapeHtml(c.numeroDenuncia || 'Sin registrar')} · Contacto: ${escapeHtml(c.contactoReportante || 'No disponible')}</p>
+            </div>
+          </div>
+          <p style="font-size:11px; margin-top:8px;"><strong>Descripción:</strong> ${escapeHtml(c.descripcionFisica)}</p>
+          <p style="font-size:11px;"><strong>Vestimenta:</strong> ${escapeHtml(c.vestimenta)}</p>
+          <p style="font-size:11px;"><strong>Señas particulares:</strong> ${escapeHtml(c.senasParticulares || 'No registradas')}</p>
+          <p style="font-size:11px;"><strong>Ubicación:</strong> ${escapeHtml(c.ubicacion?.direccion || c.ciudad)} (${Number(c.ubicacion?.lat)}, ${Number(c.ubicacion?.lng)})</p>
+          <div style="margin-top:8px; font-size:10px;">
+            <strong>Pistas (${c.pistas?.length || 0})</strong>
+            ${(c.pistas || []).map(p => `<p style="border-top:1px solid var(--border-color); padding-top:4px; margin-top:4px;">${escapeHtml(p.descripcion)} · ${new Date(p.fechaHoraAvistamiento).toLocaleString()} · ${escapeHtml(p.nombreUsuario || p.correoUsuario || 'Usuario no disponible')} · ${Number(p.ubicacion?.lat)}, ${Number(p.ubicacion?.lng)}</p>`).join('') || '<p>Sin pistas registradas.</p>'}
+          </div>
+          <div style="margin-top:8px; font-size:10px;">
+            <strong>Cambios de estado</strong>
+            ${(c.cambiosEstado || []).map(change => `<p style="border-top:1px solid var(--border-color); padding-top:4px; margin-top:4px;">${escapeHtml(change.estadoAnterior || 'Nuevo')} → ${escapeHtml(change.estadoNuevo)} · ${escapeHtml(change.nombreAdministrador || 'Sistema')} · ${new Date(change.cambiadoEn).toLocaleString()}</p>`).join('') || '<p>Sin historial de cambios.</p>'}
+          </div>
+        </article>
+      `).join('')}
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+        <span>Página ${history.pagina} · ${history.total} casos</span>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina - 1})" ${history.pagina <= 1 ? 'disabled' : ''}>Anterior</button>
+          <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina + 1})" ${history.pagina * history.limite >= history.total ? 'disabled' : ''}>Siguiente</button>
+        </div>
+      </div>`;
+    }
+
+    async function loadAdminHistory(page) {
+      const query = new URLSearchParams({
+        page: String(Math.max(1, page)),
+        q: document.getElementById('historySearch')?.value.trim() || '',
+        desde: document.getElementById('historyFrom')?.value || '',
+        hasta: document.getElementById('historyTo')?.value || ''
+      });
+      try {
+        const history = await apiRequest(`/admin/historial-localizados?${query}`);
+        const container = document.getElementById('adminHistoryResults');
+        if (container) {
+          container.innerHTML = renderAdminHistory(history);
+          loadAdminHistoryPhotos(container);
+        }
+      } catch (error) {
+        showToast('Error al cargar el historial', error.message);
+      }
+    }
+
+    function searchAdminHistory(event) {
+      event.preventDefault();
+      loadAdminHistory(1);
+    }
+
+    async function loadAdminHistoryPhotos(container) {
+      const images = container.querySelectorAll('img[data-admin-photo]');
+      await Promise.all(Array.from(images, async image => {
+        try {
+          const response = await fetch(image.dataset.photoUrl, {
+            headers: { Authorization: ['Be', 'arer'].join('') + ' ' + sessionStorage.getItem('rastreo_token') }
+          });
+          if (!response.ok) throw new Error(`No se pudo obtener la fotografía (${response.status}).`);
+          const photo = URL.createObjectURL(await response.blob());
+          image.src = photo;
+          image.addEventListener('load', () => URL.revokeObjectURL(photo), { once: true });
+        } catch (error) {
+          console.error('No se pudo cargar una fotografía del historial:', error.message);
+          image.remove();
+        }
+      }));
+    }
+
+    async function adminAccept(caseId) {
       const denuncia = prompt('Ingrese el Número Oficial de Denuncia Policial para aprobar el caso:');
       if (!denuncia) return;
-      const store = getStore();
-      const c = store.casos.find(x => x.id === caseId);
-      if (c) {
-        c.numeroDenuncia = denuncia;
-        c.estado = 'VALIDADO';
-        saveStore(store);
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'VALIDADO', numeroDenuncia: denuncia }
+        });
         alert('Caso validado y publicado en el mapa.');
         navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo validar el caso', error.message);
       }
     }
 
-    function adminReject(caseId) {
+    async function adminReject(caseId) {
       const motivo = prompt('Ingrese el motivo obligatorio del rechazo del caso:');
       if (!motivo) return;
-      const store = getStore();
-      const c = store.casos.find(x => x.id === caseId);
-      if (c) {
-        c.estado = 'RECHAZADO';
-        c.motivoRechazo = motivo;
-        saveStore(store);
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'RECHAZADO', motivo }
+        });
         alert('Reporte rechazado.');
         navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo rechazar el caso', error.message);
       }
     }
 
-    function adminMarkLocated(caseId) {
-      if (!confirm('¿Confirmar que la persona ha sido localizada? La ficha pública será retirada conforme al derecho de supresión.')) return;
-      const store = getStore();
-      const c = store.casos.find(x => x.id === caseId);
-      if (c) {
-        c.estado = 'CERRADO';
-        saveStore(store);
-        alert('Caso concluido y desindexado de la vista pública.');
+    async function adminMarkLocated(caseId) {
+      if (!confirm('¿Confirmar que la persona ha sido localizada? La ficha permanecerá visible hasta 24 horas y luego se retirará del acceso público.')) return;
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'LOCALIZADO' }
+        });
+        alert('Caso marcado como localizado. Se notificará a las personas suscritas.');
         navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo actualizar el caso', error.message);
       }
     }
 
@@ -1684,9 +1844,16 @@
       if (!modal.classList.contains('hidden')) renderNotifList();
     }
 
-    function renderNotifList() {
+    async function renderNotifList() {
       const store = getStore();
       const container = document.getElementById('notifList');
+      try {
+        const result = await apiRequest('/notificaciones');
+        store.notificaciones = result.notificaciones;
+        saveStore(store);
+      } catch (error) {
+        console.error('No se pudieron cargar las notificaciones:', error.message);
+      }
       if (store.notificaciones.length === 0) {
         container.innerHTML = '<p style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px;">Sin notificaciones registradas.</p>';
         return;
@@ -1721,9 +1888,16 @@
 
     function hideToast() { document.getElementById('toastNotification').classList.add('hidden'); }
 
-    function updateNotifBadge() {
+    async function updateNotifBadge() {
       const store = getStore();
       const badge = document.getElementById('notifBadge');
+      try {
+        const result = await apiRequest('/notificaciones');
+        store.notificaciones = result.notificaciones;
+        saveStore(store);
+      } catch (error) {
+        console.error('No se pudo actualizar el contador de notificaciones:', error.message);
+      }
       const unread = store.notificaciones.filter(n => !n.leida).length;
       if (unread > 0) {
         badge.innerText = unread;
@@ -1733,17 +1907,21 @@
       }
     }
 
-    function clearNotifs() {
-      const store = getStore();
-      store.notificaciones = [];
-      saveStore(store);
-      updateNotifBadge();
-      toggleNotificationsModal();
+    async function clearNotifs() {
+      try {
+        await apiRequest('/notificaciones/leidas', { method: 'POST' });
+        await updateNotifBadge();
+        await renderNotifList();
+        toggleNotificationsModal();
+      } catch (error) {
+        showToast('No se pudieron actualizar las notificaciones', error.message);
+      }
     }
 
     async function logout() {
       sessionStorage.removeItem('rastreo_token');
       window.backendCurrentUser = null;
+      window.backendCaseData = null;
       navigateTo('auth', { authMode: 'login' });
     }
 

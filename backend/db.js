@@ -52,6 +52,79 @@ export async function initializeDatabase(db) {
 
     CREATE INDEX IF NOT EXISTS idx_solicitudes_correo_fecha
       ON solicitudes_codigo (correo, creado_en);
+
+    CREATE TABLE IF NOT EXISTS casos (
+      id TEXT PRIMARY KEY,
+      nombre_completo TEXT NOT NULL,
+      edad INTEGER NOT NULL,
+      sexo TEXT NOT NULL,
+      ciudad TEXT NOT NULL,
+      descripcion_fisica TEXT NOT NULL,
+      vestimenta TEXT NOT NULL,
+      senas_particulares TEXT NOT NULL DEFAULT '',
+      fecha_hora_desaparicion TIMESTAMPTZ NOT NULL,
+      foto TEXT NOT NULL DEFAULT '',
+      latitud DOUBLE PRECISION NOT NULL,
+      longitud DOUBLE PRECISION NOT NULL,
+      direccion TEXT NOT NULL DEFAULT '',
+      numero_denuncia TEXT NOT NULL DEFAULT '',
+      estado TEXT NOT NULL DEFAULT 'PENDIENTE',
+      motivo_rechazo TEXT,
+      reportado_por_usr_id INTEGER REFERENCES usuarios(id),
+      localizado_en TIMESTAMPTZ,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      proximo_seguimiento TIMESTAMPTZ
+    );
+
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS localizado_en TIMESTAMPTZ;
+    UPDATE casos SET localizado_en = CURRENT_TIMESTAMP
+      WHERE estado = 'LOCALIZADO' AND localizado_en IS NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_casos_estado_localizado
+      ON casos (estado, localizado_en);
+    CREATE INDEX IF NOT EXISTS idx_casos_creado_en ON casos (creado_en);
+
+    CREATE TABLE IF NOT EXISTS pistas (
+      id TEXT PRIMARY KEY,
+      caso_id TEXT NOT NULL REFERENCES casos(id),
+      usuario_id INTEGER REFERENCES usuarios(id),
+      descripcion TEXT NOT NULL,
+      fecha_hora_avistamiento TIMESTAMPTZ NOT NULL,
+      latitud DOUBLE PRECISION NOT NULL,
+      longitud DOUBLE PRECISION NOT NULL,
+      direccion TEXT NOT NULL DEFAULT '',
+      fecha_envio TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS cambios_estado_caso (
+      id BIGSERIAL PRIMARY KEY,
+      caso_id TEXT NOT NULL REFERENCES casos(id),
+      estado_anterior TEXT,
+      estado_nuevo TEXT NOT NULL,
+      cambiado_por INTEGER REFERENCES usuarios(id),
+      cambiado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS suscripciones_caso (
+      caso_id TEXT NOT NULL REFERENCES casos(id),
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+      PRIMARY KEY (caso_id, usuario_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notificaciones (
+      id BIGSERIAL PRIMARY KEY,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+      caso_id TEXT REFERENCES casos(id),
+      titulo TEXT NOT NULL,
+      mensaje TEXT NOT NULL,
+      tipo TEXT NOT NULL,
+      leida BOOLEAN NOT NULL DEFAULT FALSE,
+      creada_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS leida BOOLEAN NOT NULL DEFAULT FALSE;
+    CREATE INDEX IF NOT EXISTS idx_pistas_caso ON pistas (caso_id, fecha_envio);
+    CREATE INDEX IF NOT EXISTS idx_cambios_estado_caso ON cambios_estado_caso (caso_id, cambiado_en);
   `);
 }
 

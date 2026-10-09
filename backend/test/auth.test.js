@@ -26,7 +26,11 @@ test('sirve la página desde Express con el origen público y headers de segurid
     assert.match(response.headers.get('content-type'), /text\/html/);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://rastreo.example');
     assert.match(response.headers.get('content-security-policy'), /script-src/);
+    assert.match(response.headers.get('content-security-policy'), /basemaps\.cartocdn\.com/);
     assert.match(await response.text(), /const API_BASE = '\/api'/);
+    assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/manifest.webmanifest`)).text(), /"display": "standalone"/);
+    assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/sw.js`)).text(), /notificationclick/);
+    assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/icons/rastreopy.svg`)).status, 200);
     assert.equal((await fetch(
       `http://127.0.0.1:${server.address().port}/backend/.env.example`
     )).status, 404);

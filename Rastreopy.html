@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="es-PY" data-theme="dark">
+<html lang="es-PY" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b2545">
   <title>Rastreo PY - Plataforma Colaborativa de Búsqueda de Personas Desaparecidas</title>
+  <link rel="manifest" href="/manifest.webmanifest">
   
   <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -15,25 +17,50 @@
   <div class="app-container">
     <button id="publicThemeToggle" class="public-theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
 
-    <!-- BARRA SUPERIOR SOBRIA -->
+    <div id="workshopBar" class="workshop-bar hidden">
+      <strong class="workshop-label">MODO DEMO <span>· Workshop</span></strong>
+      <div class="workshop-role-switch" role="group" aria-label="Navegación por vistas">
+        <button type="button" data-demo-view="feed" onclick="navigateTo('feed')" aria-current="page">Vista Ciudadano</button>
+        <button type="button" data-demo-view="admin" onclick="navigateTo('admin')">Vista Administrador</button>
+      </div>
+      <div class="workshop-tools">
+        <button type="button" class="workshop-simulate hidden" id="workshopSimulate" onclick="toggleSimulateTimeModal()">◷ <span>Simular +48 h</span></button>
+        <button type="button" class="workshop-reset" disabled title="El restablecimiento solo está disponible en un entorno de demostración aislado.">Restablecer datos semilla</button>
+      </div>
+      <div class="workshop-clock" aria-label="Fecha y hora actual de Paraguay">
+        <span>Reloj: <time id="workshopDateTime"></time></span>
+      </div>
+    </div>
+
+    <!-- BARRA PRINCIPAL DE NAVEGACIÓN -->
     <header id="topHeader" class="hidden">
-      <div>
+      <div class="header-brand">
         <button type="button" onclick="toggleDrawer(true)" class="menu-btn" aria-label="Abrir menú">
           <div class="hamburger-icon">
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
           </div>
-          <span>Menú</span>
         </button>
-        <span class="brand-title" onclick="navigateTo('feed')">Rastreo PY</span>
+        <button type="button" class="brand-title" onclick="navigateTo('home')" aria-label="Ir al inicio">Rastreo PY<span class="brand-subtitle">UNIDA · Ing. en Informática</span></button>
       </div>
-      <div>
-        <button id="themeToggle" type="button" onclick="toggleTheme()">Tema claro</button>
-        <button type="button" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">
-          Notificaciones <span id="notifBadge" class="hidden">0</span>
-        </button>
-        <button onclick="logout()">Cerrar sesión</button>
+      <nav class="main-nav" aria-label="Navegación principal">
+        <button type="button" data-nav-view="feed" onclick="navigateTo('home')"><span aria-hidden="true">⌂</span> Inicio</button>
+        <button type="button" data-nav-view="report" onclick="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
+        <button type="button" data-nav-view="lead" onclick="navigateTo('lead')"><span aria-hidden="true">⌖</span> Generar pista</button>
+        <button type="button" onclick="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
+        <button type="button" data-nav-view="stats" onclick="navigateTo('stats')"><span aria-hidden="true">▥</span> Estadísticas</button>
+        <button type="button" data-role-nav="citizen" data-nav-view="my-cases" onclick="navigateTo('my-cases')"><span aria-hidden="true">▤</span> Mis casos</button>
+        <button type="button" data-role-nav="admin" data-nav-view="admin" onclick="navigateTo('admin')"><span aria-hidden="true">▦</span> Panel <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
+      </nav>
+      <div class="header-actions">
+        <button id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
+        <button type="button" class="header-notifications" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
+        <div id="headerProfile" class="header-profile hidden">
+          <span id="headerProfileName"></span>
+          <span id="headerProfileRole" class="role-badge">CIUDADANO</span>
+        </div>
+        <button id="headerAuthAction" class="header-auth-action" type="button" onclick="navigateTo('auth')">♙ Ingresar</button>
       </div>
     </header>
 
@@ -48,21 +75,24 @@
         
         <div>
           <p id="drawerUserName">Usuario</p>
-          <p id="drawerUserRole">Ciudadano</p>
+          <p id="drawerUserRole" class="role-badge">CIUDADANO</p>
         </div>
 
-        <nav>
-          <button onclick="drawerNavigate('lead')" class="drawer-item">Generar pista sobre alguna desaparición</button>
-          <button onclick="drawerNavigate('stats')" class="drawer-item">Ver estadísticas de personas desaparecidas y encontradas</button>
-          <button onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
-          <div id="adminDrawerOption" class="hidden">
-            <button onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
-          </div>
+        <nav class="drawer-navigation" aria-label="Secciones">
+          <button type="button" onclick="drawerNavigate('feed')" class="drawer-item">Inicio</button>
+          <button type="button" data-role-nav="citizen" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
+          <button type="button" onclick="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
+          <button type="button" onclick="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
+          <button type="button" onclick="drawerNavigate('stats')" class="drawer-item">Ver estadísticas</button>
+          <button type="button" data-role-nav="citizen" onclick="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
+          <button type="button" data-role-nav="admin" onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
         </nav>
       </div>
 
-      <div>
-        <button onclick="toggleSimulateTimeModal()" class="btn btn-outline">Simulador de tiempo (+3 días)</button>
+      <div class="drawer-account">
+        <p class="drawer-section-label">Cuenta y avisos</p>
+        <button type="button" onclick="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
+        <button id="simulateFollowupButton" onclick="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
         <button onclick="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
     </aside>
@@ -71,7 +101,17 @@
     <main id="mainContent">
       <!-- Vistas renderizadas dinámicamente -->
     </main>
-    <footer class="app-footer">Rastreo PY · Plataforma colaborativa de búsqueda de personas desaparecidas · Paraguay</footer>
+    <footer class="app-footer institutional-footer">
+      <div class="footer-brand"><span class="footer-logo">R</span><span><strong>Rastreo PY · UNIDA Paraguay</strong><small>Facultad de Ingeniería en Informática · Prototipo académico</small></span></div>
+      <p>Marco de referencia: Ley N.º 7605/2025 (RENAPED/MAFE) y Ley N.º 7593/2025, Art. 16 num. 7. Ante una emergencia, llamá al <a href="tel:911">911</a>.</p>
+      <p class="footer-disclaimer">Los registros de demostración son ficticios y no representan denuncias reales. Los controles de avance temporal solo deben habilitarse en un entorno aislado de pruebas.</p>
+      <div class="footer-time-controls" aria-label="Controles de tiempo de demostración">
+        <span>Avance de tiempo · demo aislada:</span>
+        <button type="button" disabled title="Disponible solo con base de datos aislada">+8 h</button>
+        <button type="button" disabled title="Disponible solo con base de datos aislada">+24 h</button>
+        <button type="button" disabled title="Disponible solo con base de datos aislada">+72 h</button>
+      </div>
+    </footer>
 
   </div>
 
@@ -89,6 +129,7 @@
     <div>
       <div>
         <span>Centro de Notificaciones</span>
+        <button type="button" onclick="enableSystemNotifications()">Activar avisos del sistema</button>
         <button type="button" onclick="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
       </div>
       <div id="notifList">
@@ -107,15 +148,59 @@
         <span>Simulador de seguimiento</span>
         <button onclick="toggleSimulateTimeModal()">Cerrar</button>
       </div>
-      <p>Avanza 3 días en el sistema para simular la consulta automática de seguimiento a los reportantes de casos activos.</p>
-      <button onclick="runTimeFastForward()" class="btn btn-primary">Avanzar 3 días ahora</button>
+      <p>Acción de demostración para administradores: fuerza el vencimiento del seguimiento de todos los casos activos y puede generar avisos y cambios de estado. No la use con registros reales.</p>
+      <button onclick="runTimeFastForward()" class="btn btn-primary">Simular avance de 48 horas</button>
     </div>
+  </div>
+
+  <div id="caseDetailModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="caseDetailTitle">
+    <section class="card">
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeCaseDetail()">Cerrar</button>
+      <div id="caseDetailContent"></div>
+    </section>
+  </div>
+
+  <div id="reviewChecklistModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reviewChecklistTitle">
+    <form id="reviewChecklistForm" class="card review-checklist" onsubmit="submitCaseReview(event)">
+      <h2 id="reviewChecklistTitle">Lista de validación obligatoria</h2>
+      <p>Confirme cada punto antes de publicar el caso.</p>
+      <div id="reviewCaseDetails" class="review-case-details"></div>
+      <label><input type="checkbox" name="verificoDenuncia" required> Verifiqué la denuncia policial y su número oficial.</label>
+      <label><input type="checkbox" name="datosCoherentes" required> Revisé la coherencia y suficiencia de los datos.</label>
+      <label><input type="checkbox" name="duplicadosVerificados" required> Verifiqué que no exista un reporte duplicado.</label>
+      <label><input type="checkbox" name="menorValidado" required> Validé la autorización y resguardo si se trata de una persona menor de edad.</label>
+      <label for="reviewDenuncia">Número oficial de denuncia</label>
+      <input id="reviewDenuncia" name="numeroDenuncia" class="form-control" required>
+      <div class="case-detail-actions">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeReviewChecklist()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">Validar y publicar</button>
+      </div>
+    </form>
   </div>
 
   <!-- LÓGICA JAVASCRIPT DE LA SPA -->
   <script>
     const DB_KEY = 'RASTREO_PY_INSTITUCIONAL_V4';
     const API_BASE = '/api';
+    const paraguayDateTimeFormatter = new Intl.DateTimeFormat('es-PY', {
+      timeZone: 'America/Asuncion',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hourCycle: 'h12'
+    });
+
+    function updateParaguayClock() {
+      const now = new Date();
+      const time = document.getElementById('workshopDateTime');
+      if (time) {
+        time.dateTime = now.toISOString();
+        time.textContent = paraguayDateTimeFormatter.format(now);
+      } else showToast('Ubicación no disponible', 'Este navegador no permite obtener la ubicación. Marque el lugar directamente en el mapa.', 'error');
+    }
+
     window.backendCurrentUser = null;
     let pendingRegistration = null;
     let resendTimer = null;
@@ -245,6 +330,266 @@
     let activeMap = null;
     let activeMarkers = [];
     let locatedExpiryTimer = null;
+    let publicStatsTimer = null;
+    let liveSyncTimer = null;
+    let liveSyncInProgress = false;
+    let lastPublicCaseSignature = '';
+    let lastMyCasesSignature = '';
+    let lastAdminDashboardSignature = '';
+
+    function renderAnalyticsBars(rows, color = 'navy') {
+      const maxValue = Math.max(...rows.map(row => Number(row.total)), 1);
+      return rows.length
+        ? rows.map(row => {
+          const count = Number(row.total);
+          const label = escapeHtml(row.departamento
+            ? `${row.categoria}, ${row.departamento}`
+            : row.categoria || row.periodo || 'Sin categoría');
+          return `<div class="analytics-row">
+            <div class="analytics-label"><span>${label}</span><strong>${count}</strong></div>
+            <div class="analytics-track"><span class="analytics-bar analytics-bar-${color}" style="--bar-width:${Math.max(count / maxValue * 100, 2)}%"></span></div>
+          </div>`;
+        }).join('')
+        : '<p class="analytics-empty">Sin datos disponibles.</p>';
+    }
+
+    function buildAgeAnalyticsRows(statistics, cases) {
+      const counts = new Map((statistics.casosPorEdad || []).map(row => [row.categoria, Number(row.total)]));
+      return [
+        ['Niñez (0–11)', c => Number(c.edad) <= 11],
+        ['Adolescentes (12–17)', c => Number(c.edad) >= 12 && Number(c.edad) <= 17],
+        ['Adultos (18–64)', c => Number(c.edad) >= 18 && Number(c.edad) <= 64],
+        ['Mayores (65+)', c => Number(c.edad) >= 65]
+      ].map(([categoria, matches]) => ({
+        categoria,
+        total: counts.get(categoria) ?? cases.filter(matches).length
+      }));
+    }
+
+    function buildStateAnalyticsRows(statistics, cases) {
+      const counts = new Map((statistics.casosPorEstado || []).map(row => [row.categoria, Number(row.total)]));
+      return [
+        ['Búsqueda activa', 'VALIDADO'],
+        ['Localizada', 'LOCALIZADO'],
+        ['En seguimiento', 'EN_SEGUIMIENTO'],
+        ['Cerrado', 'CERRADO']
+      ].map(([categoria, state]) => ({
+        categoria,
+        total: counts.get(categoria) ?? cases.filter(c => c.estado === state).length
+      }));
+    }
+
+    function updatePublicMetricCards(statistics) {
+      const cases = getStore().casos;
+      const total = Number(statistics.total ?? cases.length);
+      const found = Number(statistics.localizados ?? statistics.encontrados
+        ?? cases.filter(c => c.estado === 'LOCALIZADO').length);
+      const active = Number(statistics.activos
+        ?? cases.filter(c => c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO').length);
+      const outdated = cases.filter(c => c.estado === 'EN_SEGUIMIENTO' && Number(c.seguimientoEtapa) >= 2).length;
+      const effectiveness = total ? Math.round(found / total * 100) : 0;
+      const values = {
+        metricTotal: total,
+        metricFound: found,
+        metricActive: active,
+        metricOutdated: `En seguimiento activo · ${outdated} sin actualizar`,
+        metricEffectiveness: `${effectiveness}%`
+      };
+      Object.entries(values).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+      });
+      const cityRows = statistics.casosPorCiudad || [];
+      [
+        ['analyticsByCity', cityRows, 'navy'],
+        ['analyticsByAge', buildAgeAnalyticsRows(statistics, cases), 'navy'],
+        ['analyticsByState', buildStateAnalyticsRows(statistics, cases), 'status']
+      ].forEach(([id, rows, color]) => {
+        const container = document.getElementById(id);
+        if (container) container.innerHTML = renderAnalyticsBars(rows, color);
+      });
+    }
+
+    function startPublicStatsPolling() {
+      if (publicStatsTimer) clearInterval(publicStatsTimer);
+      publicStatsTimer = window.setInterval(async () => {
+        if (window.rastreoCurrentView !== 'feed') return;
+        try {
+          const statistics = await apiRequest('/estadisticas');
+          window.currentStatistics = statistics;
+          updatePublicMetricCards(statistics);
+        } catch (error) {
+          showToast('No se pudieron actualizar las estadísticas', error.message, 'error');
+        }
+      }, 60000);
+    }
+
+    function startLiveSyncPolling(view) {
+      if (liveSyncTimer) clearInterval(liveSyncTimer);
+      liveSyncTimer = window.setInterval(async () => {
+        if (window.rastreoCurrentView !== view) return;
+        if (liveSyncInProgress) return;
+        liveSyncInProgress = true;
+        try {
+          if (view === 'admin') await refreshAdminDashboard();
+          else if (view === 'my-cases') await refreshMyCases();
+          else await refreshPublicCaseViews(view);
+        } finally {
+          liveSyncInProgress = false;
+        }
+      }, 5000);
+    }
+
+    function caseCollectionSignature(cases) {
+      return JSON.stringify(cases.map(item => [
+        item.id, item.estado, item.fechaCreacion, item.localizadoEn
+      ]));
+    }
+
+    function citizenDashboardSignature(cases, notifications) {
+      return JSON.stringify([
+        cases.map(item => [item.id, item.estado, item.proximoSeguimiento, item.motivoRechazo]),
+        notifications.map(item => [item.id, item.leida])
+      ]);
+    }
+
+    function adminDashboardDataSignature(cases, clues, audit) {
+      return JSON.stringify([
+        cases.map(item => [item.id, item.estado, item.proximoSeguimiento, item.numeroDenuncia]),
+        clues.map(item => [item.id, item.estado, item.fechaEnvio]),
+        audit[0]?.fecha
+      ]);
+    }
+
+    async function refreshPublicCaseViews(view) {
+      try {
+        const [caseResult, clueResult] = await Promise.all([
+          apiRequest('/casos'),
+          apiRequest('/pistas')
+        ]);
+        replaceBackendCollections(caseResult.casos, clueResult.pistas);
+        const signature = caseCollectionSignature(caseResult.casos);
+        if (signature === lastPublicCaseSignature) return;
+        lastPublicCaseSignature = signature;
+        if (view === 'feed') {
+          const list = document.getElementById('feedCaseList');
+          if (!list) return;
+          const search = document.getElementById('feedSearch').value;
+          const city = document.getElementById('feedCity').value;
+          const age = document.getElementById('feedAge').value;
+          const sex = document.getElementById('feedSex').value;
+          const status = document.getElementById('feedStatus').value;
+          list.innerHTML = caseResult.casos.map(renderCaseItemRow).join('');
+          document.getElementById('feedSearch').value = search;
+          document.getElementById('feedCity').value = city;
+          document.getElementById('feedAge').value = age;
+          document.getElementById('feedSex').value = sex;
+          document.getElementById('feedStatus').value = status;
+          renderCasePhotos(caseResult.casos);
+          filterFeedCases();
+          if (!document.getElementById('feedMapPanel').classList.contains('hidden')) {
+            initMainLeafletMap();
+          }
+          const statistics = await apiRequest('/estadisticas');
+          window.currentStatistics = statistics;
+          updatePublicMetricCards(statistics);
+        } else if (view === 'lead') {
+          const search = document.getElementById('leadCaseSearch')?.value || '';
+          if (document.getElementById('leadCaseChoices')) {
+            document.getElementById('mainContent').innerHTML = renderLeadCaseSelection();
+            const input = document.getElementById('leadCaseSearch');
+            if (input) {
+              input.value = search;
+              filterLeadCaseCards();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('No se pudo sincronizar los casos públicos:', error.message);
+      }
+    }
+
+    async function refreshMyCases() {
+      try {
+        const [caseResult, notificationResult] = await Promise.all([
+          apiRequest('/mis-casos'),
+          apiRequest('/notificaciones')
+        ]);
+        if (window.rastreoCurrentView !== 'my-cases') return;
+        const signature = citizenDashboardSignature(caseResult.casos, notificationResult.notificaciones);
+        if (signature === lastMyCasesSignature) return;
+        lastMyCasesSignature = signature;
+        document.getElementById('mainContent').innerHTML =
+          renderMyCasesView(caseResult.casos, notificationResult.notificaciones);
+        labelButtons(document.getElementById('mainContent'));
+        updateNotifBadge();
+      } catch (error) {
+        console.error('No se pudieron sincronizar los casos ciudadanos:', error.message);
+      }
+    }
+
+    async function loadAdminDashboardData() {
+      const caseResult = await apiRequest('/admin/casos');
+      const [historyResult, clueResult, auditResult] = await Promise.allSettled([
+        apiRequest('/admin/historial-localizados'),
+        apiRequest('/admin/pistas'),
+        apiRequest('/admin/auditoria')
+      ]);
+      const optionalResults = [
+        [historyResult, '/admin/historial-localizados', { casos: [], pagina: 1, limite: 20, total: 0 }],
+        [clueResult, '/admin/pistas', { pistas: [] }],
+        [auditResult, '/admin/auditoria', { eventos: [] }]
+      ];
+      const values = optionalResults.map(([result, endpoint, fallback]) => {
+        if (result.status === 'fulfilled') return result.value;
+        console.error(`No se pudo cargar ${API_BASE}${endpoint}; se mostrará el panel sin esta sección auxiliar.`, {
+          status: result.reason?.status || 'network',
+          message: result.reason?.message || String(result.reason)
+        });
+        return fallback;
+      });
+      return {
+        cases: caseResult.casos,
+        history: values[0],
+        clues: values[1].pistas,
+        audit: values[2].eventos
+      };
+    }
+
+    async function refreshAdminDashboard() {
+      try {
+        const { cases, history, clues, audit } = await loadAdminDashboardData();
+        if (window.rastreoCurrentView !== 'admin') return;
+        const activePanel = document.querySelector('[data-admin-panel]:not(.hidden)')?.dataset.adminPanel || 'overview';
+        replaceBackendCollections(cases, []);
+        const dueCases = cases.filter(c =>
+          !['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado)
+          && ((c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2)
+            || (c.proximoSeguimiento && new Date(c.proximoSeguimiento).getTime() < Date.now()))
+        ).length;
+        const outstanding = cases.filter(c => c.estado === 'PENDIENTE').length
+          + dueCases
+          + clues.filter(clue => clue.estado === 'PENDIENTE').length;
+        const badge = document.getElementById('adminPanelBadge');
+        badge.textContent = String(outstanding);
+        badge.classList.toggle('hidden', outstanding === 0);
+        const signature = adminDashboardDataSignature(cases, clues, audit);
+        if (signature === lastAdminDashboardSignature) return;
+        lastAdminDashboardSignature = signature;
+        const main = document.getElementById('mainContent');
+        main.innerHTML = renderAdminView(history, clues, audit);
+        const activeTab = main.querySelector(`[data-admin-tab="${activePanel}"]`);
+        selectAdminTab(activePanel, activeTab);
+        loadAdminHistoryPhotos(main);
+        labelButtons(main);
+      } catch (error) {
+        console.error('No se pudo sincronizar la bandeja administrativa.', {
+          endpoint: error.endpoint || `${API_BASE}/admin/casos`,
+          status: error.status || 'network',
+          message: error.message
+        });
+      }
+    }
 
     function scheduleLocatedExpiry() {
       if (locatedExpiryTimer) clearTimeout(locatedExpiryTimer);
@@ -264,6 +609,7 @@
             apiRequest('/pistas')
           ]);
           replaceBackendCollections(caseResult.casos, clueResult.pistas);
+          lastPublicCaseSignature = caseCollectionSignature(caseResult.casos);
           const main = document.getElementById('mainContent');
           main.innerHTML = renderFeedView();
           renderCasePhotos(caseResult.casos);
@@ -281,12 +627,39 @@
         clearTimeout(locatedExpiryTimer);
         locatedExpiryTimer = null;
       }
+      if (publicStatsTimer) {
+        clearInterval(publicStatsTimer);
+        publicStatsTimer = null;
+      }
+      if (liveSyncTimer) {
+        clearInterval(liveSyncTimer);
+        liveSyncTimer = null;
+      }
       const store = getStore();
       const main = document.getElementById('mainContent');
       const header = document.getElementById('topHeader');
+      if (view === 'home') {
+        view = 'feed';
+      }
 
-      if (!store.currentUser && view !== 'otp') {
+      if (!store.currentUser && view === 'report') {
+        window.rastreoCurrentView = view;
+        document.querySelectorAll('[data-nav-view]').forEach(button => {
+          if (button.dataset.navView === 'report') button.setAttribute('aria-current', 'page');
+          else button.removeAttribute('aria-current');
+        });
+        header.classList.remove('hidden');
+        document.getElementById('workshopBar').classList.remove('hidden');
+        document.getElementById('publicThemeToggle').classList.add('hidden');
+        updateHeaderUser();
+        main.innerHTML = renderReportAccessView();
+        labelButtons(main);
+        return;
+      }
+
+      if (!store.currentUser && view !== 'otp' && !['feed', 'stats', 'lead'].includes(view)) {
         header.classList.add('hidden');
+        document.getElementById('workshopBar').classList.add('hidden');
         main.innerHTML = renderAuthScreen(params.authMode || 'login', params.identifier || '');
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
@@ -295,6 +668,7 @@
 
       if (store.currentUser && !store.currentUser.acepto_terminos) {
         header.classList.add('hidden');
+        document.getElementById('workshopBar').classList.add('hidden');
         main.innerHTML = renderLegalTerms();
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
@@ -303,38 +677,38 @@
 
       if (store.currentUser) {
         header.classList.remove('hidden');
+        document.getElementById('workshopBar').classList.remove('hidden');
         document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
       } else {
-        header.classList.add('hidden');
+        const showPublicNavigation = ['feed', 'stats'].includes(view);
+        header.classList.toggle('hidden', !showPublicNavigation);
+        document.getElementById('workshopBar').classList.toggle('hidden', !showPublicNavigation);
+        document.getElementById('publicThemeToggle').classList.toggle('hidden', showPublicNavigation);
+        updateHeaderUser();
       }
 
-      if (view === 'home') {
-        view = store.currentUser.rol === 'administrador' ? 'admin' : 'feed';
-      }
-
-      if (view === 'admin' && (!store.currentUser || store.currentUser.rol !== 'administrador')) {
+      if (view === 'admin' && (!store.currentUser
+        || !['administrador', 'ADMINISTRADOR'].includes(store.currentUser.rol))) {
         showToast('Acceso restringido', 'Acceso restringido únicamente para personal autorizado del Ente Regulador.', 'error');
         view = 'feed';
       }
-      if (view === 'admin') {
-        try {
-          await apiRequest('/admin/health');
-        } catch (error) {
-          if (error.status === 403) {
-            showToast('Acceso restringido', 'Acceso restringido únicamente para personal autorizado del Ente Regulador.', 'error');
-            view = 'feed';
-          } else {
-            showToast('Error de acceso', error.message);
-            return;
-          }
-        }
-      }
-
       window.rastreoCurrentView = view;
+      document.querySelectorAll('[data-nav-view]').forEach(button => {
+        if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
+      document.querySelectorAll('[data-demo-view]').forEach(button => {
+        if (button.dataset.demoView === (view === 'admin' ? 'admin' : 'feed')) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
 
-      let statistics = null;
+      let statistics = window.currentStatistics || null;
       let adminHistory = null;
+      let adminClues = [];
+      let adminAudit = [];
+      let myCases = [];
+      let myNotifications = [];
       if (view === 'feed' || view === 'lead') {
         try {
           const [caseResult, clueResult] = await Promise.all([
@@ -342,9 +716,19 @@
             apiRequest('/pistas')
           ]);
           replaceBackendCollections(caseResult.casos, clueResult.pistas);
+          lastPublicCaseSignature = caseCollectionSignature(caseResult.casos);
         } catch (error) {
           showToast('Error al cargar los casos', error.message);
           return;
+        }
+        if (view === 'feed') {
+          try {
+            statistics = await apiRequest('/estadisticas');
+            window.currentStatistics = statistics;
+          } catch (error) {
+            window.currentStatistics = null;
+            showToast('Estadísticas no disponibles', error.message, 'error');
+          }
         }
       } else if (view === 'stats') {
         try {
@@ -355,24 +739,73 @@
         }
       } else if (view === 'admin') {
         try {
-          const [caseResult, historyResult] = await Promise.all([
-            apiRequest('/admin/casos'),
-            apiRequest('/admin/historial-localizados')
-          ]);
-          replaceBackendCollections(caseResult.casos, []);
-          adminHistory = historyResult;
+          const dashboard = await loadAdminDashboardData();
+          replaceBackendCollections(dashboard.cases, []);
+          adminHistory = dashboard.history;
+          adminClues = dashboard.clues;
+          adminAudit = dashboard.audit;
+          lastAdminDashboardSignature = adminDashboardDataSignature(
+            dashboard.cases, adminClues, adminAudit
+          );
+          const dueCaseCount = dashboard.cases.filter(c =>
+            !['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado)
+            && ((c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2)
+              || (c.proximoSeguimiento && new Date(c.proximoSeguimiento).getTime() < Date.now()))
+          ).length;
+          const pendingWork = dashboard.cases.filter(c => c.estado === 'PENDIENTE').length
+            + dueCaseCount
+            + adminClues.filter(clue => clue.estado === 'PENDIENTE').length;
+          const panelBadge = document.getElementById('adminPanelBadge');
+          panelBadge.textContent = String(pendingWork);
+          panelBadge.classList.toggle('hidden', pendingWork === 0);
         } catch (error) {
-          showToast('Error al cargar el panel', error.message);
+          console.error('No se pudo cargar el panel administrativo.', {
+            endpoint: error.endpoint || `${API_BASE}/admin/casos`,
+            status: error.status || 'network',
+            message: error.message
+          });
+          const statusDescription = error.status === 404
+            ? 'El servidor no encontró la ruta administrativa. Verifica que el backend actualizado esté desplegado.'
+            : error.status === 403
+              ? 'La cuenta autenticada no tiene permisos administrativos.'
+              : error.message;
+          main.innerHTML = `<section class="card admin-load-error" role="alert">
+            <h1>No se pudo cargar el panel</h1>
+            <p>${escapeHtml(statusDescription)}</p>
+            <p class="muted">Ruta consultada: ${escapeHtml(error.endpoint || `${API_BASE}/admin/casos`)}</p>
+            <button type="button" class="btn btn-primary" onclick="navigateTo('admin')">Reintentar</button>
+          </section>`;
+          labelButtons(main);
+          return;
+        }
+      } else if (view === 'my-cases') {
+        try {
+          const [caseResult, notificationResult] = await Promise.all([
+            apiRequest('/mis-casos'),
+            apiRequest('/notificaciones')
+          ]);
+          myCases = caseResult.casos;
+          myNotifications = notificationResult.notificaciones;
+          lastMyCasesSignature = citizenDashboardSignature(myCases, myNotifications);
+        } catch (error) {
+          showToast('No se pudieron cargar tus casos', error.message);
           return;
         }
       }
 
       switch (view) {
         case 'feed':
-          main.innerHTML = renderFeedView();
+          main.innerHTML = renderFeedView(statistics);
           renderCasePhotos(getStore().casos);
+          filterFeedCases();
           initMainLeafletMap();
           scheduleLocatedExpiry();
+          startPublicStatsPolling();
+          startLiveSyncPolling('feed');
+          if (location.hash.startsWith('#caso=')) {
+            const sharedCaseId = new URLSearchParams(location.hash.slice(1)).get('caso');
+            requestAnimationFrame(() => openCaseDetail(sharedCaseId));
+          }
           break;
         case 'report':
           removeReportPhoto();
@@ -380,15 +813,26 @@
           initReportLeafletMap();
           break;
         case 'lead':
-          main.innerHTML = renderLeadView(params.caseId);
-          initLeadLeafletMap();
+          if (params.caseId) {
+            clearLeadPhotoSelection();
+            main.innerHTML = renderLeadView(params.caseId);
+            initLeadLeafletMap();
+          } else {
+            main.innerHTML = renderLeadCaseSelection();
+          }
+          startLiveSyncPolling('lead');
           break;
         case 'stats':
           main.innerHTML = renderStatsView(statistics);
           break;
+        case 'my-cases':
+          main.innerHTML = renderMyCasesView(myCases, myNotifications);
+          startLiveSyncPolling('my-cases');
+          break;
         case 'admin':
-          main.innerHTML = renderAdminView(adminHistory);
+          main.innerHTML = renderAdminView(adminHistory, adminClues, adminAudit);
           loadAdminHistoryPhotos(main);
+          startLiveSyncPolling('admin');
           break;
         case 'otp':
           main.innerHTML = renderOTPView(params);
@@ -404,7 +848,7 @@
       }
 
       toggleDrawer(false);
-      updateNotifBadge();
+      if (store.currentUser) updateNotifBadge();
     }
 
     function drawerNavigate(view) {
@@ -444,13 +888,37 @@
 
     function updateHeaderUser() {
       const store = getStore();
+      const isAdministrator = ['administrador', 'ADMINISTRADOR'].includes(store.currentUser?.rol);
+      const isCitizen = Boolean(store.currentUser) && !isAdministrator;
+      const authAction = document.getElementById('headerAuthAction');
+      const profile = document.getElementById('headerProfile');
+      const displayName = store.currentUser?.nombre || store.currentUser?.nombre_completo || store.currentUser?.correo || '';
+      document.querySelectorAll('[data-role-nav="admin"]').forEach(item => item.classList.toggle('hidden', !isAdministrator));
+      document.querySelectorAll('[data-role-nav="citizen"]').forEach(item => item.classList.toggle('hidden', !isCitizen));
+      document.getElementById('reportNavLabel').textContent = store.currentUser ? 'Nuevo reporte' : 'Reportar';
+      profile?.classList.toggle('hidden', !store.currentUser);
+      document.getElementById('headerProfileName').textContent = displayName;
+      const roleBadge = document.getElementById('headerProfileRole');
+      roleBadge.textContent = isAdministrator ? 'ADMIN' : 'CIUDADANO';
+      roleBadge.classList.toggle('role-badge-admin', isAdministrator);
+      roleBadge.classList.toggle('role-badge-citizen', !isAdministrator);
+      if (authAction) {
+        authAction.textContent = store.currentUser ? 'Cerrar sesión' : '♙ Ingresar';
+        authAction.onclick = store.currentUser ? logout : () => navigateTo('auth');
+      }
+      document.getElementById('workshopSimulate')?.classList.toggle('hidden', !isAdministrator);
+      document.querySelectorAll('[data-demo-view="admin"]').forEach(button => {
+        button.disabled = !isAdministrator;
+        button.title = isAdministrator ? 'Abrir el panel administrativo autorizado' : 'Requiere una cuenta autorizada de administrador';
+      });
       if (!store.currentUser) return;
-      document.getElementById('drawerUserName').innerText = store.currentUser.nombre || store.currentUser.nombre_completo || store.currentUser.correo;
-      document.getElementById('drawerUserRole').innerText = store.currentUser.rol === 'administrador' ? 'Administrador / Ente Regulador' : 'Ciudadano';
-      
-      const adminOpt = document.getElementById('adminDrawerOption');
-      if (store.currentUser.rol === 'administrador') adminOpt.classList.remove('hidden');
-      else adminOpt.classList.add('hidden');
+      document.getElementById('drawerUserName').innerText = displayName;
+      const drawerRole = document.getElementById('drawerUserRole');
+      drawerRole.innerText = isAdministrator ? 'ADMIN' : 'CIUDADANO';
+      drawerRole.classList.toggle('role-badge-admin', isAdministrator);
+      drawerRole.classList.toggle('role-badge-citizen', !isAdministrator);
+      document.getElementById('simulateFollowupButton').classList.toggle('hidden', !isAdministrator);
+      startNotificationPolling();
     }
 
     // ==========================================
@@ -470,7 +938,7 @@
               <p><strong>1. Alcance del Servicio:</strong> La plataforma Rastreo PY es un canal de difusión colaborativa y centralización de reportes. No constituye un organismo de seguridad, investigación ni administración de justicia, ni reemplaza las actuaciones de la Policía Nacional de Paraguay o del Ministerio Público.</p>
               <p><strong>2. Obligatoriedad de Denuncia Oficial:</strong> El uso de esta plataforma no sustituye la radicación formal de la denuncia. Se exige al usuario realizar la denuncia correspondiente ante las instituciones públicas oficiales de manera prioritaria y previa a la carga de datos en la plataforma.</p>
               <p><strong>3. Deslinde de Responsabilidad:</strong> La plataforma, sus desarrolladores y administradores quedan totalmente eximidos de cualquier responsabilidad legal, civil, penal o administrativa respecto a la conducción, seguimiento o resultados de las investigaciones, así como de la veracidad, exactitud o autenticidad de la información e imágenes ingresadas por terceros.</p>
-              <p><strong>4. Tratamiento de Datos Personales (Ley N.º 7593/2025):</strong> El tratamiento y difusión de los datos personales de identificación se realiza al amparo de la excepción legal orientada a la protección de la vida, la integridad física y la seguridad de las personas. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
+              <p><strong>4. Marco de referencia:</strong> Este prototipo académico toma como referencia la Ley N.º 7605/2025 (RENAPED/MAFE) y la Ley N.º 7593/2025, Art. 16, num. 7. Su aplicación y alcance deben ser validados por UNIDA y las autoridades competentes antes de un despliegue operativo. Se prohíbe el ingreso de datos crediticios, bancarios o patrimoniales (Ley N.º 6534/2020), así como datos sensibles ajenos a la finalidad del reporte.</p>
               <p><strong>5. Derecho de Supresión (Borrado de Datos):</strong> Una vez que la persona reportada sea localizada o el caso sea cerrado por la autoridad competente, la ficha de búsqueda permanecerá visible por un máximo de 24 horas con el estado 'Localizado', a fin de informar a la ciudadanía. Transcurrido ese plazo, la plataforma procederá al retiro y desindexación pública de la ficha. Los datos solo se conservarán, de forma restringida, para el historial interno de la autoridad administradora y como cifras estadísticas agregadas.</p>
               <p><strong>6. Uso Aceptable:</strong> Queda estrictamente prohibido el ingreso de reportes falsos, difamatorios o el uso de la plataforma para cometer extorsiones, estafas o cobro indebido de recompensas.</p>
             </div>
@@ -651,6 +1119,7 @@
       if (!response.ok) {
         const requestError = new Error(payload.error || `Error del servidor (${response.status}).`);
         requestError.status = response.status;
+        requestError.endpoint = `${API_BASE}${path}`;
         throw requestError;
       }
       return payload;
@@ -867,30 +1336,108 @@
     // ==========================================
     // VISTA 3: PANTALLA PRINCIPAL CON MAPA Y CASOS (SECCIÓN 5 Y 6)
     // ==========================================
-    function renderFeedView() {
+    function renderFeedView(statistics = window.currentStatistics) {
       const store = getStore();
-      const total = store.casos.length;
-      const encontrados = store.casos.filter(c => c.estado === 'LOCALIZADO' || c.estado === 'CERRADO').length;
-      const activos = store.casos.filter(c => c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO').length;
-      const pendientes = store.casos.filter(c => c.estado === 'PENDIENTE').length;
+      window.currentStatistics = statistics || {};
+      statistics = window.currentStatistics;
+      const casos = store.casos;
+      const total = Number(statistics.total ?? casos.length);
+      const encontrados = Number(statistics.localizados ?? statistics.encontrados
+        ?? casos.filter(c => c.estado === 'LOCALIZADO').length);
+      const activos = Number(statistics.activos
+        ?? casos.filter(c => c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO').length);
+      const sinActualizar = casos.filter(c => c.estado === 'EN_SEGUIMIENTO' && Number(c.seguimientoEtapa) >= 2).length;
+      const efectividad = total ? Math.round(encontrados / total * 100) : 0;
+      const groupCases = (select, label) => {
+        const groups = new Map();
+        casos.forEach(item => {
+          const key = select(item);
+          if (key) groups.set(key, (groups.get(key) || 0) + 1);
+        });
+        return [...groups].map(([categoria, count]) => ({ categoria, total: count }))
+          .sort((a, b) => b.total - a.total)
+          .map(row => ({ ...row, categoria: row.categoria || label }));
+      };
+      const cityRows = statistics.casosPorCiudad || groupCases(c => c.ciudad, 'Sin especificar');
+      const ageRows = buildAgeAnalyticsRows(statistics, casos);
+      const stateRows = buildStateAnalyticsRows(statistics, casos);
+      const departments = ['Alto Paraná', 'Amambay', 'Caaguazú', 'Central', 'Concepción', 'Guairá', 'Itapúa'];
+      const otherDepartments = [...new Set(casos.map(c => c.departamento).filter(Boolean))]
+        .filter(name => !departments.some(department => department.toLocaleLowerCase('es-PY') === name.toLocaleLowerCase('es-PY')))
+        .sort((a, b) => a.localeCompare(b, 'es-PY'));
+      const cityOptions = [...departments, ...otherDepartments]
+        .map(department => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`).join('');
       return `
-        <div>
-          <section class="search-hero">
-            <p>CASOS ACTIVOS Y MAPA</p>
-            <h1>Personas <span>desaparecidas</span></h1>
-            <p>Mapa de desapariciones y casos activos.</p>
-            <input type="search" class="form-control" placeholder="Buscar por nombre, apellido o ciudad" aria-label="Buscar por nombre, apellido o ciudad">
+        <div class="home-page">
+          <section class="home-hero card" aria-labelledby="homeHeading">
+            <div class="hero-copy">
+              <p class="hero-eyebrow">Canal colaborativo · complementa la denuncia policial</p>
+              <h1 id="homeHeading">Rastreo PY</h1>
+              <p class="hero-description">Un canal de difusión y ayuda colaborativa para encontrar personas desaparecidas en Paraguay. <strong>No reemplaza la denuncia policial</strong>: la complementa con alertas por zona, pistas ciudadanas con foto y ubicación, y un seguimiento automático de cada caso.</p>
+              <div class="hero-actions">
+                <button type="button" onclick="navigateTo('report')" class="btn btn-primary">＋ Reportar persona desaparecida</button>
+                <button type="button" onclick="navigateTo('lead')" class="btn btn-outline">⌖ Generar una pista</button>
+                <a href="tel:911" class="btn btn-emergency">☎ 911</a>
+              </div>
+            </div>
+            <div class="hero-mark" aria-hidden="true"><span>R</span><small>UNIDA<br>PARAGUAY</small></div>
           </section>
 
-          <section class="stats-strip" aria-label="Resumen de casos">
-            <div class="stats-cell"><strong>${total}</strong><span>Personas desaparecidas</span></div>
-            <div class="stats-cell"><strong>${encontrados}</strong><span>Personas encontradas</span></div>
-            <div class="stats-cell"><strong>${activos}</strong><span>Casos activos</span></div>
-            <div class="stats-cell"><strong>${pendientes}</strong><span>Pendientes</span></div>
+          <section class="home-stats" aria-labelledby="homeStatsHeading">
+            <div class="home-section-heading">
+              <div><span class="section-kicker">Datos públicos</span><h2 id="homeStatsHeading">Estadísticas en tiempo real</h2></div>
+              <button type="button" class="section-link" onclick="navigateTo('stats')">Ver detalle <span aria-hidden="true">›</span></button>
+            </div>
+            <div class="home-stats-grid">
+              <article class="metric-card"><span class="metric-icon">▤</span><strong id="metricTotal">${total}</strong><span>Casos registrados (validados)</span></article>
+              <article class="metric-card metric-found"><span class="metric-icon">✓</span><strong id="metricFound">${encontrados}</strong><span>Personas localizadas</span></article>
+              <article class="metric-card metric-followup"><span class="metric-icon">◷</span><strong id="metricActive">${activos}</strong><span id="metricOutdated">En seguimiento activo · ${sinActualizar} sin actualizar</span></article>
+              <article class="metric-card metric-effectiveness"><span class="metric-icon">↗</span><strong id="metricEffectiveness">${efectividad}%</strong><span>Efectividad (localizadas / registradas)</span></article>
+            </div>
           </section>
 
-          <!-- MAPA REAL -->
-          <div class="card">
+          <section class="analytics-grid" aria-label="Distribución analítica de los reportes">
+            <article class="analytics-card card"><h2>Por ciudad</h2><div id="analyticsByCity" class="analytics-list">${renderAnalyticsBars(cityRows)}</div></article>
+            <article class="analytics-card card"><h2>Por rango de edad</h2><div id="analyticsByAge" class="analytics-list">${renderAnalyticsBars(ageRows)}</div></article>
+            <article class="analytics-card card"><h2>Por estado</h2><div id="analyticsByState" class="analytics-list">${renderAnalyticsBars(stateRows, 'status')}</div></article>
+          </section>
+
+          <section class="case-explorer" aria-labelledby="caseExplorerHeading">
+            <div class="home-section-heading explorer-heading">
+              <div><span class="section-kicker">Búsqueda pública</span><h2 id="caseExplorerHeading">Reportes de personas desaparecidas</h2>
+                <p class="explorer-description">Filtrá por ciudad/zona, sexo, estado o nombre. Tocá una ficha para ver el detalle y enviar una pista.</p>
+              </div>
+            </div>
+            <div class="feed-filters advanced-feed-filters">
+              <label class="filter-field"><span>Nombre, ciudad o seña</span><input type="search" id="feedSearch" class="form-control" oninput="filterFeedCases()" placeholder="Ej.: Lucía, Luque, mochila..." aria-label="Buscar por nombre, ciudad o seña"></label>
+              <label class="filter-field"><span>Estado</span><select id="feedStatus" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por estado">
+                <option value="active">Búsqueda activa</option>
+                <option value="localized24">Localizados (últimas 24 h)</option>
+                <option value="all">Todos los publicados</option>
+              </select></label>
+              <label class="filter-field"><span>Ciudad / zona (departamento)</span><select id="feedCity" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por ciudad o departamento">
+                <option value="">Todos</option>${cityOptions}
+              </select></label>
+              <label class="filter-field"><span>Edad</span><select id="feedAge" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por rango de edad">
+                <option value="all">Todas</option>
+                <option value="minor">Menores de 18</option>
+                <option value="adult">Adultos (18–64)</option>
+                <option value="senior">65 o más</option>
+              </select></label>
+              <label class="filter-field"><span>Sexo</span>
+              <select id="feedSex" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por sexo">
+                <option value="">Todos</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Otro">Otro</option>
+              </select></label>
+            </div>
+            <div class="results-toolbar">
+              <p class="results-count" id="caseListCount" aria-live="polite">0 resultados</p>
+              <button id="feedMapToggle" type="button" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="feedMapPanel" onclick="toggleFeedMap()">⌖ Mostrar mapa</button>
+            </div>
+
+          <div id="feedMapPanel" class="card home-map-card hidden">
             <div>
               <span>Mapa de desapariciones</span>
               <div>
@@ -904,46 +1451,173 @@
             </div>
           </div>
 
-          <!-- LISTADO DE CASOS EN FILA HORIZONTAL SOBRIA -->
-          <div class="case-grid">
-            <span class="case-list-title" id="caseListCount">Personas desaparecidas (${store.casos.length})</span>
-            ${store.casos.map(c => renderCaseItemRow(c)).join('')}
+          <div id="feedCaseList" class="case-grid">
+            ${casos.map(c => renderCaseItemRow(c)).join('')}
           </div>
+          <p id="feedEmptyState" class="feed-empty-state hidden">No hay reportes que coincidan con los filtros seleccionados.</p>
+          </section>
         </div>
       `;
     }
 
     function renderCaseItemRow(c) {
       const initials = c.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-      const hoursRemaining = c.visibleHasta
-        ? Math.max(0, (new Date(c.visibleHasta).getTime() - Date.now()) / 3600000)
-        : null;
-      const timeRemainingText = hoursRemaining === null ? '' : hoursRemaining < 1
-        ? (hoursRemaining < 1 / 60 ? 'menos de un minuto' : `${Math.ceil(hoursRemaining * 60)} ${Math.ceil(hoursRemaining * 60) === 1 ? 'minuto' : 'minutos'}`)
-        : `${hoursRemaining.toFixed(1)} horas`;
-      const visibilityNotice = c.estado === 'LOCALIZADO' && hoursRemaining !== null
-        ? `<p>Este caso se retirará de la vista pública en ${timeRemainingText}.</p>`
-        : '';
+      const isMinor = Number(c.edad) < 18;
+      const statusLabel = c.estado === 'EN_SEGUIMIENTO'
+        ? (Number(c.seguimientoEtapa) >= 2 ? 'En seguimiento · sin actualizar' : 'En seguimiento')
+        : c.estado === 'VALIDADO' ? 'Búsqueda activa'
+          : c.estado === 'LOCALIZADO' ? 'Localizada' : 'Cerrado';
+      const statusTone = c.estado === 'VALIDADO' ? 'active'
+        : c.estado === 'EN_SEGUIMIENTO' ? 'followup'
+          : c.estado === 'LOCALIZADO' ? 'located' : 'closed';
+      const reportedAt = new Date(c.fechaHoraDesaparicion).toLocaleString('es-PY', {
+        timeZone: 'America/Asuncion',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h12'
+      });
       return `
-        <div id="case-${c.id}" class="case-row card" onclick="focusCaseOnMap('${c.id}')">
-          <div id="case-photo-${c.id}" class="no-photo-box" aria-label="Sin fotografía">${initials}</div>
-          <div>
-            <div>
-              <div>
-                <span class="truncate">${c.nombreCompleto}</span>
-                <span class="status-tag status-${c.estado}">${c.estado.replace('_', ' ')}</span>
-              </div>
-              <p>${c.ciudad}, ${c.edad} años</p>
-              <p class="line-clamp-2">${c.descripcionFisica}</p>
-              ${visibilityNotice}
-            </div>
-            <div>
-              <span>Desaparición: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}</span>
-              ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button onclick="event.stopPropagation(); navigateTo('lead', {caseId:'${c.id}'})" class="btn btn-outline btn-sm">Aportar pista</button>` : ''}
-            </div>
+        <article id="case-${escapeHtml(c.id)}" class="case-row card"
+          role="button" tabindex="0"
+          aria-label="Ver ficha de ${escapeHtml(c.nombreCompleto)}"
+          onclick="openCaseDetail(this.dataset.caseId)"
+          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCaseDetail(this.dataset.caseId)}"
+          data-case-id="${escapeHtml(c.id)}"
+          data-search="${escapeHtml([c.nombreCompleto, c.ciudad, c.departamento, c.descripcionFisica, c.vestimenta, c.senasParticulares].join(' '))}"
+            data-city="${escapeHtml([c.ciudad, c.departamento].filter(Boolean).join(' · '))}"
+          data-sex="${escapeHtml(c.sexo)}"
+          data-age="${Number(c.edad)}"
+          data-status="${escapeHtml(c.estado)}"
+          data-located-at="${escapeHtml(c.localizadoEn || '')}">
+          <div class="case-card-banner">
+            <span class="case-status-pill status-tone-${statusTone}">${escapeHtml(statusLabel)}</span>
+            ${isMinor ? '<span class="case-minor-pill">Menor</span>' : ''}
+            <div id="case-photo-${escapeHtml(c.id)}" class="case-card-avatar no-photo-box" aria-label="Sin fotografía">${escapeHtml(initials)}</div>
           </div>
-        </div>
+          <div class="case-card-body">
+            <h3>${escapeHtml(c.nombreCompleto)}</h3>
+            <p class="case-card-meta">${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</p>
+            <p class="case-card-date">Desde <time datetime="${escapeHtml(c.fechaHoraDesaparicion)}">${escapeHtml(reportedAt)}</time></p>
+            <span class="case-card-open">Ver ficha y aportar información <span aria-hidden="true">›</span></span>
+          </div>
+        </article>
       `;
+    }
+
+    function filterFeedCases() {
+      const query = document.getElementById('feedSearch').value.trim().toLocaleLowerCase('es-PY');
+      const city = document.getElementById('feedCity').value.trim().toLocaleLowerCase('es-PY');
+      const age = document.getElementById('feedAge').value;
+      const sex = document.getElementById('feedSex').value;
+      const status = document.getElementById('feedStatus').value;
+      let visible = 0;
+
+      document.querySelectorAll('.case-row[data-case-id]').forEach(card => {
+        const matches = (!query || card.dataset.search.toLocaleLowerCase('es-PY').includes(query))
+          && (!city || card.dataset.city.toLocaleLowerCase('es-PY').includes(city)
+            || card.dataset.city.includes(' · ') && card.dataset.city.split(' · ').at(-1).toLocaleLowerCase('es-PY') === city)
+          && (age === 'all' || (age === 'minor' && Number(card.dataset.age) < 18)
+            || (age === 'adult' && Number(card.dataset.age) >= 18 && Number(card.dataset.age) < 65)
+            || (age === 'senior' && Number(card.dataset.age) >= 65))
+          && (!sex || card.dataset.sex === sex)
+          && (status === 'all'
+            || (status === 'active' && ['VALIDADO', 'EN_SEGUIMIENTO'].includes(card.dataset.status))
+            || (status === 'localized24' && card.dataset.status === 'LOCALIZADO'
+              && Number.isFinite(Date.parse(card.dataset.locatedAt))
+              && Date.parse(card.dataset.locatedAt) <= Date.now()
+              && Date.now() - Date.parse(card.dataset.locatedAt) <= 24 * 60 * 60 * 1000));
+        card.classList.toggle('hidden', !matches);
+        if (matches) visible += 1;
+      });
+
+      document.getElementById('caseListCount').textContent = `${visible} ${visible === 1 ? 'resultado' : 'resultados'}`;
+      document.getElementById('feedEmptyState').classList.toggle('hidden', visible !== 0);
+      activeMarkers.forEach(({ marker, geofence, caseId }) => {
+        const card = document.getElementById(`case-${caseId}`);
+        const isVisible = card && !card.classList.contains('hidden');
+        if (isVisible) {
+          marker.addTo(activeMap);
+          if (geofence) geofence.addTo(activeMap);
+        } else {
+          marker.remove();
+          if (geofence) geofence.remove();
+        }
+      });
+    }
+
+    function setFeedView(view) {
+      document.getElementById('feedMapPanel').classList.toggle('hidden', view === 'list');
+      document.getElementById('feedCaseList').classList.toggle('hidden', view === 'map');
+      if (view !== 'list' && activeMap) setTimeout(() => activeMap.invalidateSize(), 0);
+    }
+
+    function toggleFeedMap() {
+      const panel = document.getElementById('feedMapPanel');
+      const toggle = document.getElementById('feedMapToggle');
+      const isVisible = panel.classList.toggle('hidden') === false;
+      toggle.setAttribute('aria-expanded', String(isVisible));
+      toggle.innerHTML = isVisible ? '⌖ Ocultar mapa' : '⌖ Mostrar mapa';
+      if (isVisible && activeMap) requestAnimationFrame(() => activeMap.invalidateSize());
+    }
+
+    function openCaseDetail(caseId) {
+      const c = getStore().casos.find(item => item.id === caseId);
+      if (!c) {
+        showToast('Caso no disponible', 'La ficha ya no está disponible para consulta.', 'error');
+        return;
+      }
+      const content = document.getElementById('caseDetailContent');
+      const approvedClues = getStore().pistas.filter(pista => pista.casoId === c.id);
+      const clueGallery = approvedClues.flatMap(pista => (pista.fotos || []).map((photo, index) =>
+        `<img src="${escapeHtml(photo)}" alt="Fotografía de pista ciudadana ${index + 1}" loading="lazy">`)).join('');
+      content.innerHTML = `
+        <h2 id="caseDetailTitle">${escapeHtml(c.nombreCompleto)}</h2>
+        <p><span class="status-tag ${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'status-SIN_ACTUALIZAR' : `status-${escapeHtml(c.estado)}`}">${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'EN SEGUIMIENTO · SIN ACTUALIZAR' : escapeHtml(c.estado.replaceAll('_', ' '))}</span></p>
+        <p><strong>Edad:</strong> ${Number(c.edad)} años · ${escapeHtml(c.sexo)}</p>
+        <p><strong>Ciudad:</strong> ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</p>
+        <p><strong>Desaparición:</strong> ${new Date(c.fechaHoraDesaparicion).toLocaleString('es-PY')}</p>
+        <p><strong>Descripción física:</strong> ${escapeHtml(c.descripcionFisica)}</p>
+        <p><strong>Vestimenta:</strong> ${escapeHtml(c.vestimenta)}</p>
+        <p><strong>Señas particulares:</strong> ${escapeHtml(c.senasParticulares || 'No registradas')}</p>
+        <p><strong>Denuncia policial:</strong> ${escapeHtml(c.numeroDenuncia || 'En verificación por las autoridades')}</p>
+        ${approvedClues.length ? `<section class="public-clues"><h3>Pistas ciudadanas validadas</h3>${approvedClues.map(pista => `<article><p>${escapeHtml(pista.descripcion)}</p><small>${escapeHtml(new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleString('es-PY'))}</small></article>`).join('')}${clueGallery ? `<div class="public-clue-photos">${clueGallery}</div>` : ''}</section>` : ''}
+        <div class="case-detail-actions">
+          <a class="btn btn-outline btn-sm" href="tel:911">Llamar al 911</a>
+          <button type="button" class="btn btn-outline btn-sm" onclick="shareCase('${escapeHtml(c.id)}')">Compartir ficha</button>
+          ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button type="button" class="btn btn-primary btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="closeCaseDetail(); navigateTo('lead', {caseId:this.dataset.caseId})">Enviar pista</button>` : ''}
+        </div>
+        <p class="muted">El contacto del reportante se mantiene restringido y no se publica en esta ficha.</p>
+      `;
+      document.getElementById('caseDetailModal').classList.remove('hidden');
+      document.getElementById('caseDetailModal').querySelector('button').focus();
+    }
+
+    function closeCaseDetail() {
+      document.getElementById('caseDetailModal').classList.add('hidden');
+    }
+
+    async function shareCase(caseId) {
+      const c = getStore().casos.find(item => item.id === caseId);
+      if (!c) return;
+      const shareData = {
+        title: `Rastreo PY: ${c.nombreCompleto}`,
+        text: `Caso de búsqueda en ${c.ciudad}.`,
+        url: `${location.origin}${location.pathname}#caso=${encodeURIComponent(c.id)}`
+      };
+      try {
+        if (navigator.share) await navigator.share(shareData);
+        else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(`${shareData.title} - ${shareData.text} ${shareData.url}`);
+          showToast('Ficha copiada', 'El enlace de la plataforma quedó copiado.', 'success');
+        } else {
+          showToast('Compartir no disponible', 'Este navegador no permite compartir ni copiar enlaces.', 'error');
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') showToast('No se pudo compartir', error.message, 'error');
+      }
     }
 
     function renderCasePhotos(cases) {
@@ -982,42 +1656,43 @@
           const map = L.map('mainMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 7);
           addTextMapZoomControl(map);
           
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd',
             maxZoom: 19,
-            attribution: 'OpenStreetMap contributors'
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
           }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
           const store = getStore();
           store.casos.forEach(c => {
             if (c.ubicacion && c.ubicacion.lat) {
-              const marker = L.circleMarker([c.ubicacion.lat, c.ubicacion.lng], {
-                color: '#0B2545',
-                fillColor: '#B3261E',
-                fillOpacity: 0.9,
-                radius: 7
+              const marker = L.marker([c.ubicacion.lat, c.ubicacion.lng], {
+                title: `Caso: ${c.nombreCompleto}`,
+                icon: L.divIcon({ className: 'case-marker', html: '<span></span>', iconSize: [24, 32], iconAnchor: [12, 30] })
               }).addTo(map);
 
               marker.bindPopup(`
                 <div>
-                  <strong>${c.nombreCompleto}</strong><br>
-                  ${c.ciudad} (${c.edad} años)<br>
-                  Fecha: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString()}<br>
-                  Estado: ${c.estado}<br>
-                  <button aria-label="Ver ficha del caso" onclick="viewCaseOnFeed('${c.id}')">Ver caso</button>
+                  <strong>${escapeHtml(c.nombreCompleto)}</strong><br>
+                  ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''} (${Number(c.edad)} años)<br>
+                  Fecha: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString('es-PY')}<br>
+                  Estado: ${escapeHtml(c.estado)}<br>
+                  <button aria-label="Ver ficha del caso" data-case-id="${escapeHtml(c.id)}" onclick="openCaseDetail(this.dataset.caseId)">Ver caso</button>
                 </div>
               `);
 
-              activeMarkers.push({ id: c.id, marker: marker, lat: c.ubicacion.lat, lng: c.ubicacion.lng });
+              let geofence = null;
+              activeMarkers.push({ id: c.id, caseId: c.id, marker, geofence, lat: c.ubicacion.lat, lng: c.ubicacion.lng });
 
               // DIBUJAR GEOCERCA REAL DE 60 KM (60,000 METROS)
               if (c.estado === 'VALIDADO' || c.estado === 'EN_SEGUIMIENTO') {
-                L.circle([c.ubicacion.lat, c.ubicacion.lng], {
+                geofence = L.circle([c.ubicacion.lat, c.ubicacion.lng], {
                   color: '#B3261E',
                   weight: 1,
                   fillColor: '#B3261E',
                   fillOpacity: 0.12,
                   radius: 60000
                 }).addTo(map);
+                activeMarkers.at(-1).geofence = geofence;
               }
             }
           });
@@ -1029,10 +1704,11 @@
               icon: L.divIcon({ className: 'clue-marker', html: '', iconSize: [12, 12], iconAnchor: [6, 6] }),
               title: 'Pista reportada'
             }).addTo(map);
-            clueMarker.bindPopup(`<div><strong>Pista reportada</strong><br>${relatedCase ? relatedCase.nombreCompleto : 'Caso'}<br>${pista.descripcion}<br>${new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleDateString()}</div>`);
+            clueMarker.bindPopup(`<div><strong>Pista reportada</strong><br>${escapeHtml(relatedCase ? relatedCase.nombreCompleto : 'Caso')}<br>${escapeHtml(pista.descripcion)}<br>${new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleDateString('es-PY')}</div>`);
           });
 
           activeMap = map;
+          filterFeedCases();
         } catch (e) {
           mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
@@ -1097,6 +1773,23 @@
     // ==========================================
     // VISTA 4: REPORTAR DESAPARECIDO (SECCIÓN 6)
     // ==========================================
+    function renderReportAccessView() {
+      return `
+        <div class="access-page">
+          <nav class="breadcrumbs" aria-label="Ruta de navegación">
+            <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><span>Ingreso requerido</span>
+          </nav>
+          <section class="access-card card">
+            <span class="access-icon" aria-hidden="true">♙</span>
+            <p class="section-kicker">Acceso ciudadano</p>
+            <h1>Necesitás ingresar</h1>
+            <p>Para reportar una desaparición y seguir tus casos se requiere una cuenta de ciudadano. Buscar y enviar pistas no la requiere.</p>
+            <button type="button" class="btn btn-primary" onclick="navigateTo('auth')">Ingresar / Crear cuenta</button>
+          </section>
+        </div>
+      `;
+    }
+
     function renderReportView() {
       return `
         <div>
@@ -1114,7 +1807,7 @@
             <div class="grid-2">
               <div class="form-group">
                 <label>Edad *</label>
-                <input type="number" id="repEdad" required min="0" placeholder="Años" class="form-control">
+                <input type="number" id="repEdad" required min="0" max="120" oninput="updateMinorAuthorization()" placeholder="Años" class="form-control">
               </div>
               <div class="form-group">
                 <label>Sexo *</label>
@@ -1130,6 +1823,10 @@
               <div class="form-group">
                 <label>Ciudad *</label>
                 <input type="text" id="repCiudad" required placeholder="Ej: Asunción" class="form-control">
+              </div>
+              <div class="form-group">
+                <label>Departamento *</label>
+                <input type="text" id="repDepartamento" required placeholder="Ej: Central" class="form-control">
               </div>
               <div class="form-group">
                 <label>Fecha y Hora *</label>
@@ -1186,6 +1883,16 @@
               </p>
             </div>
 
+            <fieldset class="form-group consent-group">
+              <legend>Verificación de edad y autorización *</legend>
+              <label><input type="checkbox" id="reporterAdult" required> Declaro que soy mayor de 18 años y estoy autorizado a realizar este reporte.</label>
+              <label><input type="checkbox" id="minorAuthorization" onchange="updateMinorAuthorization()"> Confirmo que cuento con autorización parental o de tutor legal para reportar a la persona menor de edad.</label>
+            </fieldset>
+            <label class="privacy-consent">
+              <input type="checkbox" id="privacyConsent" required>
+              Acepto el aviso de privacidad y el uso de estos datos únicamente para la búsqueda y gestión de este reporte.
+            </label>
+
             <button type="submit" class="btn btn-red">Publicar reporte de búsqueda</button>
           </form>
         </div>
@@ -1203,7 +1910,10 @@
         try {
           const map = L.map('reportMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
           addTextMapZoomControl(map);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OpenStreetMap contributors' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+          }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
           reportMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Lugar de desaparición', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
           reportMarker.on('dragend', function (e) {
@@ -1353,6 +2063,7 @@
         edad: parseInt(document.getElementById('repEdad').value),
         sexo: document.getElementById('repSexo').value,
         ciudad: city,
+        departamento: document.getElementById('repDepartamento').value.trim(),
         descripcionFisica: document.getElementById('repFisica').value,
         vestimenta: document.getElementById('repVestimenta').value,
         senasParticulares: document.getElementById('repSenas').value,
@@ -1363,7 +2074,10 @@
           lng: parseFloat(document.getElementById('replng').value),
           direccion: city
         },
-        numeroDenuncia: denuncia
+        numeroDenuncia: denuncia,
+        declaraMayorEdad: document.getElementById('reporterAdult').checked,
+        autorizacionParental: document.getElementById('minorAuthorization').checked,
+        avisoPrivacidadAceptado: document.getElementById('privacyConsent').checked
       };
 
       try {
@@ -1372,81 +2086,169 @@
         setReportPhotoError(error.message);
         return;
       }
-      showToast('Reporte recibido', 'Reporte registrado correctamente.', 'success');
-      navigateTo('feed');
+      showToast('Reporte recibido', 'El caso quedó en revisión y ya aparece en Mis casos.', 'success');
+      await navigateTo('my-cases');
+    }
+
+    function updateMinorAuthorization() {
+      const age = Number(document.getElementById('repEdad')?.value);
+      const authorization = document.getElementById('minorAuthorization');
+      if (!authorization) return;
+      const isMinor = Number.isFinite(age) && age < 18;
+      authorization.required = isMinor;
+      authorization.disabled = !isMinor;
+      if (!isMinor) authorization.checked = false;
     }
 
     // ==========================================
     // VISTA 5: GENERAR PISTA CON FILTROS (SECCIÓN 7)
     // ==========================================
+    function renderLeadCaseSelection() {
+      const activeCases = getStore().casos.filter(c =>
+        ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado));
+      return `
+        <div class="lead-flow">
+          <nav class="breadcrumbs" aria-label="Ruta de navegación">
+            <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><span>Generar una pista</span>
+          </nav>
+          <header class="lead-step-heading">
+            <span class="section-kicker">Colaboración ciudadana</span>
+            <h1>Generar una pista</h1>
+            <p>Paso 1 de 2 · Buscá el caso sobre el que viste algo.</p>
+          </header>
+          <label class="lead-search-field"><span class="sr-only">Buscar un caso</span>
+            <input type="search" id="leadCaseSearch" class="form-control" oninput="filterLeadCaseCards()" placeholder="Buscar por nombre, ciudad o señas particulares">
+          </label>
+          <div id="leadCaseChoices" class="lead-case-choices">
+            ${activeCases.map(c => {
+              const initials = c.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+              const status = c.estado === 'EN_SEGUIMIENTO' ? 'En seguimiento' : 'Búsqueda activa';
+              return `<article class="lead-case-choice" data-case-id="${escapeHtml(c.id)}" data-search="${escapeHtml([c.nombreCompleto, c.ciudad, c.departamento, c.descripcionFisica, c.senasParticulares].join(' ')).toLocaleLowerCase('es-PY')}">
+                <div class="lead-case-avatar">${escapeHtml(initials)}</div>
+                <div class="lead-case-info"><strong>${escapeHtml(c.nombreCompleto)}</strong><span>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</span><small>${escapeHtml(status)}</small></div>
+                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
+              </article>`;
+            }).join('')}
+          </div>
+          <p id="leadCaseEmpty" class="feed-empty-state ${activeCases.length ? 'hidden' : ''}">${activeCases.length ? 'No se encontraron casos con esa búsqueda.' : 'No hay casos activos disponibles para recibir pistas.'}</p>
+        </div>
+      `;
+    }
+
+    function filterLeadCaseCards() {
+      const query = document.getElementById('leadCaseSearch').value.trim().toLocaleLowerCase('es-PY');
+      let visible = 0;
+      document.querySelectorAll('.lead-case-choice').forEach(card => {
+        const matches = !query || card.dataset.search.includes(query);
+        card.classList.toggle('hidden', !matches);
+        if (matches) visible += 1;
+      });
+      document.getElementById('leadCaseEmpty').classList.toggle('hidden', visible !== 0);
+    }
+
     function renderLeadView(preCaseId) {
       const store = getStore();
-      const activeCases = store.casos.filter(c => c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' && c.estado !== 'RECHAZADO');
+      const activeCases = store.casos.filter(c => ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado));
+      const selectedCase = activeCases.find(c => c.id === preCaseId);
+      if (!selectedCase) return renderLeadCaseSelection();
       return `
-        <div>
-          <div>
-            <button onclick="navigateTo('feed')" class="btn btn-outline btn-sm">Volver</button>
-            <span>Generar pista ciudadana</span>
-          </div>
-
-          <!-- FILTROS SOBRIOS -->
-          <div>
-            <p>Filtros de búsqueda de casos</p>
-            <div class="grid-3">
-              <input type="text" id="fCiudad" oninput="filterLeadCases()" placeholder="Ciudad" class="form-control">
-              <select id="fSexo" onchange="filterLeadCases()" class="form-control">
-                <option value="">Todos</option>
-                <option value="Femenino">Femenino</option>
-                <option value="Masculino">Masculino</option>
-              </select>
-              <select id="fEdad" onchange="filterLeadCases()" class="form-control">
-                <option value="">Edades</option>
-                <option value="0-17">Menores</option>
-                <option value="18+">Adultos</option>
-              </select>
+        <div class="lead-flow">
+          <nav class="breadcrumbs" aria-label="Ruta de navegación">
+            <button type="button" onclick="navigateTo('lead')">Paso 1 de 2</button><span aria-hidden="true">›</span><span>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</span>
+          </nav>
+          <header class="lead-step-heading">
+            <span class="section-kicker">Paso 2 de 2 · Contanos qué viste.</span>
+            <h1>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</h1>
+            <button type="button" class="inline-detail-link" data-case-id="${escapeHtml(selectedCase.id)}" onclick="openCaseDetail(this.dataset.caseId)">Ver ficha del caso <span aria-hidden="true">›</span></button>
+          </header>
+          <article class="lead-selected-case">
+            <div class="lead-case-avatar">${escapeHtml(selectedCase.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase())}</div>
+            <div><span class="case-status-pill status-tone-${selectedCase.estado === 'EN_SEGUIMIENTO' ? 'followup' : 'active'}">${selectedCase.estado === 'EN_SEGUIMIENTO' ? 'En seguimiento' : 'Búsqueda activa'}</span>
+              <h2>${escapeHtml(selectedCase.nombreCompleto)}</h2>
+              <p>${Number(selectedCase.edad)} años · ${escapeHtml(selectedCase.ciudad)}${selectedCase.departamento ? `, ${escapeHtml(selectedCase.departamento)}` : ''}</p>
+              <p>${escapeHtml(selectedCase.descripcionFisica)}</p>
             </div>
-          </div>
-
-          <form onsubmit="handleLeadSubmit(event)" class="card">
+          </article>
+          <form onsubmit="handleLeadSubmit(event)" class="card lead-form">
+            <h2>Enviar una pista</h2>
+            <p class="notice notice-info">Si la pista se valida, su descripción, fotos y ubicación podrán mostrarse en la ficha; no solicitamos tus datos personales ni se muestran al público.</p>
+            <input type="hidden" id="leadCaseId" value="${escapeHtml(selectedCase.id)}">
             <div class="form-group">
-              <label>Seleccionar Persona Desaparecida *</label>
-              <select id="leadCaseSelect" class="form-control">
-                ${activeCases.map(c => `<option value="${c.id}" ${c.id === preCaseId ? 'selected' : ''}>${c.nombreCompleto} (${c.ciudad} -${c.edad} años)</option>`).join('')}
-              </select>
+              <label for="leadDesc">¿Qué viste? *</label>
+              <textarea id="leadDesc" required maxlength="3000" placeholder="Dónde, cuándo, con quién, cómo iba vestida/o..." class="form-control lead-description-input"></textarea>
             </div>
-
             <div class="form-group">
-              <label>Detalle de lo visto / Información de la pista *</label>
-              <textarea id="leadDesc" required placeholder="Descripción del avistamiento, vestimenta observada o personas acompañantes..." class="form-control"></textarea>
+              <label for="leadPhotos" class="lead-upload-zone"><span aria-hidden="true">▧</span><strong>Toca para sacar o subir fotos</strong><small>Hasta 3 imágenes JPG, PNG o WEBP</small></label>
+              <input type="file" id="leadPhotos" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onchange="handleLeadPhotoSelection(event)" class="sr-only">
+              <div id="leadPhotoPreviews" class="lead-photo-previews"></div>
+              <p id="leadPhotoError" class="hidden" role="alert"></p>
             </div>
-
             <div class="form-group">
-              <label>Fecha y Hora del Avistamiento *</label>
+              <label for="leadFecha">Fecha y hora del avistamiento *</label>
               <input type="datetime-local" id="leadFecha" required class="form-control">
             </div>
-
-            <!-- GEOLOCALIZACIÓN DE LA PISTA EN MAPA REAL -->
-            <div class="form-group">
-              <div>
-                <label>Ubicación de la pista en el mapa *</label>
-                <button type="button" onclick="useBrowserLocation('leadlat', 'leadlng', leadMarker, 'leadCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
-              </div>
+            <label class="privacy-consent lead-public-consent"><input type="checkbox" id="leadPublicConsent" required>
+              Entiendo que la pista, su ubicación y las fotografías que envíe podrán ser publicadas si el equipo las valida.
+            </label>
+            <div class="form-group lead-location-group">
+              <div class="lead-location-heading"><label>Ubicación del avistamiento *</label><span>Tocá el mapa para marcar el lugar</span></div>
               <div id="leadMap" class="map-container"></div>
               <input type="hidden" id="leadlat" value="-25.2867">
               <input type="hidden" id="leadlng" value="-57.6333">
-              <p id="leadCoordsText">Coordenadas aproximadas: -25.2867, -57.6333</p>
-              <div class="map-legend">
-                Marcador azul: punto de avistamiento reportado en la pista.
+              <div class="lead-location-footer"><p id="leadCoordsText">Coordenadas aproximadas: -25.2867, -57.6333</p>
+                <button type="button" onclick="useBrowserLocation('leadlat', 'leadlng', leadMarker, 'leadCoordsText')" class="btn btn-outline btn-sm">⌖ Usar mi ubicación</button>
               </div>
             </div>
-
-            <button type="submit" class="btn btn-primary">Enviar pista confidencial</button>
+            <div class="lead-form-actions"><button type="button" class="btn btn-outline" onclick="navigateTo('lead')">Volver a casos</button><button type="submit" class="btn btn-primary">Enviar una pista</button></div>
           </form>
         </div>
       `;
     }
 
     let leadMarker = null;
+    let selectedLeadPhotos = [];
+    let leadPhotoPreviewUrls = [];
+
+    function clearLeadPhotoSelection() {
+      leadPhotoPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      leadPhotoPreviewUrls = [];
+      selectedLeadPhotos = [];
+      const input = document.getElementById('leadPhotos');
+      if (input) input.value = '';
+      const previews = document.getElementById('leadPhotoPreviews');
+      if (previews) previews.replaceChildren();
+      const error = document.getElementById('leadPhotoError');
+      if (error) {
+        error.textContent = '';
+        error.classList.add('hidden');
+      }
+    }
+
+    function handleLeadPhotoSelection(event) {
+      const input = event.currentTarget;
+      const files = Array.from(input.files || []);
+      clearLeadPhotoSelection();
+      const error = document.getElementById('leadPhotoError');
+      if (files.length > 3 || files.some(file =>
+        !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024
+      )) {
+        input.value = '';
+        error.textContent = 'Seleccione hasta 3 fotografías JPG, PNG o WEBP de máximo 5 MB cada una.';
+        error.classList.remove('hidden');
+        return;
+      }
+
+      selectedLeadPhotos = files;
+      const previews = document.getElementById('leadPhotoPreviews');
+      files.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        leadPhotoPreviewUrls.push(url);
+        const image = document.createElement('img');
+        image.src = url;
+        image.alt = `Vista previa de la fotografía ${index + 1}`;
+        previews.append(image);
+      });
+    }
 
     function initLeadLeafletMap() {
       setTimeout(() => {
@@ -1457,9 +2259,18 @@
         try {
           const map = L.map('leadMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
           addTextMapZoomControl(map);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OpenStreetMap contributors' }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+          }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
 
           leadMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Ubicación de la pista', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
+          map.on('click', event => {
+            leadMarker.setLatLng(event.latlng);
+            document.getElementById('leadlat').value = event.latlng.lat.toFixed(5);
+            document.getElementById('leadlng').value = event.latlng.lng.toFixed(5);
+            document.getElementById('leadCoordsText').innerText = `Lugar marcado: ${event.latlng.lat.toFixed(5)}, ${event.latlng.lng.toFixed(5)}`;
+          });
           leadMarker.on('dragend', function (e) {
             const coord = e.target.getLatLng();
             document.getElementById('leadlat').value = coord.lat.toFixed(5);
@@ -1468,6 +2279,11 @@
           });
 
           activeMap = map;
+          const dateInput = document.getElementById('leadFecha');
+          if (dateInput && !dateInput.value) {
+            const now = new Date();
+            dateInput.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          }
         } catch (e) {
           mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
@@ -1475,41 +2291,45 @@
     }
 
     function filterLeadCases() {
-      const ciudad = document.getElementById('fCiudad').value.toLowerCase();
-      const sexo = document.getElementById('fSexo').value;
-      const edad = document.getElementById('fEdad').value;
+      const query = document.getElementById('leadCaseSearch').value.trim().toLocaleLowerCase('es-PY');
       const store = getStore();
 
       const filtered = store.casos.filter(c => {
-        if (c.estado === 'CERRADO' || c.estado === 'LOCALIZADO' || c.estado === 'RECHAZADO') return false;
-        if (ciudad && !c.ciudad.toLowerCase().includes(ciudad)) return false;
-        if (sexo && c.sexo !== sexo) return false;
-        if (edad === '0-17' && c.edad >= 18) return false;
-        if (edad === '18+' && c.edad < 18) return false;
-        return true;
+        return ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado)
+          && (!query || [c.nombreCompleto, c.ciudad, c.departamento, c.descripcionFisica, c.senasParticulares]
+            .join(' ').toLocaleLowerCase('es-PY').includes(query));
       });
-
-      const sel = document.getElementById('leadCaseSelect');
-      sel.innerHTML = filtered.map(c => `<option value="${c.id}">${c.nombreCompleto} (${c.ciudad})</option>`).join('');
+      document.getElementById('leadCaseChoices').innerHTML = filtered.map(c => {
+        const initials = c.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+        return `<article class="lead-case-choice" data-case-id="${escapeHtml(c.id)}">
+          <div class="lead-case-avatar">${escapeHtml(initials)}</div>
+          <div class="lead-case-info"><strong>${escapeHtml(c.nombreCompleto)}</strong><span>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</span><small>${c.estado === 'EN_SEGUIMIENTO' ? 'En seguimiento' : 'Búsqueda activa'}</small></div>
+          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
+        </article>`;
+      }).join('');
+      document.getElementById('leadCaseEmpty').classList.toggle('hidden', filtered.length > 0);
     }
 
     async function handleLeadSubmit(e) {
       e.preventDefault();
-      const caseId = document.getElementById('leadCaseSelect').value;
+      const caseId = document.getElementById('leadCaseId').value;
       const desc = document.getElementById('leadDesc').value.trim();
       try {
+        const photos = await Promise.all(selectedLeadPhotos.map(compressReportPhoto));
         await apiRequest(`/casos/${encodeURIComponent(caseId)}/pistas`, {
           method: 'POST',
           body: {
             descripcion: desc,
             fechaHoraAvistamiento: document.getElementById('leadFecha').value,
+            fotos: photos,
             ubicacion: {
               lat: parseFloat(document.getElementById('leadlat').value),
               lng: parseFloat(document.getElementById('leadlng').value)
             }
           }
         });
-        showToast('Listo', 'Pista ingresada correctamente.', 'success');
+        showToast('Pista recibida', 'La pista se envió para moderación antes de publicarse. Tus datos personales no se muestran al público.', 'success');
+        clearLeadPhotoSelection();
         navigateTo('feed');
       } catch (error) {
         showToast('No se pudo enviar la pista', error.message);
@@ -1536,6 +2356,33 @@
       const encontrados = Number(stats.encontrados);
       const activos = Number(stats.activos);
       const pct = Number(stats.porcentajeResueltos);
+      const referenceMonths = [
+        { month: 'Ene', reports: 230, located: 185 },
+        { month: 'Feb', reports: 220, located: 175 },
+        { month: 'Mar', reports: 230, located: 185 },
+        { month: 'Abr', reports: 220, located: 175 },
+        { month: 'May', reports: 210, located: 170 },
+        { month: 'Jun', reports: 220, located: 180 },
+        { month: 'Jul', reports: 210, located: 170 },
+        { month: 'Ago', reports: 220, located: 175 },
+        { month: 'Sep', reports: 230, located: 185 },
+        { month: 'Oct', reports: 220, located: 180 },
+        { month: 'Nov', reports: 210, located: 170 },
+        { month: 'Dic', reports: 180, located: 150 }
+      ];
+      const referenceMax = Math.max(...referenceMonths.map(month => month.reports));
+      const monthlyBars = referenceMonths.map(month => `<div class="monthly-chart-column" aria-label="${month.month}: ${month.reports} denuncias de referencia, ${month.located} localizadas">
+        <div class="monthly-chart-bars">
+          <span class="monthly-chart-bar monthly-reports" style="--bar-height:${month.reports / referenceMax * 100}%"></span>
+          <span class="monthly-chart-bar monthly-located" style="--bar-height:${month.located / referenceMax * 100}%"></span>
+        </div><span class="monthly-chart-month">${month.month}</span>
+      </div>`).join('');
+      const departments = stats.casosPorDepartamento || [];
+      const maxDepartmentCount = Math.max(...departments.map(row => Number(row.total)), 1);
+      const departmentBars = departments.length ? departments.map(row => `<div class="department-row">
+        <div class="department-label"><span>${escapeHtml(row.categoria || 'Sin especificar')}</span><strong>${Number(row.total)}</strong></div>
+        <div class="analytics-track"><span class="analytics-bar analytics-bar-navy" style="--bar-width:${Math.max(Number(row.total) / maxDepartmentCount * 100, 2)}%"></span></div>
+      </div>`).join('') : '<p class="analytics-empty">Sin datos disponibles.</p>';
       const chartViews = {
         porMes: ['Personas localizadas por mes', stats.porMes],
         porCiudad: ['Personas localizadas por ciudad', stats.porCiudad],
@@ -1560,16 +2407,38 @@
             <span>Estadísticas nacionales de búsqueda</span>
           </div>
 
-          <div class="stats-strip">
-            <div><strong class="stat-cyan">${total}</strong><span>Desaparecidos</span></div>
-            <div><strong class="stat-green">${encontrados}</strong><span>Encontrados</span></div>
-            <div><strong class="stat-amber">${activos}</strong><span>Casos activos</span></div>
-            <div><strong class="stat-pink">${pct}%</strong><span>Porcentaje resuelto</span></div>
+          <p class="stats-disclaimer">Datos agregados y anónimos de personas. La referencia 2025 proviene del documento del proyecto; la distribución mensual es ilustrativa.</p>
+          <section class="historical-metrics" aria-label="Indicadores de referencia y datos en vivo">
+            <article><strong>2.600</strong><span>Denuncias 2025 ref.</span></article>
+            <article class="historical-found"><strong>2.100</strong><span>Localizadas 2025 ref.</span></article>
+            <article class="historical-rate"><strong>81%</strong><span>Tasa de localización</span></article>
+            <article class="historical-live"><strong>${activos}</strong><span>Activas hoy en la plataforma</span></article>
+          </section>
+          <div class="stats-live-secondary">
+            <span>Plataforma: ${total} casos publicados</span><span>${encontrados} localizados · ${pct}% de resolución en registros publicados</span>
           </div>
 
-          <section class="card stats-chart" aria-labelledby="statsChartHeading">
+          <div class="stats-analytics-layout">
+            <section class="card monthly-chart-panel" aria-labelledby="monthlyChartHeading">
+              <div class="analytics-panel-heading"><div><span class="section-kicker">Referencia anual</span><h2 id="monthlyChartHeading">Denuncias y localizadas · 2025</h2></div><span class="illustrative-badge">Distribución ilustrativa</span></div>
+              <div class="monthly-chart-legend"><span><i class="legend-reports"></i>Denuncias</span><span><i class="legend-located"></i>Localizadas</span></div>
+              <div class="monthly-chart" role="img" aria-label="Gráfico mensual agrupado de denuncias y personas localizadas en 2025">${monthlyBars}</div>
+              <p class="monthly-chart-note">Totales de referencia: 2.600 denuncias · 2.100 localizadas.</p>
+            </section>
+            <aside class="stats-side-panels">
+              <section class="card operational-panel"><span class="section-kicker">Indicadores operativos</span><h2>Seguimiento de gestión</h2>
+                <p class="operational-disclaimer">Valores ilustrativos del prototipo</p>
+                <div class="operational-item"><strong>12 min</strong><span>Validación promedio <small>Meta &lt; 15 min</small></span></div>
+                <div class="operational-item"><strong>67%</strong><span>Seguimiento al día <small>De casos activos</small></span></div>
+                <div class="operational-item"><strong>67%</strong><span>Pistas con GPS <small>De 3 pistas · referencia</small></span></div>
+              </section>
+              <section class="card department-panel"><span class="section-kicker">Distribución geográfica</span><h2>Casos publicados por departamento</h2><div class="department-chart">${departmentBars}</div></section>
+            </aside>
+          </div>
+
+          <section class="card stats-chart stats-live-chart" aria-labelledby="statsChartHeading">
             <h2 id="statsChartHeading">${chartTitle}</h2>
-            <div class="filter-chips" role="group" aria-label="Vista de estadísticas">
+            <div class="filter-chips" role="group" aria-label="Vista de estadísticas en vivo">
               <button class="filter-chip ${activeStatsView === 'porMes' ? 'active' : ''}" onclick="setStatsView('porMes')" aria-label="Ver estadísticas por mes">Mes</button>
               <button class="filter-chip ${activeStatsView === 'porCiudad' ? 'active' : ''}" onclick="setStatsView('porCiudad')" aria-label="Ver estadísticas por ciudad">Ciudad</button>
               <button class="filter-chip ${activeStatsView === 'porSexo' ? 'active' : ''}" onclick="setStatsView('porSexo')" aria-label="Ver estadísticas por sexo">Sexo</button>
@@ -1584,41 +2453,152 @@
     // ==========================================
     // VISTA 7: PANEL DE ADMINISTRACIÓN (SECCIÓN 9)
     // ==========================================
-    function renderAdminView(history) {
+    function renderMyCasesView(cases, notifications) {
+      const relevantNotifications = notifications.slice(0, 8);
+      return `
+        <section class="account-view">
+          <div class="account-view-heading">
+            <div><span class="section-kicker">Área ciudadana</span><h1>Mis casos</h1>
+              <p>Consultá el estado de tus reportes y respondé los avisos de seguimiento.</p></div>
+            <button type="button" class="btn btn-primary" onclick="navigateTo('report')">＋ Nuevo reporte</button>
+          </div>
+          <div class="my-cases-layout">
+            <section class="card my-cases-list" aria-labelledby="myCasesHeading">
+              <h2 id="myCasesHeading">Reportes registrados por vos</h2>
+              ${cases.length ? cases.map(c => {
+                const needsResponse = ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado);
+                return `<article class="my-case-card">
+                  <div class="my-case-card-heading"><div><h3>${escapeHtml(c.nombreCompleto)}</h3>
+                    <p>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}, ${escapeHtml(c.departamento || '')}</p></div>
+                    <span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(statusLabel(c.estado))}</span></div>
+                  <p class="my-case-meta">Reportado ${new Date(c.fechaCreacion).toLocaleString('es-PY')}</p>
+                  ${c.estado === 'PENDIENTE' ? '<p class="my-case-notice">Tu reporte está en revisión. Recibirás un aviso cuando se actualice.</p>' : ''}
+                  ${c.estado === 'RECHAZADO' ? `<p class="my-case-notice">${escapeHtml(c.motivoRechazo || 'El reporte no fue aprobado. Contactá a soporte para más información.')}</p>` : ''}
+                  ${needsResponse ? `<div class="my-case-actions">
+                    <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
+                    <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'LOCALIZADO')">Fue localizada</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
+                  </div>` : ''}
+                </article>`;
+              }).join('') : '<div class="empty-state"><h3>Aún no registraste casos</h3><p>Tus reportes aparecerán aquí para que puedas consultar su estado.</p></div>'}
+            </section>
+            <aside class="card system-notices" aria-labelledby="systemNoticesHeading">
+              <h2 id="systemNoticesHeading">Avisos</h2>
+              ${relevantNotifications.length ? `<ul>${relevantNotifications.map(notice => `<li class="${notice.leida ? '' : 'unread'}">
+                <strong>${escapeHtml(notice.titulo)}</strong><p>${escapeHtml(notice.mensaje)}</p>
+                <time datetime="${escapeHtml(notice.fecha)}">${new Date(notice.fecha).toLocaleString('es-PY')}</time>
+              </li>`).join('')}</ul>` : '<p class="muted">No tenés avisos del sistema por el momento.</p>'}
+              <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotificationsModal()">Abrir centro de avisos</button>
+            </aside>
+          </div>
+        </section>`;
+    }
+
+    function statusLabel(status) {
+      return ({
+        PENDIENTE: 'En revisión',
+        VALIDADO: 'Búsqueda activa',
+        EN_SEGUIMIENTO: 'En seguimiento',
+        LOCALIZADO: 'Localizado',
+        CERRADO: 'Cerrado',
+        RECHAZADO: 'Rechazado'
+      })[status] || status;
+    }
+
+    function timeSince(value) {
+      const timestamp = new Date(value).getTime();
+      if (!Number.isFinite(timestamp)) return 'Fecha no disponible';
+      const hours = Math.max(0, Math.floor((Date.now() - timestamp) / 3_600_000));
+      if (hours < 1) return 'Hace menos de 1 hora';
+      if (hours < 24) return `Hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+      const days = Math.floor(hours / 24);
+      return `Hace ${days} ${days === 1 ? 'día' : 'días'}`;
+    }
+
+    async function respondToFollowup(caseId, action) {
+      let motivo;
+      if (action === 'CERRAR') {
+        motivo = prompt('Indica por qué solicitás cerrar el caso:');
+        if (!motivo?.trim()) return;
+      }
+      try {
+        await apiRequest(`/casos/${encodeURIComponent(caseId)}/seguimiento`, {
+          method: 'POST',
+          body: { accion: action, ...(motivo ? { motivo: motivo.trim() } : {}) }
+        });
+        showToast('Seguimiento actualizado', 'Tu respuesta fue registrada.', 'success');
+        await navigateTo('my-cases');
+      } catch (error) {
+        showToast('No se pudo actualizar el seguimiento', error.message, 'error');
+      }
+    }
+
+    function renderAdminView(history, clues = [], audit = []) {
       const store = getStore();
       const pending = store.casos.filter(c => c.estado === 'PENDIENTE');
       const staleCases = store.casos.filter(c =>
         c.estado !== 'CERRADO' &&
         c.estado !== 'LOCALIZADO' &&
         c.estado !== 'RECHAZADO' &&
-        c.proximoSeguimiento &&
-        new Date(c.proximoSeguimiento).getTime() < Date.now()
+        ((c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2)
+          || (c.proximoSeguimiento && new Date(c.proximoSeguimiento).getTime() < Date.now()))
       );
+      const pendingClues = clues.filter(clue => clue.estado === 'PENDIENTE');
+      const activeCases = store.casos.filter(c => ['VALIDADO', 'EN_SEGUIMIENTO'].includes(c.estado));
+      const needsAction = [...pending, ...staleCases].slice(0, 6);
 
       return `
-        <div>
-          <div>
-            <span>Panel de administración</span>
-            <span class="status-tag status-PENDIENTE">Ente Regulador</span>
+        <section class="admin-dashboard">
+          <div class="admin-dashboard-heading">
+            <div><span class="section-kicker">Gestión institucional</span><h1>Panel de administración</h1></div>
+            <span class="role-badge role-badge-admin">ADMIN</span>
           </div>
 
           <nav class="admin-tabs" aria-label="Secciones del administrador">
-            <button class="admin-tab active" onclick="selectAdminTab('pending', this)">Pendientes de revisión</button>
-            <button class="admin-tab" onclick="selectAdminTab('cases', this)">Casos</button>
-            <button class="admin-tab" onclick="selectAdminTab('history', this)">Historial de localizados</button>
-            <button class="admin-tab" onclick="selectAdminTab('stale', this)">Sin actualizar</button>
+            <button class="admin-tab active" data-admin-tab="overview" onclick="selectAdminTab('overview', this)">Resumen</button>
+            <button class="admin-tab" data-admin-tab="validation" onclick="selectAdminTab('validation', this)">Bandeja de validación <span class="tab-count">${pending.length}</span></button>
+            <button class="admin-tab" data-admin-tab="cases" onclick="selectAdminTab('cases', this)">Casos</button>
+            <button class="admin-tab" data-admin-tab="followup" onclick="selectAdminTab('followup', this)">Seguimiento <span class="tab-count">${staleCases.length}</span></button>
+            <button class="admin-tab" data-admin-tab="clues" onclick="selectAdminTab('clues', this)">Pistas <span class="tab-count">${pendingClues.length}</span></button>
+            <button class="admin-tab" data-admin-tab="audit" onclick="selectAdminTab('audit', this)">Auditoría</button>
+            <button class="admin-tab" data-admin-tab="history" onclick="selectAdminTab('history', this)">Historial</button>
           </nav>
 
-          <section class="admin-tab-panel card" data-admin-panel="pending">
-            <h2>Pendientes de revisión</h2>
-            ${pending.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          <section class="admin-tab-panel admin-overview-panel" data-admin-panel="overview">
+            <div class="admin-metric-grid">
+              <article class="card"><span>Por validar</span><strong>${pending.length}</strong></article>
+              <article class="card"><span>En seguimiento</span><strong>${store.casos.filter(c => c.estado === 'EN_SEGUIMIENTO').length}</strong></article>
+              <article class="card"><span>Pistas nuevas</span><strong>${pendingClues.length}</strong></article>
+              <article class="card"><span>Búsquedas activas</span><strong>${activeCases.length}</strong></article>
+            </div>
+            <section class="card priority-actions">
+              <div class="admin-section-heading"><div><span class="section-kicker">Cola prioritaria</span><h2>Requieren acción</h2></div><span>${needsAction.length} pendientes</span></div>
+              ${needsAction.length ? `<div class="priority-case-list">${needsAction.map(c => {
+                const isPending = c.estado === 'PENDIENTE';
+                const tag = isPending ? 'En revisión'
+                  : c.estado === 'EN_SEGUIMIENTO' ? 'En seguimiento' : 'Búsqueda activa';
+                const validation = isPending ? 'Sin validar' : 'Seguimiento vencido';
+                return `<article class="priority-case-row"><div><strong>${escapeHtml(c.nombreCompleto)}</strong>
+                  <span>${escapeHtml(c.ciudad)} · ${escapeHtml(tag)} · ${escapeHtml(validation)}</span></div>
+                  <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="adminOpenCase(this.dataset.caseId, '${isPending ? 'validation' : 'followup'}')">Abrir</button></article>`;
+              }).join('')}</div>` : '<div class="empty-state"><h3>Todo al día</h3><p>No hay casos que requieran atención inmediata.</p></div>'}
+            </section>
+          </section>
+
+          <section class="admin-tab-panel card hidden" data-admin-panel="validation">
+            <h2>Bandeja de validación</h2>
+            <p class="workflow-guidance"><strong>Flujo seguro:</strong> 1. Validar con la lista de control → 2. Aprobar y publicar. También podés rechazar con motivo; los cambios quedan registrados.</p>
+            ${pending.length ? `<div class="table-scroll"><table><thead><tr><th>Caso</th><th>Estado</th><th>Validación</th><th>Reportado</th><th>Acciones</th></tr></thead><tbody>
               ${pending.map(c => `<tr>
-                <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
-                <td data-label="Ciudad">${escapeHtml(c.ciudad)}, ${Number(c.edad)} años</td>
-                <td data-label="Estado"><span class="status-tag status-PENDIENTE">Pendiente</span></td>
+                <td data-label="Caso"><strong>${escapeHtml(c.nombreCompleto)}</strong><br><span class="muted">${escapeHtml(c.ciudad)}, ${Number(c.edad)} años</span></td>
+                <td data-label="Estado"><span class="status-tag status-PENDIENTE">En revisión</span></td>
+                <td data-label="Validación"><span class="validation-state">Sin validar</span></td>
+                <td data-label="Reportado">${timeSince(c.fechaCreacion)}</td>
                 <td data-label="Acciones"><div class="table-actions">
-                  <button onclick="adminAccept('${c.id}')" class="btn btn-primary btn-sm">Aceptar y registrar denuncia</button>
-                  <button onclick="adminReject('${c.id}')" class="btn btn-danger btn-sm">Rechazar</button>
+                  <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminAccept(this.dataset.caseId)" class="btn btn-outline btn-sm">Abrir</button>
+                  <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminAccept(this.dataset.caseId)" class="btn btn-primary btn-sm">Validar y publicar</button>
+                  <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReject(this.dataset.caseId)" class="btn btn-danger btn-sm">Rechazar</button>
                 </div></td>
               </tr>`).join('')}
             </tbody></table></div>` : '<div class="empty-state"><h3>Sin pendientes</h3><p>No hay reportes pendientes de revisión en este momento.</p></div>'}
@@ -1627,12 +2607,16 @@
           <section class="admin-tab-panel card hidden" data-admin-panel="cases">
             <h2>Gestión de casos</h2>
             ${store.casos.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Denuncia</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
-              ${store.casos.map(c => `<tr>
+              ${store.casos.map(c => `<tr id="admin-case-${escapeHtml(c.id)}">
                 <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
                 <td data-label="Ciudad">${escapeHtml(c.ciudad)}</td>
                 <td data-label="Denuncia">${escapeHtml(c.numeroDenuncia || 'Sin registrar')}</td>
-                <td data-label="Estado"><span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(c.estado)}</span></td>
-                <td data-label="Acciones">${c.estado !== 'CERRADO' && c.estado !== 'LOCALIZADO' ? `<button onclick="adminMarkLocated('${c.id}')" class="btn btn-primary btn-sm">Marcar localizado</button>` : 'Sin acciones disponibles'}</td>
+                <td data-label="Estado"><span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(statusLabel(c.estado))}</span></td>
+                <td data-label="Acciones"><div class="table-actions">
+                  ${!['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminMarkLocated(this.dataset.caseId)" class="btn btn-primary btn-sm">Marcar localizado</button><button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminCloseCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Cerrar caso</button>` : ''}
+                  ${c.estado !== 'PENDIENTE' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReturnToReview(this.dataset.caseId)" class="btn btn-outline btn-sm">${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? 'Reabrir en revisión' : 'Devolver a revisión'}</button>` : ''}
+                  ${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) && c.estado !== 'RECHAZADO' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReopenCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Reabrir búsqueda</button>` : ''}
+                </div></td>
               </tr>`).join('')}
             </tbody></table></div>` : '<div class="empty-state"><h3>Sin casos</h3><p>No hay casos para administrar.</p></div>'}
           </section>
@@ -1648,19 +2632,68 @@
             <div id="adminHistoryResults">${renderAdminHistory(history)}</div>
           </section>
 
-          <section class="admin-tab-panel card hidden" data-admin-panel="stale">
-            <h2>Casos sin actualizar</h2>
+          <section class="admin-tab-panel card hidden" data-admin-panel="followup">
+            <h2>Seguimiento pendiente</h2>
             ${staleCases.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Ciudad</th><th>Seguimiento previsto</th><th>Estado</th></tr></thead><tbody>
-              ${staleCases.map(c => `<tr>
+              ${staleCases.map(c => `<tr id="followup-case-${escapeHtml(c.id)}">
                 <td data-label="Persona">${escapeHtml(c.nombreCompleto)}</td>
                 <td data-label="Ciudad">${escapeHtml(c.ciudad)}</td>
                 <td data-label="Seguimiento previsto">${new Date(c.proximoSeguimiento).toLocaleString()}</td>
-                <td data-label="Estado">${escapeHtml(c.estado)}</td>
+                <td data-label="Estado">${c.seguimientoEtapa >= 2 ? 'EN SEGUIMIENTO · SIN ACTUALIZAR' : escapeHtml(c.estado)}</td>
               </tr>`).join('')}
             </tbody></table></div>` : '<div class="empty-state"><h3>Sin casos pendientes de actualización</h3><p>No hay casos que requieran seguimiento vencido.</p></div>'}
           </section>
-        </div>
+
+          <section class="admin-tab-panel card hidden" data-admin-panel="audit">
+            <h2>Auditoría de acciones</h2>
+            ${audit.length ? `<div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Registro</th><th>Acción</th><th>Responsable</th><th>Motivo</th></tr></thead><tbody>
+              ${audit.map(event => `<tr>
+                <td data-label="Fecha">${new Date(event.fecha).toLocaleString('es-PY')}</td>
+                <td data-label="Registro">${escapeHtml(event.persona)} · ${escapeHtml(event.tipoRegistro)}</td>
+                <td data-label="Acción">${escapeHtml(event.estadoAnterior || 'Nuevo')} → ${escapeHtml(event.estadoNuevo)}</td>
+                <td data-label="Responsable">${escapeHtml(event.administrador || 'Sistema')}</td>
+                <td data-label="Motivo">${escapeHtml(event.motivo || '—')}</td>
+              </tr>`).join('')}
+            </tbody></table></div>` : '<div class="empty-state"><h3>Sin actividad registrada</h3><p>Las acciones de moderación aparecerán aquí.</p></div>'}
+          </section>
+
+          <section class="admin-tab-panel card hidden" data-admin-panel="clues">
+            <h2>Moderación de pistas ciudadanas</h2>
+            ${clues.length ? `<div class="table-scroll"><table><thead><tr><th>Persona</th><th>Avistamiento y ubicación</th><th>Fotografías</th><th>Estado y acciones</th></tr></thead><tbody>
+              ${clues.map(clue => `<tr>
+                <td data-label="Persona">${escapeHtml(clue.nombreCompleto)}</td>
+                <td data-label="Avistamiento y ubicación">
+                  <p>${escapeHtml(clue.descripcion)}</p>
+                  <p>${new Date(clue.fechaHoraAvistamiento).toLocaleString('es-PY')}</p>
+                  <p>${Number(clue.ubicacion?.lat)}, ${Number(clue.ubicacion?.lng)} · ${escapeHtml(clue.ubicacion?.direccion || '')}</p>
+                </td>
+                <td data-label="Fotografías"><div class="moderation-photos">
+                  ${(clue.fotos || []).map((photo, index) => `<img src="${escapeHtml(photo)}" alt="Fotografía ${index + 1} de la pista">`).join('') || 'Sin fotografías'}
+                </div></td>
+                <td data-label="Estado y acciones">
+                  <span class="status-tag status-${escapeHtml(clue.estado)}">${escapeHtml(clue.estado)}</span>
+                  ${(clue.cambiosEstado || []).map(change => `<p class="muted">${escapeHtml(change.estadoAnterior || 'Nueva')} → ${escapeHtml(change.estadoNuevo)} · ${escapeHtml(change.administrador || 'Administrador')} · ${new Date(change.cambiadoEn).toLocaleString('es-PY')}${change.motivo ? ` · ${escapeHtml(change.motivo)}` : ''}</p>`).join('')}
+                  ${clue.estado === 'PENDIENTE' ? `<div class="table-actions">
+                    <button type="button" data-clue-id="${escapeHtml(clue.id)}" onclick="adminModerateClue(this.dataset.clueId, 'VALIDADA')" class="btn btn-success btn-sm">Aprobar pista</button>
+                    <button type="button" data-clue-id="${escapeHtml(clue.id)}" onclick="adminModerateClue(this.dataset.clueId, 'RECHAZADA')" class="btn btn-danger btn-sm">Rechazar pista</button>
+                  </div>` : ''}
+                </td>
+              </tr>`).join('')}
+            </tbody></table></div>` : '<div class="empty-state"><h3>Sin pistas</h3><p>Aún no hay pistas ciudadanas para moderar.</p></div>'}
+          </section>
+        </section>
       `;
+    }
+
+    function adminOpenCase(caseId, panel) {
+      if (panel === 'validation') {
+        adminAccept(caseId);
+        return;
+      }
+      const tab = Array.from(document.querySelectorAll('.admin-tab'))
+        .find(item => item.getAttribute('onclick')?.includes("'followup'"));
+      selectAdminTab('followup', tab);
+      document.getElementById(`followup-case-${caseId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function selectAdminTab(panel, button) {
@@ -1754,13 +2787,47 @@
       }));
     }
 
-    async function adminAccept(caseId) {
-      const denuncia = prompt('Ingrese el Número Oficial de Denuncia Policial para aprobar el caso:');
-      if (!denuncia) return;
+    function adminAccept(caseId) {
+      const form = document.getElementById('reviewChecklistForm');
+      const selectedCase = getStore().casos.find(item => item.id === caseId);
+      const detail = document.getElementById('reviewCaseDetails');
+      detail.innerHTML = selectedCase ? `
+        <strong>${escapeHtml(selectedCase.nombreCompleto)}</strong>
+        <span>${Number(selectedCase.edad)} años · ${escapeHtml(selectedCase.ciudad)}, ${escapeHtml(selectedCase.departamento || '')}</span>
+        <span>Denuncia registrada: ${escapeHtml(selectedCase.numeroDenuncia || 'Sin registrar')}</span>
+        <span>Contacto reportante: ${escapeHtml(selectedCase.contactoReportante || 'No disponible')}</span>
+        <span>Descripción: ${escapeHtml(selectedCase.descripcionFisica || 'Sin descripción')}</span>
+        <span>Vestimenta: ${escapeHtml(selectedCase.vestimenta || 'Sin especificar')}</span>
+        <span>Autorización parental: ${selectedCase.autorizacionParental ? 'Registrada' : 'No registrada / no aplica'}</span>
+      ` : '<span>No se pudo cargar el detalle del caso. Actualizá el panel e intentá otra vez.</span>';
+      form.reset();
+      form.dataset.caseId = caseId;
+      document.getElementById('reviewChecklistModal').classList.remove('hidden');
+      document.getElementById('reviewDenuncia').focus();
+    }
+
+    function closeReviewChecklist() {
+      document.getElementById('reviewChecklistModal').classList.add('hidden');
+    }
+
+    async function submitCaseReview(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = new FormData(form);
+      const caseId = form.dataset.caseId;
       try {
         await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
-          method: 'POST', body: { estado: 'VALIDADO', numeroDenuncia: denuncia }
+          method: 'POST',
+          body: {
+            estado: 'VALIDADO',
+            numeroDenuncia: data.get('numeroDenuncia'),
+            verificoDenuncia: data.has('verificoDenuncia'),
+            datosCoherentes: data.has('datosCoherentes'),
+            duplicadosVerificados: data.has('duplicadosVerificados'),
+            menorValidado: data.has('menorValidado')
+          }
         });
+        closeReviewChecklist();
         showToast('Listo', 'Caso validado y publicado en el mapa.', 'success');
         navigateTo('admin');
       } catch (error) {
@@ -1795,8 +2862,67 @@
       }
     }
 
+    async function adminCloseCase(caseId) {
+      const motivo = prompt('Indique la justificación para cerrar este caso:');
+      if (!motivo?.trim()) return;
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'CERRADO', motivo: motivo.trim() }
+        });
+        showToast('Caso cerrado', 'Se registró la justificación de cierre.', 'success');
+        navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo cerrar el caso', error.message);
+      }
+    }
+
+    async function adminReturnToReview(caseId) {
+      const motivo = prompt('Indique qué debe corregirse antes de volver a validar el caso:');
+      if (!motivo?.trim()) return;
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'PENDIENTE', motivo: motivo.trim() }
+        });
+        showToast('Caso devuelto a revisión', 'Se notificó al ciudadano el motivo de la corrección.', 'success');
+        navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo devolver el caso', error.message);
+      }
+    }
+
+    async function adminReopenCase(caseId) {
+      try {
+        await apiRequest(`/admin/casos/${encodeURIComponent(caseId)}/estado`, {
+          method: 'POST', body: { estado: 'EN_SEGUIMIENTO' }
+        });
+        showToast('Búsqueda reabierta', 'El caso volvió al seguimiento activo.', 'success');
+        navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo reabrir la búsqueda', error.message);
+      }
+    }
+
+    async function adminModerateClue(clueId, state) {
+      const motivo = state === 'RECHAZADA' ? prompt('Indique el motivo para rechazar esta pista:') : '';
+      if (state === 'RECHAZADA' && !motivo?.trim()) return;
+      try {
+        await apiRequest(`/admin/pistas/${encodeURIComponent(clueId)}/estado`, {
+          method: 'POST',
+          body: { estado: state, motivo: motivo?.trim() || '' }
+        });
+        showToast('Moderación registrada', state === 'VALIDADA' ? 'La pista ya puede mostrarse públicamente.' : 'La pista quedó fuera de publicación.', 'success');
+        navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo moderar la pista', error.message, 'error');
+      }
+    }
+
     // AUXILIARES Y NOTIFICACIONES
     function toggleNotificationsModal() { 
+      if (!getStore().currentUser) {
+        navigateTo('auth');
+        return;
+      }
       const modal = document.getElementById('notifModal');
       modal.classList.toggle('hidden');
       if (!modal.classList.contains('hidden')) renderNotifList();
@@ -1818,24 +2944,53 @@
       }
       container.innerHTML = store.notificaciones.map(n => `
         <div>
-          <p>${n.titulo}</p>
-          <p>${n.mensaje}</p>
-          <span>${new Date(n.fecha).toLocaleTimeString()}</span>
+          <p>${escapeHtml(n.titulo)}</p>
+          <p>${escapeHtml(n.mensaje)}</p>
+          <span>${new Date(n.fecha).toLocaleString('es-PY')}</span>
+          ${['SEGUIMIENTO', 'SEGUIMIENTO_VENCIDO'].includes(n.tipo) && n.casoId ? `
+            <div class="case-detail-actions">
+              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
+              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'LOCALIZADO')">Localizada</button>
+              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
+              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
+            </div>` : ''}
         </div>
       `).join('');
     }
 
+    async function respondToCaseFollowup(caseId, action) {
+      if (action === 'LOCALIZADO' && !confirm('¿Confirma que la persona fue localizada?')) return;
+      const motivo = action === 'CERRAR' ? prompt('Indique el motivo para cerrar el caso:') : '';
+      if (action === 'CERRAR' && !motivo?.trim()) return;
+      try {
+        await apiRequest(`/casos/${encodeURIComponent(caseId)}/seguimiento`, {
+          method: 'POST',
+          body: { accion: action, motivo: motivo?.trim() || '' }
+        });
+        document.getElementById('notifModal').classList.add('hidden');
+        showToast('Respuesta registrada', 'Se actualizó el seguimiento del caso.', 'success');
+        navigateTo('home');
+      } catch (error) {
+        showToast('No se pudo actualizar el seguimiento', error.message, 'error');
+      }
+    }
+
     function toggleSimulateTimeModal() { document.getElementById('simTimeModal').classList.toggle('hidden'); }
     
-    function runTimeFastForward() {
-      const store = getStore();
-      store.casos.forEach(c => {
-        if (c.estado === 'VALIDADO') c.estado = 'EN_SEGUIMIENTO';
-      });
-      saveStore(store);
-      toggleSimulateTimeModal();
-      showToast('Listo', 'Se avanzaron 3 días en el cronograma. Los casos validados pasaron a estado En seguimiento.', 'success');
-      navigateTo('home');
+    async function runTimeFastForward() {
+      if (getStore().currentUser?.rol !== 'administrador') {
+        showToast('Acceso restringido', 'Solo un administrador puede ejecutar la simulación.', 'error');
+        return;
+      }
+      if (!confirm('Esta simulación fuerza el seguimiento de todos los casos activos y puede generar avisos y cambios de estado. ¿Continuar?')) return;
+      try {
+        const result = await apiRequest('/admin/simulador/avanzar-48h', { method: 'POST' });
+        document.getElementById('simTimeModal').classList.add('hidden');
+        showToast('Simulación completada', `${result.consultasEnviadas} consultas enviadas; ${result.casosEnSeguimiento} casos pasaron a seguimiento.`, 'success');
+        navigateTo('admin');
+      } catch (error) {
+        showToast('No se pudo simular el avance', error.message, 'error');
+      }
     }
 
     let toastTimeout = null;
@@ -1862,16 +3017,86 @@
         const result = await apiRequest('/notificaciones');
         store.notificaciones = result.notificaciones;
         saveStore(store);
+        try {
+          await deliverSystemNotifications(result.notificaciones);
+        } catch (error) {
+          console.error('No se pudo mostrar una notificación del sistema:', error.message);
+        }
       } catch (error) {
         console.error('No se pudo actualizar el contador de notificaciones:', error.message);
       }
       const unread = store.notificaciones.filter(n => !n.leida).length;
-      if (unread > 0) {
-        badge.innerText = unread;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+      [badge, document.getElementById('headerNotifBadge')].forEach(item => {
+        if (unread > 0) {
+          item.innerText = unread;
+          item.classList.remove('hidden');
+        } else item.classList.add('hidden');
+      });
+    }
+
+    let notificationRefreshTimer = null;
+
+    function startNotificationPolling() {
+      if (notificationRefreshTimer) return;
+      notificationRefreshTimer = window.setInterval(() => {
+        if (window.backendCurrentUser) updateNotifBadge();
+      }, 15_000);
+    }
+
+    async function enableSystemNotifications() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        showToast('Avisos no disponibles', 'Este navegador no admite notificaciones del sistema.', 'error');
+        return;
       }
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          showToast('Permiso no concedido', 'Puede habilitar las notificaciones desde la configuración del navegador.', 'error');
+          return;
+        }
+        const userId = window.backendCurrentUser?.id;
+        if (userId) {
+          const result = await apiRequest('/notificaciones');
+          const latestId = Math.max(0, ...result.notificaciones.map(item => Number(item.id) || 0));
+          localStorage.setItem(`rastreo_notif_last_${userId}`, String(latestId));
+        }
+        showToast('Avisos activados', 'Recibirá avisos del sistema mientras Rastreo PY esté activo.', 'success');
+      } catch (error) {
+        showToast('No se pudieron activar los avisos', error.message, 'error');
+      }
+    }
+
+    async function deliverSystemNotifications(notifications) {
+      if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
+      const userId = window.backendCurrentUser?.id;
+      if (!userId) return;
+      const key = `rastreo_notif_last_${userId}`;
+      const savedId = localStorage.getItem(key);
+      const unread = notifications
+        .filter(item => !item.leida && Number.isFinite(Number(item.id)))
+        .sort((left, right) => Number(left.id) - Number(right.id));
+      if (savedId === null) {
+        const latestId = Math.max(0, ...notifications.map(item => Number(item.id) || 0));
+        localStorage.setItem(key, String(latestId));
+        return;
+      }
+      const lastId = Number(savedId) || 0;
+      const fresh = unread.filter(item => Number(item.id) > lastId).slice(-3);
+      if (!fresh.length) return;
+      const registration = await navigator.serviceWorker.ready;
+      for (const item of fresh) {
+        await registration.showNotification('Rastreo PY', {
+          body: 'Tiene una nueva actualización en sus notificaciones.',
+          icon: '/icons/rastreopy.svg',
+          tag: `rastreo-${item.id}`,
+          data: {
+            url: item.casoId
+              ? `${location.origin}${location.pathname}#caso=${encodeURIComponent(item.casoId)}`
+              : location.href
+          }
+        });
+      }
+      localStorage.setItem(key, String(Math.max(lastId, ...fresh.map(item => Number(item.id)))));
     }
 
     async function clearNotifs() {
@@ -1886,6 +3111,10 @@
     }
 
     async function logout() {
+      if (notificationRefreshTimer) {
+        clearInterval(notificationRefreshTimer);
+        notificationRefreshTimer = null;
+      }
       sessionStorage.removeItem('rastreo_token');
       window.backendCurrentUser = null;
       window.backendCaseData = null;
@@ -1894,7 +3123,9 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        applyTheme(localStorage.getItem('rastreo_theme') || 'dark');
+        updateParaguayClock();
+        window.setInterval(updateParaguayClock, 1000);
+        applyTheme(localStorage.getItem('rastreo_theme') || 'light');
         labelButtons();
         const token = sessionStorage.getItem('rastreo_token');
         if (token) {
@@ -1912,6 +3143,13 @@
         showToast('Error de sesión', 'No se pudo comprobar la sesión. Recarga la página e inténtalo nuevamente.', 'error');
       }
     });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .catch(error => console.error('No se pudo registrar el service worker de Rastreo PY.', error));
+      });
+    }
   </script>
 </body>
 </html>

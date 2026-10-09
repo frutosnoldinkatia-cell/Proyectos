@@ -59,6 +59,7 @@ export async function initializeDatabase(db) {
       edad INTEGER NOT NULL,
       sexo TEXT NOT NULL,
       ciudad TEXT NOT NULL,
+      departamento TEXT NOT NULL DEFAULT '',
       descripcion_fisica TEXT NOT NULL,
       vestimenta TEXT NOT NULL,
       senas_particulares TEXT NOT NULL DEFAULT '',
@@ -73,15 +74,36 @@ export async function initializeDatabase(db) {
       reportado_por_usr_id INTEGER REFERENCES usuarios(id),
       localizado_en TIMESTAMPTZ,
       creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      proximo_seguimiento TIMESTAMPTZ
+      proximo_seguimiento TIMESTAMPTZ,
+      reportante_mayor_edad BOOLEAN NOT NULL DEFAULT FALSE,
+      autorizacion_parental BOOLEAN NOT NULL DEFAULT FALSE,
+      aviso_privacidad_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
+      checklist_denuncia BOOLEAN NOT NULL DEFAULT FALSE,
+      checklist_coherencia BOOLEAN NOT NULL DEFAULT FALSE,
+      checklist_duplicados BOOLEAN NOT NULL DEFAULT FALSE,
+      checklist_menores BOOLEAN NOT NULL DEFAULT FALSE,
+      motivo_cierre TEXT,
+      seguimiento_etapa SMALLINT NOT NULL DEFAULT 0
     );
 
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS localizado_en TIMESTAMPTZ;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS departamento TEXT NOT NULL DEFAULT '';
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS reportante_mayor_edad BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS autorizacion_parental BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS aviso_privacidad_aceptado BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS checklist_denuncia BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS checklist_coherencia BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS checklist_duplicados BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS checklist_menores BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS motivo_cierre TEXT;
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS seguimiento_etapa SMALLINT NOT NULL DEFAULT 0;
     UPDATE casos SET localizado_en = CURRENT_TIMESTAMP
       WHERE estado = 'LOCALIZADO' AND localizado_en IS NULL;
 
     CREATE INDEX IF NOT EXISTS idx_casos_estado_localizado
       ON casos (estado, localizado_en);
+    CREATE INDEX IF NOT EXISTS idx_casos_seguimiento_due
+      ON casos (proximo_seguimiento) WHERE proximo_seguimiento IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_casos_creado_en ON casos (creado_en);
 
     CREATE TABLE IF NOT EXISTS pistas (
@@ -93,7 +115,22 @@ export async function initializeDatabase(db) {
       latitud DOUBLE PRECISION NOT NULL,
       longitud DOUBLE PRECISION NOT NULL,
       direccion TEXT NOT NULL DEFAULT '',
+      fotos TEXT[] NOT NULL DEFAULT '{}',
+      estado TEXT NOT NULL DEFAULT 'PENDIENTE',
       fecha_envio TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    ALTER TABLE pistas ADD COLUMN IF NOT EXISTS fotos TEXT[] NOT NULL DEFAULT '{}';
+    ALTER TABLE pistas ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'PENDIENTE';
+
+    CREATE TABLE IF NOT EXISTS cambios_estado_pista (
+      id BIGSERIAL PRIMARY KEY,
+      pista_id TEXT NOT NULL REFERENCES pistas(id),
+      estado_anterior TEXT,
+      estado_nuevo TEXT NOT NULL,
+      motivo TEXT,
+      cambiado_por INTEGER REFERENCES usuarios(id),
+      cambiado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS cambios_estado_caso (

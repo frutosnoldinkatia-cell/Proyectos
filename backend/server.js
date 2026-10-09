@@ -12,7 +12,7 @@ import {
   seedAdministrator
 } from './db.js';
 import { authenticate, createAuthRouter, requireAdministrator } from './auth-routes.js';
-import { createCaseRouter } from './case-routes.js';
+import { createCaseRouter, processDueFollowups } from './case-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -24,7 +24,6 @@ function asyncRoute(handler) {
 export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL }) {
   const app = express();
   app.set('trust proxy', 1);
-  const allowedOrigin = appUrl ? new URL(appUrl).origin : '';
 
   app.use(helmet({
     contentSecurityPolicy: {
@@ -34,22 +33,24 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
         scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
         styleSrcAttr: ["'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https://unpkg.com', 'https://images.unsplash.com', 'https://tile.openstreetmap.org'],
+        imgSrc: ["'self'", 'data:', 'https://unpkg.com', 'https://images.unsplash.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com'],
         fontSrc: ["'self'", 'data:', 'https://unpkg.com'],
         connectSrc: ["'self'"]
       }
     },
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   }));
+
+  // Configuración de CORS permisiva para evitar bloqueos durante el desarrollo local
   app.use(cors({
-    origin(origin, callback) {
-      if (!origin || origin === allowedOrigin) return callback(null, true);
-      return callback(new Error('Origen no permitido por CORS.'));
-    }
+    origin: true,
+    credentials: true
   }));
+
   app.use(express.json({ limit: '12mb' }));
   app.use('/api', createCaseRouter({ db, jwtSecret }));
   app.use('/api/auth', createAuthRouter({ db, mailer, jwtSecret }));
+
   app.get('/api/auth/me', authenticate(jwtSecret), asyncRoute(async (req, res) => {
     const { rows } = await db.query(
       'SELECT * FROM usuarios WHERE id = $1 AND verificado = TRUE',
@@ -66,6 +67,7 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
       fecha_aceptacion_terminos: user.fecha_aceptacion_terminos
     } });
   }));
+
   app.post('/api/auth/terminos', authenticate(jwtSecret), asyncRoute(async (req, res) => {
     const result = await db.query(`
       UPDATE usuarios
@@ -78,12 +80,15 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     }
     res.json({ mensaje: 'Aceptación guardada.' });
   }));
+
   app.get('/api/admin/health', authenticate(jwtSecret), requireAdministrator, (_req, res) => {
     res.json({ estado: 'ok' });
   });
+
   app.get('/', (_req, res) => {
     res.sendFile(path.join(projectRoot, 'Rastreopy.html'));
   });
+
   app.use((req, res, next) => {
     let decodedPath = req.path;
     try {
@@ -108,11 +113,14 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     }
     next();
   });
+
   app.use(express.static(projectRoot, { dotfiles: 'deny', index: false }));
+
   app.use((error, _req, res, _next) => {
     console.error('Error del servidor:', error);
     res.status(500).json({ error: 'Ocurrió un error interno. Intente nuevamente.' });
   });
+
   return app;
 }
 
@@ -156,6 +164,11 @@ async function start() {
     jwtSecret: process.env.JWT_SECRET,
     appUrl: process.env.APP_URL
   });
+  const followupTimer = setInterval(() => {
+    processDueFollowups(db).catch(error => console.error('No se pudo procesar el seguimiento automático:', error));
+  }, 60_000);
+  followupTimer.unref();
+  processDueFollowups(db).catch(error => console.error('No se pudo procesar el seguimiento inicial:', error));
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor Rastreo PY disponible en el puerto ${port}.`);

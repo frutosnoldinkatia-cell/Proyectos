@@ -1731,8 +1731,8 @@
       }
       const content = document.getElementById('caseDetailContent');
       const approvedClues = getStore().pistas.filter(pista => pista.casoId === c.id);
-      const clueGallery = approvedClues.flatMap(pista => (pista.fotos || []).map((photo, index) =>
-        `<img src="${escapeHtml(photo)}" alt="Fotografía de pista ciudadana ${index + 1}" loading="lazy">`)).join('');
+      const clueGallery = approvedClues.flatMap(pista => (pista.fotosUrl || []).map((url, index) =>
+        `<img src="${escapeHtml(url)}" alt="Fotografía de pista ciudadana ${index + 1}" loading="lazy">`)).join('');
       content.innerHTML = `
         <h2 id="caseDetailTitle">${escapeHtml(c.nombreCompleto)}</h2>
         <p><span class="status-tag ${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'status-SIN_ACTUALIZAR' : `status-${escapeHtml(c.estado)}`}">${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'EN SEGUIMIENTO · SIN ACTUALIZAR' : escapeHtml(c.estado.replaceAll('_', ' '))}</span></p>
@@ -2952,7 +2952,7 @@
                   <p class="muted">Enviada por: ${clue.autor ? `${escapeHtml(clue.autor.nombre)} · ${escapeHtml(clue.autor.correo)}` : 'sin cuenta (pista anterior al registro obligatorio)'}</p>
                 </td>
                 <td data-label="Fotografías"><div class="moderation-photos">
-                  ${(clue.fotos || []).map((photo, index) => `<img src="${escapeHtml(photo)}" alt="Fotografía ${index + 1} de la pista">`).join('') || 'Sin fotografías'}
+                  ${(clue.fotosUrl || []).map((url, index) => `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(url)}" alt="Fotografía ${index + 1} de la pista" data-admin-photo>`).join('') || 'Sin fotografías'}
                 </div></td>
                 <td data-label="Estado y acciones">
                   <span class="status-tag status-${escapeHtml(clue.estado)}">${escapeHtml(clue.estado)}</span>
@@ -2989,6 +2989,10 @@
       document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.toggle('active', tab === activeTab));
       window.rastreoCurrentParams = { ...(window.rastreoCurrentParams || {}), tab: targetPanel };
       if (!options.silent) syncUrl('admin', { tab: targetPanel }, { replace: true });
+      if (['clues', 'history'].includes(targetPanel)) {
+        const main = document.getElementById('mainContent');
+        if (main) loadAdminHistoryPhotos(main);
+      }
     }
 
     function renderAdminHistory(history) {
@@ -3000,7 +3004,7 @@
         <tbody>${history.casos.map(c => `
           <tr>
             <td data-label="Persona">
-              ${c.fotoUrl ? `<img class="history-photo" src="data:," data-photo-url="${c.fotoUrl}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo>` : ''}
+              ${c.fotoUrl ? `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(c.fotoUrl)}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo>` : ''}
               <strong>${escapeHtml(c.nombreCompleto)}</strong>
               <p>${escapeHtml(c.ciudad)}, ${Number(c.edad)} años, ${escapeHtml(c.sexo)}</p>
             </td>

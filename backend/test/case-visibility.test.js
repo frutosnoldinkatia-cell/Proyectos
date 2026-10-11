@@ -349,7 +349,7 @@ test('al crear un caso se asocia al ciudadano y se notifica a administración', 
     assert.equal(insert.values[17], 42);
     assert.ok(statements.some(item => item.sql.includes('INSERT INTO suscripciones_caso')));
     assert.ok(statements.some(item => item.sql.includes('INSERT INTO notificaciones')
-      && item.sql.includes("LOWER(rol) = 'administrador'")));
+      && item.sql.includes("WHERE rol = 'administrador'")));
   } finally {
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
@@ -484,7 +484,7 @@ test('las pistas exigen sesión, se guardan con su autor y se publican anónimas
     assert.equal(insertedClue.values[2], 10);
     assert.ok(statements.some(statement => statement.sql.includes('INSERT INTO suscripciones_caso')));
     assert.ok(statements.some(statement => statement.sql.includes('INSERT INTO notificaciones')
-      && statement.sql.includes("WHERE rol IN ('administrador', 'ADMINISTRADOR')")));
+      && statement.sql.includes("WHERE rol = 'administrador'")));
     const publicClues = await (await fetch(`${baseUrl}/api/pistas`)).json();
     assert.deepEqual(publicClues.pistas[0].fotos, ['data:image/jpeg;base64,AAAA']);
     assert.equal('autor' in publicClues.pistas[0], false);

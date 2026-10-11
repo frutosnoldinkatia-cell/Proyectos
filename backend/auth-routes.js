@@ -52,11 +52,14 @@ function loginRateLimiter() {
   });
 }
 
-function asyncRoute(handler) {
-  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(err => {
-    console.error('Error no capturado en ruta asíncrona:', err);
-    next(err);
-  });
+// Pasa los errores de handlers async al manejador de errores de Express (que los registra).
+export function asyncRoute(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
+// La columna usuarios.rol solo admite 'ciudadano' o 'administrador' (CHECK en db.js).
+export function isAdministrator(auth) {
+  return auth?.rol === 'administrador';
 }
 
 function sendCodeLimiter(db) {
@@ -120,7 +123,7 @@ export function authenticate(secret, db) {
 }
 
 export function requireAdministrator(req, res, next) {
-  if (req.auth?.rol !== 'administrador' && req.auth?.rol !== 'ADMINISTRADOR') {
+  if (!isAdministrator(req.auth)) {
     return res.status(403).json({ error: 'Acceso exclusivo para administradores.' });
   }
   next();

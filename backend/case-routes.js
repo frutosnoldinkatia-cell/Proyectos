@@ -1,7 +1,7 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
-import { authenticate, requireAdministrator } from './auth-routes.js';
+import { asyncRoute, authenticate, isAdministrator, requireAdministrator } from './auth-routes.js';
 import { withTransaction } from './db.js';
 import { ubicacionValida } from './ubicaciones.js';
 
@@ -44,9 +44,8 @@ function validDateFilter(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-function asyncRoute(handler) {
-  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
-}
+// Fotos aceptadas: data URL base64 de JPEG, PNG o WEBP.
+const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 
 function validCoordinates(lat, lng) {
   return Number.isFinite(lat) && lat >= -90 && lat <= 90
@@ -180,7 +179,7 @@ async function sendStoredPhoto(db, req, res, administrator) {
   );
   if (!rows[0]) return res.status(404).json({ error: 'Caso no disponible' });
   if (!rows[0].foto) return res.sendStatus(404);
-  const match = rows[0].foto.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  const match = rows[0].foto.match(IMAGE_DATA_URL);
   if (!match) return res.status(500).json({ error: 'La fotografía almacenada no es válida.' });
   res.type(`image/${match[1]}`).set('Cache-Control', 'private, no-store').send(Buffer.from(match[2], 'base64'));
 }
@@ -192,7 +191,7 @@ export function createCaseRouter({ db, jwtSecret }) {
   // La cuenta de administrador es institucional: no reporta ni sigue casos
   // propios (ROLES_Y_PERMISOS.txt, tabla de permisos).
   const requireCitizen = [requireUser, (req, res, next) => {
-    if (String(req.auth?.rol).toLowerCase() === 'administrador') {
+    if (isAdministrator(req.auth)) {
       return res.status(403).json({ error: 'La cuenta de administrador no reporta ni sigue casos propios.' });
     }
     next();
@@ -283,7 +282,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       fechaHoraAvistamiento: row.fecha_hora_avistamiento,
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
       fotos: (row.fotos || []).filter(photo =>
-        typeof photo === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(photo)),
+        typeof photo === 'string' && IMAGE_DATA_URL.test(photo)),
       fechaEnvio: row.fecha_envio
     })) });
   }));
@@ -341,7 +340,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       return res.status(400).json({ error: 'Elegí un departamento, ciudad y barrio de la lista de Paraguay.' });
     }
     if (body.foto && (typeof body.foto !== 'string'
-      || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(body.foto)
+      || !IMAGE_DATA_URL.test(body.foto)
       || Buffer.byteLength(body.foto, 'utf8') > 10 * 1024 * 1024)) {
       return res.status(400).json({ error: 'La fotografía debe ser JPEG, PNG o WEBP y no superar 10 MB.' });
     }
@@ -375,7 +374,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       await client.query(`
         INSERT INTO notificaciones (usuario_id, caso_id, titulo, mensaje, tipo)
         SELECT id, $1, 'Nuevo reporte para validar', $2, 'CASO_PENDIENTE'
-        FROM usuarios WHERE LOWER(rol) = 'administrador'
+        FROM usuarios WHERE rol = 'administrador'
       `, [id, `Se recibió un reporte de ${body.nombreCompleto.trim()} y espera validación.`]);
       return rows[0];
     });
@@ -391,7 +390,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       || !Array.isArray(photos)
       || photos.length > 3
       || photos.some(photo => typeof photo !== 'string'
-        || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(photo)
+        || !IMAGE_DATA_URL.test(photo)
         || Buffer.byteLength(photo, 'utf8') > 4 * 1024 * 1024)
       || Buffer.byteLength(photos.join(''), 'utf8') > 10 * 1024 * 1024) {
       return res.status(400).json({ error: 'Los datos de la pista están incompletos o no son válidos.' });
@@ -416,7 +415,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       await client.query(`
         INSERT INTO notificaciones (usuario_id, caso_id, titulo, mensaje, tipo)
         SELECT id, $1, 'Nueva pista recibida', $2, 'PISTA_RECIBIDA'
-        FROM usuarios WHERE rol IN ('administrador', 'ADMINISTRADOR')
+        FROM usuarios WHERE rol = 'administrador'
       `, [req.params.id, 'Se recibió una nueva pista vinculada al caso.']);
       return id;
     });

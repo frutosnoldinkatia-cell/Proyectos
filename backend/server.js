@@ -11,15 +11,11 @@ import {
   normalizeEmail,
   seedAdministrator
 } from './db.js';
-import { authenticate, createAuthRouter, requireAdministrator } from './auth-routes.js';
+import { asyncRoute, authenticate, createAuthRouter, requireAdministrator } from './auth-routes.js';
 import { createCaseRouter, processDueFollowups } from './case-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
-
-function asyncRoute(handler) {
-  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
-}
 
 export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL }) {
   const app = express();

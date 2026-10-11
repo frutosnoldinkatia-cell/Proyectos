@@ -244,6 +244,41 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
     res.json({ mensaje: 'Código enviado al Gmail.', correo });
   }));
 
+  router.post('/registro/reenviar', (req, res, next) => {
+    req.codePurpose = 'registro';
+    next();
+  }, sendLimiter, sendCodeLimiter(db), asyncRoute(async (req, res) => {
+    const correo = validGmail(req.body?.correo);
+    if (!correo) return res.status(400).json({ error: 'Ingrese una cuenta de Gmail válida (terminada en @gmail.com).' });
+
+    const { rows } = await db.query(
+      'SELECT * FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+      [correo, 'registro']
+    );
+    const pending = rows[0];
+    if (!pending) {
+      return res.status(400).json({ error: 'No hay un registro pendiente. Complete el formulario de registro nuevamente.' });
+    }
+    if (Date.now() - Date.parse(pending.creado_en) < RESEND_INTERVAL_MS) {
+      return res.status(429).json({ error: 'Espere un minuto antes de pedir otro código.' });
+    }
+
+    // Se conservan nombre, contraseña y aceptación del registro; solo cambia el código.
+    const { code, hash } = makeCode(jwtSecret);
+    await db.query(`
+      UPDATE codigos_verificacion
+      SET codigo_hash = $2, expira_en = $3, intentos = 0, creado_en = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [pending.id, hash, new Date(Date.now() + CODE_LIFETIME_MS)]);
+    try {
+      await sendCode({ correo, nombre: pending.nombre_completo, code, purpose: 'registro' });
+    } catch (error) {
+      console.error('No se pudo reenviar el correo de verificación:', error);
+      return res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
+    }
+    res.json({ mensaje: 'Código reenviado al Gmail.', correo });
+  }));
+
   router.post('/verificar', asyncRoute(async (req, res) => {
     const correo = validGmail(req.body?.correo);
     const code = typeof req.body?.codigo === 'string' ? req.body.codigo.trim() : '';

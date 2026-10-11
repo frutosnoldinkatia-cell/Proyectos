@@ -345,3 +345,108 @@ test('restablecer contraseña cambia la clave con el código del correo', {
     await db.end();
   }
 });
+
+test('reenviar código de registro exige un registro pendiente', async () => {
+  const { db } = mockDatabase(sql => {
+    if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '0' }] };
+    return null;
+  });
+  const sentMessages = [];
+  const server = createApp({
+    db,
+    mailer: { sendMail: async message => { sentMessages.push(message); } },
+    jwtSecret: 'test-secret-with-at-least-thirty-two-characters',
+    appUrl: 'http://127.0.0.1'
+  }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const post = async body => {
+    const response = await fetch(`${baseUrl}/api/auth/registro/reenviar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return { status: response.status, data: await response.json() };
+  };
+
+  try {
+    assert.equal((await post({ correo: 'alguien@example.com' })).status, 400);
+    const withoutPending = await post({ correo: 'alguien@gmail.com' });
+    assert.equal(withoutPending.status, 400);
+    assert.match(withoutPending.data.error, /No hay un registro pendiente/);
+    assert.equal(sentMessages.length, 0);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('reenviar código de registro respeta el intervalo e invalida el código anterior', {
+  skip: !testDatabaseUrl && 'Defina TEST_DATABASE_URL para ejecutar la prueba de integración con PostgreSQL.'
+}, async () => {
+  const db = createDatabase(testDatabaseUrl);
+  const email = `resend.${randomUUID().replaceAll('-', '')}@gmail.com`;
+  const sentMessages = [];
+  let server;
+  let databaseInitialized = false;
+
+  try {
+    await initializeDatabase(db);
+    databaseInitialized = true;
+    server = createApp({
+      db,
+      mailer: { sendMail: async message => { sentMessages.push(message); } },
+      jwtSecret: 'test-secret-with-at-least-thirty-two-characters',
+      appUrl: 'https://rastreo.example'
+    }).listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    const post = async (endpoint, body) => {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return { status: response.status, data: await response.json() };
+    };
+    const codeFrom = message => message.text.match(/código de verificación es: (\d{6})/)[1];
+
+    const registration = await post('/api/auth/registro', {
+      nombre_completo: 'Persona Reenvio',
+      correo: email,
+      contrasena: 'Password-reenvio-1',
+      acepto_terminos: true
+    });
+    assert.equal(registration.status, 200);
+    const firstCode = codeFrom(sentMessages[0]);
+
+    const tooSoon = await post('/api/auth/registro/reenviar', { correo: email });
+    assert.equal(tooSoon.status, 429);
+    assert.equal(sentMessages.length, 1);
+
+    await db.query(`
+      UPDATE codigos_verificacion SET creado_en = CURRENT_TIMESTAMP - INTERVAL '2 minutes'
+      WHERE correo = $1 AND proposito = 'registro'
+    `, [email]);
+    const resent = await post('/api/auth/registro/reenviar', { correo: email });
+    assert.equal(resent.status, 200);
+    assert.equal(sentMessages.length, 2);
+    assert.match(sentMessages[1].text, /Persona Reenvio/);
+    const secondCode = codeFrom(sentMessages[1]);
+
+    if (firstCode !== secondCode) {
+      const oldCode = await post('/api/auth/verificar', { correo: email, codigo: firstCode });
+      assert.equal(oldCode.status, 400, 'el código anterior deja de servir');
+    }
+    const verified = await post('/api/auth/verificar', { correo: email, codigo: secondCode });
+    assert.equal(verified.status, 201);
+    assert.equal((await post('/api/auth/login', { correo: email, contrasena: 'Password-reenvio-1' })).status, 200);
+  } finally {
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
+    if (databaseInitialized) {
+      await db.query('DELETE FROM solicitudes_codigo WHERE correo = $1', [email]);
+      await db.query('DELETE FROM codigos_verificacion WHERE correo = $1', [email]);
+      await db.query('DELETE FROM usuarios WHERE correo = $1', [email]);
+    }
+    await db.end();
+  }
+});

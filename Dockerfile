@@ -17,11 +17,8 @@ RUN npm ci --omit=dev
 # Volver a la raíz del proyecto
 WORKDIR /app
 
-# Copiar archivos del frontend y estáticos
-COPY Rastreopy.html styles.css sw.js manifest.webmanifest ./
-COPY fonts ./fonts
-COPY icons ./icons
-COPY data ./data
+# Copiar el frontend (todo lo que se publica vive en public/)
+COPY public ./public
 
 # Copiar el código del backend
 COPY backend ./backend

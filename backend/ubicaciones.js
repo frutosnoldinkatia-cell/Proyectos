@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 // Lista oficial de Paraguay: departamento -> ciudad (distrito) -> barrio/localidad.
 // La misma lista la usa el formulario del frontend (/data/paraguay-ubicaciones.json).
-const dataPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'paraguay-ubicaciones.json');
+const dataPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'data', 'paraguay-ubicaciones.json');
 const { departamentos } = JSON.parse(readFileSync(dataPath, 'utf8'));
 
 // Compara sin tildes ni mayúsculas para aceptar registros cargados antes de la lista.

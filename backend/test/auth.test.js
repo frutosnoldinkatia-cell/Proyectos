@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { createDatabase, initializeDatabase, seedAdministrator } from '../db.js';
 import { createApp } from '../server.js';
 
@@ -317,6 +318,11 @@ test('restablecer contraseña cambia la clave con el código del correo', {
       return { status: response.status, data: await response.json() };
     };
 
+    const me = token => fetch(`${baseUrl}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    const oldSession = await post('/api/auth/login', { correo: email, contrasena: 'Password-vieja-1' });
+    assert.equal(oldSession.status, 200);
+    assert.equal((await me(oldSession.data.token)).status, 200);
+
     const requested = await post('/api/auth/restablecer/solicitar', { correo: email });
     assert.equal(requested.status, 200);
     assert.equal(sentMessages.length, 1);
@@ -342,7 +348,10 @@ test('restablecer contraseña cambia la clave con el código del correo', {
     assert.equal(reused.status, 400, 'el código no se puede reutilizar');
 
     assert.equal((await post('/api/auth/login', { correo: email, contrasena: 'Password-vieja-1' })).status, 401);
-    assert.equal((await post('/api/auth/login', { correo: email, contrasena: 'Password-nueva-1' })).status, 200);
+    const newSession = await post('/api/auth/login', { correo: email, contrasena: 'Password-nueva-1' });
+    assert.equal(newSession.status, 200);
+    assert.equal((await me(oldSession.data.token)).status, 401, 'la sesión anterior al cambio queda cerrada');
+    assert.equal((await me(newSession.data.token)).status, 200);
   } finally {
     if (server?.listening) await new Promise(resolve => server.close(resolve));
     if (databaseInitialized) {
@@ -456,5 +465,40 @@ test('reenviar código de registro respeta el intervalo e invalida el código an
       await db.query('DELETE FROM usuarios WHERE correo = $1', [email]);
     }
     await db.end();
+  }
+});
+
+test('cada request revalida rol y versión de sesión contra la base', async () => {
+  const secret = 'test-secret-with-at-least-thirty-two-characters';
+  // En la BD el usuario 5 es ciudadano y cambió la contraseña una vez (versión 1).
+  const { db } = mockDatabase((sql, values) => {
+    if (sql.includes('sesion_version FROM usuarios')) {
+      return { rows: values[0] === 5 ? [{ rol: 'ciudadano', sesion_version: 1 }] : [] };
+    }
+    return null;
+  });
+  const server = createApp({
+    db,
+    mailer: { sendMail: async () => {} },
+    jwtSecret: secret,
+    appUrl: 'http://127.0.0.1'
+  }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const get = (path, payload) => fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+    headers: { Authorization: `Bearer ${jwt.sign(payload, secret)}` }
+  });
+
+  try {
+    assert.equal((await get('/api/notificaciones', { id: 5, rol: 'ciudadano', ver: 1 })).status, 200);
+    assert.equal((await get('/api/notificaciones', { id: 5, rol: 'ciudadano', ver: 0 })).status, 401,
+      'token emitido antes del cambio de contraseña');
+    assert.equal((await get('/api/notificaciones', { id: 5, rol: 'ciudadano' })).status, 401,
+      'token viejo sin versión');
+    assert.equal((await get('/api/admin/health', { id: 5, rol: 'administrador', ver: 1 })).status, 401,
+      'el rol del token ya no coincide con la base');
+    assert.equal((await get('/api/notificaciones', { id: 99, rol: 'ciudadano', ver: 0 })).status, 401,
+      'usuario inexistente o no verificado');
+  } finally {
+    await new Promise(resolve => server.close(resolve));
   }
 });

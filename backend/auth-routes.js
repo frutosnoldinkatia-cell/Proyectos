@@ -87,20 +87,35 @@ function sendCodeLimiter(db) {
 }
 
 function createJwt(user, secret) {
-  return jwt.sign({ id: user.id, rol: user.rol }, secret, { expiresIn: '8h' });
+  return jwt.sign({ id: user.id, rol: user.rol, ver: user.sesion_version ?? 0 }, secret, { expiresIn: '8h' });
 }
 
-export function authenticate(secret) {
+const INVALID_SESSION = { error: 'La sesión venció o no es válida. Inicie sesión nuevamente.' };
+
+export function authenticate(secret, db) {
   return (req, res, next) => {
     const authorization = req.get('authorization') || '';
     const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
     if (!token) return res.status(401).json({ error: 'Debe iniciar sesión.' });
+    let payload;
     try {
-      req.auth = jwt.verify(token, secret);
-      next();
+      payload = jwt.verify(token, secret);
     } catch {
-      res.status(401).json({ error: 'La sesión venció o no es válida. Inicie sesión nuevamente.' });
+      return res.status(401).json(INVALID_SESSION);
     }
+    // Se revalida contra la BD: la sesión cae si se cambió la contraseña
+    // (sesion_version) o el rol del usuario, sin esperar a que venza el token.
+    db.query(
+      'SELECT rol, sesion_version FROM usuarios WHERE id = $1 AND verificado = TRUE',
+      [payload.id]
+    ).then(({ rows }) => {
+      const user = rows[0];
+      if (!user || user.rol !== payload.rol || user.sesion_version !== (payload.ver ?? 0)) {
+        return res.status(401).json(INVALID_SESSION);
+      }
+      req.auth = payload;
+      next();
+    }).catch(next);
   };
 }
 
@@ -360,7 +375,8 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
     const passwordHash = await bcrypt.hash(password, 10);
     const updated = await withTransaction(db, async client => {
       const result = await client.query(`
-        UPDATE usuarios SET contrasena_hash = $2, actualizado_en = CURRENT_TIMESTAMP
+        UPDATE usuarios SET contrasena_hash = $2, sesion_version = sesion_version + 1,
+          actualizado_en = CURRENT_TIMESTAMP
         WHERE correo = $1 AND verificado = TRUE
       `, [correo, passwordHash]);
       await client.query('DELETE FROM codigos_verificacion WHERE id = $1', [pending.id]);

@@ -187,7 +187,7 @@ async function sendStoredPhoto(db, req, res, administrator) {
 
 export function createCaseRouter({ db, jwtSecret }) {
   const router = express.Router();
-  const requireUser = authenticate(jwtSecret);
+  const requireUser = authenticate(jwtSecret, db);
   const requireAdmin = [requireUser, requireAdministrator];
   // La cuenta de administrador es institucional: no reporta ni sigue casos
   // propios (ROLES_Y_PERMISOS.txt, tabla de permisos).

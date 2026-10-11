@@ -56,7 +56,7 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
   app.use('/api', createCaseRouter({ db, jwtSecret }));
   app.use('/api/auth', createAuthRouter({ db, mailer, jwtSecret }));
 
-  app.get('/api/auth/me', authenticate(jwtSecret), asyncRoute(async (req, res) => {
+  app.get('/api/auth/me', authenticate(jwtSecret, db), asyncRoute(async (req, res) => {
     const { rows } = await db.query(
       'SELECT * FROM usuarios WHERE id = $1 AND verificado = TRUE',
       [req.auth.id]
@@ -73,7 +73,7 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     } });
   }));
 
-  app.post('/api/auth/terminos', authenticate(jwtSecret), asyncRoute(async (req, res) => {
+  app.post('/api/auth/terminos', authenticate(jwtSecret, db), asyncRoute(async (req, res) => {
     const result = await db.query(`
       UPDATE usuarios
       SET acepto_terminos = TRUE, fecha_aceptacion_terminos = CURRENT_TIMESTAMP,
@@ -86,7 +86,7 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     res.json({ mensaje: 'Aceptación guardada.' });
   }));
 
-  app.get('/api/admin/health', authenticate(jwtSecret), requireAdministrator, (_req, res) => {
+  app.get('/api/admin/health', authenticate(jwtSecret, db), requireAdministrator, (_req, res) => {
     res.json({ estado: 'ok' });
   });
 

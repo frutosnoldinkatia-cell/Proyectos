@@ -10,6 +10,20 @@ const secret = 'test-secret-with-at-least-thirty-two-characters';
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const windowHours = Number(process.env.VENTANA_LOCALIZADOS_HORAS ?? 24);
 
+// authenticate revalida cada token contra la BD (rol y sesion_version). En las
+// BD simuladas se responde esa consulta: id 11 es administrador, el resto ciudadano.
+function withSessions(db) {
+  return {
+    ...db,
+    async query(sql, values = []) {
+      if (sql.includes('sesion_version FROM usuarios')) {
+        return { rows: [{ rol: values[0] === 11 ? 'administrador' : 'ciudadano', sesion_version: 0 }] };
+      }
+      return db.query(sql, values);
+    }
+  };
+}
+
 async function startApp() {
   const queries = [];
   const db = {
@@ -22,7 +36,7 @@ async function startApp() {
     }
   };
   const app = createApp({
-    db,
+    db: withSessions(db),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'
@@ -155,7 +169,7 @@ test('marcar como localizado guarda el timestamp y notifica a suscriptores', asy
     }
   };
   const server = createApp({
-    db,
+    db: withSessions(db),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'
@@ -298,7 +312,7 @@ test('al crear un caso se asocia al ciudadano y se notifica a administración', 
     }
   };
   const server = createApp({
-    db,
+    db: withSessions(db),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'
@@ -369,7 +383,7 @@ test('rechazar un caso notifica al ciudadano reportante', async () => {
     }
   };
   const server = createApp({
-    db,
+    db: withSessions(db),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'
@@ -436,7 +450,7 @@ test('las pistas exigen sesión, se guardan con su autor y se publican anónimas
     }
   };
   const server = createApp({
-    db,
+    db: withSessions(db),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'
@@ -532,6 +546,7 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
   const adminPassword = 'Integration-test-password-123';
   let server;
   let adminId;
+  let citizenId;
 
   try {
     await initializeDatabase(db);
@@ -540,6 +555,10 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
     `)).rows[0].total);
     await seedAdministrator(db, adminEmail, adminPassword);
     adminId = (await db.query('SELECT id FROM usuarios WHERE correo = $1', [adminEmail])).rows[0].id;
+    citizenId = (await db.query(`
+      INSERT INTO usuarios (nombre_completo, correo, contrasena_hash, rol, verificado)
+      VALUES ('Ciudadano Prueba', $1, 'sin-uso', 'ciudadano', TRUE) RETURNING id
+    `, [`citizen.${suffix}@gmail.com`])).rows[0].id;
     await db.query(`
       INSERT INTO casos (
         id, nombre_completo, edad, sexo, ciudad, descripcion_fisica, vestimenta,
@@ -554,7 +573,7 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
     `, [`clue_${suffix}`, caseId, adminId]);
 
     const adminToken = jwt.sign({ id: adminId, rol: 'administrador' }, secret);
-    const citizenToken = jwt.sign({ id: 987654321, rol: 'ciudadano' }, secret);
+    const citizenToken = jwt.sign({ id: citizenId, rol: 'ciudadano' }, secret);
     const createServer = async () => {
       const app = createApp({
         db,
@@ -627,7 +646,7 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
       await db.query('DELETE FROM cambios_estado_caso WHERE caso_id = $1', [caseId]);
       await db.query('DELETE FROM pistas WHERE caso_id = $1', [caseId]);
       await db.query('DELETE FROM casos WHERE id = $1', [caseId]);
-      await db.query('DELETE FROM usuarios WHERE id = $1', [adminId]);
+      await db.query('DELETE FROM usuarios WHERE id = ANY($1)', [[adminId, citizenId].filter(Boolean)]);
     }
     await db.end();
   }
@@ -695,7 +714,7 @@ test('matriz de permisos: sin sesión 401, ciudadano 403 en rutas de administrac
 test('el administrador ve quién envió cada pista', async () => {
   let adminQuery = '';
   const app = createApp({
-    db: {
+    db: withSessions({
       async query(sql) {
         adminQuery = sql;
         return { rows: [{
@@ -705,7 +724,7 @@ test('el administrador ve quién envió cada pista', async () => {
           autor_id: 10, autor_nombre: 'Ciudadana Test', autor_correo: 'test@gmail.com'
         }] };
       }
-    },
+    }),
     mailer: { sendMail: async () => {} },
     jwtSecret: secret,
     appUrl: 'http://127.0.0.1'

@@ -37,6 +37,9 @@ export async function initializeDatabase(db) {
       actualizado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Se incrementa al cambiar la contraseña: invalida los tokens emitidos antes.
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS sesion_version INTEGER NOT NULL DEFAULT 0;
+
     CREATE TABLE IF NOT EXISTS codigos_verificacion (
       id SERIAL PRIMARY KEY,
       correo TEXT NOT NULL,

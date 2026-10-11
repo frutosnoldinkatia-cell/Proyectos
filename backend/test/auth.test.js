@@ -29,6 +29,7 @@ test('sirve la página desde Express con el origen público y headers de segurid
     // Las vistas previas de fotos usan URL blob: generadas en el navegador.
     assert.match(response.headers.get('content-security-policy'), /img-src[^;]*blob:/);
     assert.match(response.headers.get('content-security-policy'), /tile\.openstreetmap\.org/);
+    assert.match(response.headers.get('content-security-policy'), /connect-src[^;]*nominatim\.openstreetmap\.org/);
     assert.match(await response.text(), /const API_BASE = '\/api'/);
     assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/manifest.webmanifest`)).text(), /"display": "standalone"/);
     assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/sw.js`)).text(), /notificationclick/);
@@ -39,6 +40,13 @@ test('sirve la página desde Express con el origen público y headers de segurid
     assert.equal((await fetch(
       `http://127.0.0.1:${server.address().port}/%62ackend/.env.example`
     )).status, 404);
+    // Solo se sirve el frontend; los archivos internos de la raíz no.
+    for (const publicPath of ['/Rastreopy.html', '/styles.css', '/fonts/Inter-400.ttf', '/data/paraguay-ubicaciones.json']) {
+      assert.equal((await fetch(`http://127.0.0.1:${server.address().port}${publicPath}`)).status, 200, publicPath);
+    }
+    for (const internalPath of ['/docker-compose.yml', '/Dockerfile', '/ROLES_Y_PERMISOS.txt', '/.gitignore']) {
+      assert.equal((await fetch(`http://127.0.0.1:${server.address().port}${internalPath}`)).status, 404, internalPath);
+    }
   } finally {
     await new Promise(resolve => server.close(resolve));
   }

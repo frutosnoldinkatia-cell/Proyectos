@@ -119,7 +119,15 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     next();
   });
 
-  app.use(express.static(projectRoot, { dotfiles: 'deny', index: false }));
+  // Solo se publica el frontend (lo mismo que copia el Dockerfile); el resto de la
+  // raíz (documentación, docker-compose.yml, etc.) no se sirve.
+  const staticOptions = { dotfiles: 'deny', index: false };
+  for (const file of ['Rastreopy.html', 'styles.css', 'sw.js', 'manifest.webmanifest']) {
+    app.get(`/${file}`, (_req, res) => res.sendFile(path.join(projectRoot, file)));
+  }
+  for (const directory of ['fonts', 'icons', 'data']) {
+    app.use(`/${directory}`, express.static(path.join(projectRoot, directory), staticOptions));
+  }
 
   app.use((error, _req, res, _next) => {
     console.error('Error del servidor:', error);

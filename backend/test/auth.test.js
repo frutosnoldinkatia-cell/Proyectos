@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createDatabase, initializeDatabase, seedAdministrator } from '../db.js';
+import { createDatabase, ensureAdministrator, initializeDatabase, seedAdministrator } from '../db.js';
 import { createApp } from '../server.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
@@ -500,5 +500,50 @@ test('cada request revalida rol y versión de sesión contra la base', async () 
       'usuario inexistente o no verificado');
   } finally {
     await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('al arrancar se crea el administrador sin pisar su contraseña; crear-admin la restablece', {
+  skip: !testDatabaseUrl && 'Defina TEST_DATABASE_URL para ejecutar la prueba de integración con PostgreSQL.'
+}, async () => {
+  const db = createDatabase(testDatabaseUrl);
+  const email = `admin.ensure.${randomUUID().replaceAll('-', '')}@gmail.com`;
+  const admin = async () => (await db.query(
+    'SELECT rol, verificado, contrasena_hash, sesion_version FROM usuarios WHERE correo = $1', [email]
+  )).rows[0];
+  let databaseInitialized = false;
+  try {
+    await initializeDatabase(db);
+    databaseInitialized = true;
+
+    await ensureAdministrator(db, email, 'Clave-inicial-123');
+    const created = await admin();
+    assert.equal(created.rol, 'administrador');
+    assert.equal(created.verificado, true);
+    assert.equal(await bcrypt.compare('Clave-inicial-123', created.contrasena_hash), true);
+
+    // El admin cambió su contraseña; un reinicio no debe revertirla.
+    await db.query('UPDATE usuarios SET contrasena_hash = $2 WHERE correo = $1',
+      [email, await bcrypt.hash('Clave-cambiada-456', 10)]);
+    await ensureAdministrator(db, email, 'Clave-inicial-123');
+    const restarted = await admin();
+    assert.equal(await bcrypt.compare('Clave-cambiada-456', restarted.contrasena_hash), true);
+    assert.equal(restarted.sesion_version, created.sesion_version, 'reiniciar no cierra sesiones');
+
+    // Si la cuenta perdió el rol, el arranque se lo devuelve (sin tocar la contraseña).
+    await db.query("UPDATE usuarios SET rol = 'ciudadano' WHERE correo = $1", [email]);
+    await ensureAdministrator(db, email, 'Clave-inicial-123');
+    const repaired = await admin();
+    assert.equal(repaired.rol, 'administrador');
+    assert.equal(await bcrypt.compare('Clave-cambiada-456', repaired.contrasena_hash), true);
+
+    // crear-admin.js (seedAdministrator) sí restablece y cierra las sesiones abiertas.
+    await seedAdministrator(db, email, 'Clave-reseteada-789');
+    const reset = await admin();
+    assert.equal(await bcrypt.compare('Clave-reseteada-789', reset.contrasena_hash), true);
+    assert.equal(reset.sesion_version, repaired.sesion_version + 1);
+  } finally {
+    if (databaseInitialized) await db.query('DELETE FROM usuarios WHERE correo = $1', [email]);
+    await db.end();
   }
 });

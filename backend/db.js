@@ -193,12 +193,17 @@ export async function withTransaction(db, callback) {
   }
 }
 
-export async function seedAdministrator(db, email, password) {
+async function administratorValues(email, password) {
   const correo = normalizeEmail(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo) || !password || password.length < 8) {
     throw new Error('ADMIN_IDENTIFICADOR debe ser un correo válido y ADMIN_PASSWORD debe tener al menos 8 caracteres.');
   }
-  const passwordHash = await bcrypt.hash(password, 10);
+  return ['Administrador Rastreo PY', correo, await bcrypt.hash(password, 10)];
+}
+
+// Crea o restablece el administrador: si ya existe, reemplaza su contraseña y
+// cierra sus sesiones abiertas. Lo usa crear-admin.js (acción explícita).
+export async function seedAdministrator(db, email, password) {
   await db.query(`
     INSERT INTO usuarios (nombre_completo, correo, contrasena_hash, rol, verificado)
     VALUES ($1, $2, $3, 'administrador', TRUE)
@@ -206,8 +211,23 @@ export async function seedAdministrator(db, email, password) {
       contrasena_hash = EXCLUDED.contrasena_hash,
       rol = 'administrador',
       verificado = TRUE,
+      sesion_version = usuarios.sesion_version + 1,
       actualizado_en = CURRENT_TIMESTAMP
-  `, ['Administrador Rastreo PY', correo, passwordHash]);
+  `, await administratorValues(email, password));
+}
+
+// Al arrancar el servidor: crea el administrador si no existe y le asegura el
+// rol, pero no toca la contraseña de una cuenta existente (si se cambió, se respeta).
+export async function ensureAdministrator(db, email, password) {
+  await db.query(`
+    INSERT INTO usuarios (nombre_completo, correo, contrasena_hash, rol, verificado)
+    VALUES ($1, $2, $3, 'administrador', TRUE)
+    ON CONFLICT(correo) DO UPDATE SET
+      rol = 'administrador',
+      verificado = TRUE,
+      actualizado_en = CURRENT_TIMESTAMP
+    WHERE usuarios.rol <> 'administrador' OR NOT usuarios.verificado
+  `, await administratorValues(email, password));
 }
 
 export function normalizeEmail(value) {

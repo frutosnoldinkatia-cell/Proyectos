@@ -7,9 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createDatabase,
+  ensureAdministrator,
   initializeDatabase,
-  normalizeEmail,
-  seedAdministrator
+  normalizeEmail
 } from './db.js';
 import { asyncRoute, authenticate, createAuthRouter, requireAdministrator } from './auth-routes.js';
 import { createCaseRouter, processDueFollowups } from './case-routes.js';
@@ -160,7 +160,7 @@ async function start() {
   requiredEnvironment();
   const db = createDatabase(process.env.DATABASE_URL);
   await initializeDatabase(db);
-  await seedAdministrator(db, normalizeEmail(process.env.ADMIN_IDENTIFICADOR), process.env.ADMIN_PASSWORD);
+  await ensureAdministrator(db, normalizeEmail(process.env.ADMIN_IDENTIFICADOR), process.env.ADMIN_PASSWORD);
   const mailer = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,

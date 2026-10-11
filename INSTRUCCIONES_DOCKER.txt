@@ -48,8 +48,10 @@ y ejecuta los siguientes comandos según lo que necesites:
 
 3) CREDENCIALES DEL ADMINISTRADOR:
    Son las que definiste en backend/.env (ADMIN_IDENTIFICADOR y ADMIN_PASSWORD).
-   Ojo: cada vez que arranca el servidor, la contraseña del administrador se
-   vuelve a fijar con ADMIN_PASSWORD.
+   ADMIN_PASSWORD solo se usa para CREAR la cuenta la primera vez. Si después
+   cambias la contraseña, reiniciar el servidor no la revierte. Para
+   restablecerla al valor de ADMIN_PASSWORD (y cerrar sus sesiones abiertas):
+     docker compose exec web node backend/crear-admin.js
 
 
 [ 4. COMANDOS PRINCIPALES Y ÚTILES ]

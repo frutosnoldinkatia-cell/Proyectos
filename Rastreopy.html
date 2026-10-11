@@ -3062,10 +3062,13 @@
     }
 
     async function loadAdminHistoryPhotos(container) {
-      const images = container.querySelectorAll('img[data-admin-photo]');
+      const images = container.querySelectorAll('img[data-admin-photo]:not([data-admin-loaded])');
       await Promise.all(Array.from(images, async image => {
+        const photoUrl = image.dataset.photoUrl;
+        if (!photoUrl) return;
+        image.dataset.adminLoaded = 'true';
         try {
-          const response = await fetch(image.dataset.photoUrl, {
+          const response = await fetch(photoUrl, {
             headers: { Authorization: ['Be', 'arer'].join('') + ' ' + sessionStorage.getItem('rastreo_token') }
           });
           if (!response.ok) throw new Error(`No se pudo obtener la fotografía (${response.status}).`);
@@ -3073,7 +3076,7 @@
           image.src = photo;
           image.addEventListener('load', () => URL.revokeObjectURL(photo), { once: true });
         } catch (error) {
-          console.error('No se pudo cargar una fotografía del historial:', error.message);
+          console.error('No se pudo cargar una fotografía protegida:', error.message);
           image.remove();
         }
       }));

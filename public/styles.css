@@ -400,31 +400,6 @@ button { touch-action: manipulation; }
 }
 .brand-subtitle { grid-column: 2; grid-row: 2; color: var(--muted); font: 500 .62rem/1.2 Inter, system-ui, sans-serif; letter-spacing: .01em; }
 
-.main-nav { display: flex; flex: 1 1 auto; align-items: stretch; justify-content: center; gap: .1rem; align-self: stretch; }
-#topHeader .main-nav button {
-  position: relative;
-  display: inline-flex;
-  min-height: 2.5rem;
-  align-items: center;
-  gap: .38rem;
-  padding: .45rem .6rem;
-  border-radius: 0;
-  color: var(--muted);
-  font-size: .76rem;
-  white-space: nowrap;
-}
-#topHeader .main-nav button > span:first-child { font-size: 1rem; }
-#topHeader .main-nav button[aria-current="page"] { color: var(--text); }
-#topHeader .main-nav button[aria-current="page"]::after {
-  position: absolute;
-  right: .55rem;
-  bottom: -.58rem;
-  left: .55rem;
-  height: 3px;
-  border-radius: 4px 4px 0 0;
-  background: var(--red);
-  content: "";
-}
 
 .header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .65rem; margin-left: auto; }
 #topHeader .header-actions #themeToggle { color: var(--muted); font-size: .68rem; }
@@ -1106,10 +1081,7 @@ table tr:hover td { background: var(--surface-2); }
   #mainContent > div, #mainContent > section { width: min(100% - 1.5rem, var(--maxw)); }
   #topHeader { gap: .25rem .6rem; }
   #topHeader > .header-brand { flex: 1 1 auto; }
-  #topHeader > .main-nav { order: 3; flex: 1 0 100%; justify-content: flex-start; overflow-x: auto; border-top: 1px solid var(--border); }
   #topHeader > .header-actions { flex: 0 0 auto; margin-left: auto; }
-  #topHeader .main-nav button { flex: 1 1 auto; justify-content: center; padding-inline: .35rem; font-size: .7rem; }
-  #topHeader .main-nav button[aria-current="page"]::after { bottom: -.3rem; }
   .home-hero { min-height: 0; }
   .hero-mark { flex-basis: 105px; }
   .hero-mark > span { width: 88px; height: 88px; font-size: 3.2rem; }
@@ -1138,10 +1110,7 @@ table tr:hover td { background: var(--surface-2); }
   #topHeader > .header-brand { flex: 1 0 auto; }
   #topHeader > div:last-child { flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-end; }
   #topHeader > .header-actions { flex: 1 0 auto; margin-left: auto; }
-  #topHeader > .main-nav { flex: 1 0 100%; }
   #topHeader > div { gap: .3rem; }
-  #topHeader .main-nav button { min-width: 0; flex-direction: column; gap: .08rem; padding: .35rem .15rem; font-size: .64rem; }
-  #topHeader .main-nav button > span:first-child { font-size: .95rem; line-height: 1; }
   #topHeader .header-actions #themeToggle { display: none; }
   #headerProfileName { max-width: 6.5rem; font-size: .62rem; }
   #topHeader .header-profile { gap: .35rem; padding: .15rem .4rem .15rem .15rem; }

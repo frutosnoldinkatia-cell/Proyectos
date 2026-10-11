@@ -9,6 +9,9 @@ import { processDueFollowups } from '../case-routes.js';
 const secret = 'test-secret-with-at-least-thirty-two-characters';
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const windowHours = Number(process.env.VENTANA_LOCALIZADOS_HORAS ?? 24);
+// Desde que el ingreso es obligatorio, también las rutas de consulta exigen sesión.
+// En las BD simuladas (withSessions) el id 10 es un ciudadano.
+const citizenAuth = { Authorization: `Bearer ${jwt.sign({ id: 10, rol: 'ciudadano' }, secret)}` };
 
 // authenticate revalida cada token contra la BD (rol y sesion_version). En las
 // BD simuladas se responde esa consulta: id 11 es administrador, el resto ciudadano.
@@ -53,16 +56,16 @@ async function startApp() {
 test('API pública limita listado, detalle y fotografías mediante localizado_en', async () => {
   const app = await startApp();
   try {
-    const listing = await fetch(`${app.baseUrl}/api/casos?q=${randomUUID()}`);
+    const listing = await fetch(`${app.baseUrl}/api/casos?q=${randomUUID()}`, { headers: citizenAuth });
     assert.equal(listing.status, 200);
     const query = app.queries.find(item => item.sql.includes('FROM casos') && item.sql.includes('ORDER BY creado_en'));
     assert.match(query.sql, /CURRENT_TIMESTAMP < localizado_en \+ \(\$1 \* INTERVAL '1 hour'\)/);
     assert.equal(query.values[0], windowHours);
 
-    const detail = await fetch(`${app.baseUrl}/api/casos/expired-case`);
+    const detail = await fetch(`${app.baseUrl}/api/casos/expired-case`, { headers: citizenAuth });
     assert.equal(detail.status, 404);
     assert.equal((await detail.json()).error, 'Caso no disponible');
-    const image = await fetch(`${app.baseUrl}/api/casos/expired-case/foto`);
+    const image = await fetch(`${app.baseUrl}/api/casos/expired-case/foto`, { headers: citizenAuth });
     assert.equal(image.status, 404);
     const photoQuery = app.queries.find(item => item.sql.includes('SELECT foto FROM casos'));
     assert.deepEqual(photoQuery.values, [windowHours, 'expired-case']);
@@ -198,7 +201,7 @@ test('marcar como localizado guarda el timestamp y notifica a suscriptores', asy
 test('estadísticas agregan localizados sin exponer registros personales', async () => {
   const app = await startApp();
   try {
-    const response = await fetch(`${app.baseUrl}/api/estadisticas`);
+    const response = await fetch(`${app.baseUrl}/api/estadisticas`, { headers: citizenAuth });
     assert.equal(response.status, 200);
     const result = await response.json();
     const statisticsQuery = app.queries.find(item => item.sql.includes('COUNT(*) FILTER'));
@@ -485,7 +488,7 @@ test('las pistas exigen sesión, se guardan con su autor y se publican anónimas
     assert.ok(statements.some(statement => statement.sql.includes('INSERT INTO suscripciones_caso')));
     assert.ok(statements.some(statement => statement.sql.includes('INSERT INTO notificaciones')
       && statement.sql.includes("WHERE rol = 'administrador'")));
-    const publicClues = await (await fetch(`${baseUrl}/api/pistas`)).json();
+    const publicClues = await (await fetch(`${baseUrl}/api/pistas`, { headers: citizenAuth })).json();
     assert.deepEqual(publicClues.pistas[0].fotosUrl, ['/api/pistas/approved-clue/fotos/0']);
     assert.equal('fotos' in publicClues.pistas[0], false, 'el listado ya no envía las fotos en base64');
     assert.doesNotMatch(publicCluesQuery, /p\.direccion, p\.fotos/, 'el listado no lee el base64 de la base');
@@ -604,9 +607,9 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
       body: JSON.stringify({ estado: 'LOCALIZADO' })
     });
     assert.equal(marked.status, 200);
-    let list = await (await get(baseUrl, '/api/casos')).json();
+    let list = await (await get(baseUrl, '/api/casos', citizenToken)).json();
     assert.ok(list.casos.some(item => item.id === caseId && item.estado === 'LOCALIZADO'));
-    assert.equal((await get(baseUrl, `/api/casos/${caseId}/foto`)).status, 200);
+    assert.equal((await get(baseUrl, `/api/casos/${caseId}/foto`, citizenToken)).status, 200);
 
     if (windowHours > 0 && windowHours <= 0.01) {
       await new Promise(resolve => setTimeout(resolve, Math.ceil(windowHours * 3600000) + 1000));
@@ -617,12 +620,12 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
         WHERE id = $1
       `, [caseId, windowHours]);
     }
-    list = await (await get(baseUrl, '/api/casos')).json();
+    list = await (await get(baseUrl, '/api/casos', citizenToken)).json();
     assert.equal(list.casos.some(item => item.id === caseId), false);
-    assert.equal((await get(baseUrl, `/api/casos/${caseId}`)).status, 404);
-    assert.equal((await get(baseUrl, `/api/casos/${caseId}/foto`)).status, 404);
+    assert.equal((await get(baseUrl, `/api/casos/${caseId}`, citizenToken)).status, 404);
+    assert.equal((await get(baseUrl, `/api/casos/${caseId}/foto`, citizenToken)).status, 404);
 
-    const stats = await (await get(baseUrl, '/api/estadisticas')).json();
+    const stats = await (await get(baseUrl, '/api/estadisticas', citizenToken)).json();
     assert.equal(Number(stats.encontrados), foundBefore + 1);
     const forbidden = await get(baseUrl, '/api/admin/historial-localizados', citizenToken);
     assert.equal(forbidden.status, 403);
@@ -635,10 +638,10 @@ test('el ciclo localizado permanece oculto tras 36 segundos y reiniciar Express'
     await stopServer();
     server = await createServer();
     baseUrl = `http://127.0.0.1:${server.address().port}`;
-    list = await (await get(baseUrl, '/api/casos')).json();
+    list = await (await get(baseUrl, '/api/casos', citizenToken)).json();
     assert.equal(list.casos.some(item => item.id === caseId), false);
     assert.equal(
-      Number((await (await get(baseUrl, '/api/estadisticas')).json()).encontrados),
+      Number((await (await get(baseUrl, '/api/estadisticas', citizenToken)).json()).encontrados),
       foundBefore + 1
     );
   } finally {
@@ -704,8 +707,10 @@ test('matriz de permisos: sin sesión 401, ciudadano 403 en rutas de administrac
       assert.equal(response.status, 403, `${method} ${path} como administrador`);
       assert.match((await response.json()).error, /administrador no reporta/);
     }
+    // El ingreso es obligatorio: las rutas de consulta también piden sesión.
     for (const [method, path] of publicRoutes) {
-      assert.equal((await call(method, path)).status, 200, `${method} ${path} sin sesión`);
+      assert.equal((await call(method, path)).status, 401, `${method} ${path} sin sesión`);
+      assert.equal((await call(method, path, citizenToken)).status, 200, `${method} ${path} como ciudadano`);
     }
     const forgedToken = jwt.sign({ id: 10, rol: 'administrador' }, 'otro-secreto-de-al-menos-treinta-y-dos-caracteres');
     assert.equal((await call('GET', '/api/admin/casos', forgedToken)).status, 401);
@@ -779,13 +784,13 @@ test('solo se aceptan ubicaciones de la lista oficial de Paraguay', async () => 
 test('el listado público no lee la foto de la base y pagina solo si se pide', async () => {
   const app = await startApp();
   try {
-    assert.equal((await fetch(`${app.baseUrl}/api/casos`)).status, 200);
+    assert.equal((await fetch(`${app.baseUrl}/api/casos`, { headers: citizenAuth })).status, 200);
     const unpaginated = app.queries.find(item => item.sql.includes('ORDER BY creado_en DESC'));
     assert.doesNotMatch(unpaginated.sql, /SELECT \*/);
     assert.match(unpaginated.sql, /\(foto <> ''\) AS tiene_foto/);
     assert.deepEqual(unpaginated.values.slice(-2), [null, 0], 'sin ?limite no se limita');
 
-    const paginatedResponse = await fetch(`${app.baseUrl}/api/casos?pagina=3&limite=500`);
+    const paginatedResponse = await fetch(`${app.baseUrl}/api/casos?pagina=3&limite=500`, { headers: citizenAuth });
     assert.equal(paginatedResponse.status, 200);
     const body = await paginatedResponse.json();
     assert.equal(body.pagina, 3);
@@ -803,6 +808,7 @@ test('paginación del listado público con PostgreSQL', {
   const db = createDatabase(testDatabaseUrl);
   const marker = `Pagina${randomUUID().replaceAll('-', '')}`;
   const adminEmail = `admin.pag.${randomUUID().replaceAll('-', '')}@gmail.com`;
+  const citizenEmail = `cit.pag.${randomUUID().replaceAll('-', '')}@gmail.com`;
   const ids = [1, 2, 3].map(n => `cas_test_pag_${n}_${marker}`);
   let server;
   let databaseInitialized = false;
@@ -826,19 +832,24 @@ test('paginación del listado público con PostgreSQL', {
     await new Promise(resolve => server.once('listening', resolve));
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
-    const all = await (await fetch(`${baseUrl}/api/casos?q=${marker}`)).json();
+    const citizenId = (await db.query(`
+      INSERT INTO usuarios (nombre_completo, correo, contrasena_hash, rol, verificado)
+      VALUES ('Ciudadano Paginación', $1, 'sin-uso', 'ciudadano', TRUE) RETURNING id
+    `, [citizenEmail])).rows[0].id;
+    const auth = { headers: { Authorization: `Bearer ${jwt.sign({ id: citizenId, rol: 'ciudadano', ver: 0 }, secret)}` } };
+    const all = await (await fetch(`${baseUrl}/api/casos?q=${marker}`, auth)).json();
     assert.equal(all.casos.length, 3);
     assert.equal(all.total, 3);
     assert.equal(all.casos[0].fotoUrl, `/api/casos/${ids[0]}/foto`);
     assert.equal(all.casos[1].fotoUrl, '');
 
-    const page1 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=1`)).json();
-    const page2 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=2`)).json();
+    const page1 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=1`, auth)).json();
+    const page2 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=2`, auth)).json();
     assert.deepEqual(page1.casos.map(item => item.id), [ids[0], ids[1]]);
     assert.deepEqual(page2.casos.map(item => item.id), [ids[2]]);
     assert.equal(page1.total, 3);
     assert.equal(page2.total, 3);
-    assert.equal((await fetch(`${baseUrl}/api/casos/${ids[0]}/foto`)).status, 200);
+    assert.equal((await fetch(`${baseUrl}/api/casos/${ids[0]}/foto`, auth)).status, 200);
 
     // Pistas públicas y listados de administración paginados contra PostgreSQL real.
     for (const n of [1, 2, 3]) {
@@ -847,7 +858,7 @@ test('paginación del listado público con PostgreSQL', {
         VALUES ($1, $2, 'Pista paginada', CURRENT_TIMESTAMP, -25.3, -57.6, 'VALIDADA')
       `, [`pst_test_pag_${n}_${marker}`, ids[0]]);
     }
-    const cluesPage = await (await fetch(`${baseUrl}/api/pistas?limite=2&pagina=1`)).json();
+    const cluesPage = await (await fetch(`${baseUrl}/api/pistas?limite=2&pagina=1`, auth)).json();
     assert.equal(cluesPage.pistas.length, 2);
     assert.ok(cluesPage.total >= 3);
     await seedAdministrator(db, adminEmail, 'Admin-paginacion-123');
@@ -868,7 +879,7 @@ test('paginación del listado público con PostgreSQL', {
     if (databaseInitialized) {
       await db.query('DELETE FROM pistas WHERE caso_id = ANY($1)', [ids]);
       await db.query('DELETE FROM casos WHERE id = ANY($1)', [ids]);
-      await db.query('DELETE FROM usuarios WHERE correo = $1', [adminEmail]);
+      await db.query('DELETE FROM usuarios WHERE correo = ANY($1)', [[adminEmail, citizenEmail]]);
     }
     await db.end();
   }
@@ -883,7 +894,7 @@ test('pistas públicas y listados de administración paginan solo si se pide', a
   const lastQuery = fragment => app.queries.filter(item => item.sql.includes(fragment)).at(-1);
   try {
     for (const [path, fragment, key, token] of [
-      ['/api/pistas', "p.estado = 'VALIDADA'", 'pistas'],
+      ['/api/pistas', "p.estado = 'VALIDADA'", 'pistas', jwt.sign({ id: 10, rol: 'ciudadano' }, secret)],
       ['/api/admin/pistas', 'autor_correo', 'pistas', adminToken],
       ['/api/admin/casos', 'contacto_reportante', 'casos', adminToken]
     ]) {
@@ -909,9 +920,9 @@ test('fotos de pistas por URL: índice válido y visibilidad pública', async ()
   const app = await startApp();
   try {
     for (const bad of ['3', '-1', 'x', '1.5']) {
-      assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/${bad}`)).status, 404, bad);
+      assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/${bad}`, { headers: citizenAuth })).status, 404, bad);
     }
-    assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/0`)).status, 404, 'sin pista visible');
+    assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/0`, { headers: citizenAuth })).status, 404, 'sin pista visible');
     const query = app.queries.filter(item => item.sql.includes('p.fotos[$3]')).at(-1);
     assert.match(query.sql, /p\.estado = 'VALIDADA'/);
     assert.match(query.sql, /c\.localizado_en/);
@@ -963,20 +974,20 @@ test('fotos de pistas por URL con PostgreSQL', {
     await new Promise(resolve => server.once('listening', resolve));
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
-    const publicClue = (await (await fetch(`${baseUrl}/api/pistas`)).json()).pistas
+    const publicClue = (await (await fetch(`${baseUrl}/api/pistas`, { headers: adminAuth })).json()).pistas
       .find(item => item.id === `pst_val_${suffix}`);
     assert.deepEqual(publicClue.fotosUrl, [
       `/api/pistas/pst_val_${suffix}/fotos/0`,
       `/api/pistas/pst_val_${suffix}/fotos/2`
     ], 'se omite la foto inválida y se conserva el índice original');
     assert.equal('fotos' in publicClue, false, 'el listado ya no envía las fotos en base64');
-    const first = await fetch(`${baseUrl}${publicClue.fotosUrl[0]}`);
+    const first = await fetch(`${baseUrl}${publicClue.fotosUrl[0]}`, { headers: adminAuth });
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('content-type'), 'image/png');
-    assert.equal((await fetch(`${baseUrl}${publicClue.fotosUrl[1]}`)).headers.get('content-type'), 'image/jpeg');
-    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_val_${suffix}/fotos/1`)).status, 404, 'foto inválida');
+    assert.equal((await fetch(`${baseUrl}${publicClue.fotosUrl[1]}`, { headers: adminAuth })).headers.get('content-type'), 'image/jpeg');
+    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_val_${suffix}/fotos/1`, { headers: adminAuth })).status, 404, 'foto inválida');
 
-    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_pen_${suffix}/fotos/0`)).status, 404,
+    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_pen_${suffix}/fotos/0`, { headers: adminAuth })).status, 404,
       'la foto de una pista pendiente no es pública');
     const adminClues = (await (await fetch(`${baseUrl}/api/admin/pistas`, { headers: adminAuth })).json()).pistas;
     const pendingUrl = adminClues.find(item => item.id === `pst_pen_${suffix}`).fotosUrl[0];

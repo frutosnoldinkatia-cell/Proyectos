@@ -1,4 +1,5 @@
 // Inicio: listado de casos, filtros, paginación y ficha del caso.
+import { loadProtectedPhotos, showProtectedPhoto } from './api.js';
 import { escapeHtml } from './config.js';
 import { estado } from './estado.js';
 import { buildRoute, syncUrl } from './router.js';
@@ -58,7 +59,7 @@ export function renderFeedView(statistics = window.currentStatistics) {
 
       <section class="home-stats" aria-labelledby="homeStatsHeading">
         <div class="home-section-heading">
-          <div><span class="section-kicker">Datos públicos</span><h2 id="homeStatsHeading">Estadísticas en tiempo real</h2></div>
+          <div><span class="section-kicker">Datos de la plataforma</span><h2 id="homeStatsHeading">Estadísticas en tiempo real</h2></div>
           <button type="button" class="section-link" data-on-click="navigateTo('stats')">Ver detalle <span aria-hidden="true">›</span></button>
         </div>
         <div class="home-stats-grid">
@@ -307,7 +308,7 @@ export function openCaseDetail(caseId, options = {}) {
   const content = document.getElementById('caseDetailContent');
   const approvedClues = getStore().pistas.filter(pista => pista.casoId === c.id);
   const clueGallery = approvedClues.flatMap(pista => (pista.fotosUrl || []).map((url, index) =>
-    `<img src="${escapeHtml(url)}" alt="Fotografía de pista ciudadana ${index + 1}" loading="lazy">`)).join('');
+    `<img src="data:," data-photo-url="${escapeHtml(url)}" data-protected-photo alt="Fotografía de pista ciudadana ${index + 1}">`)).join('');
   content.innerHTML = `
     <h2 id="caseDetailTitle">${escapeHtml(c.nombreCompleto)}</h2>
     <p><span class="status-tag ${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'status-SIN_ACTUALIZAR' : `status-${escapeHtml(c.estado)}`}">${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'EN SEGUIMIENTO · SIN ACTUALIZAR' : escapeHtml(c.estado.replaceAll('_', ' '))}</span></p>
@@ -326,6 +327,7 @@ export function openCaseDetail(caseId, options = {}) {
     </div>
     <p class="muted">El contacto del reportante se mantiene restringido y no se publica en esta ficha.</p>
   `;
+  loadProtectedPhotos(content);
   document.getElementById('caseDetailModal').classList.remove('hidden');
   document.getElementById('caseDetailModal').querySelector('button').focus();
   if (!options.fromHistory) syncUrl('feed', {}, { caseId: c.id });
@@ -377,11 +379,12 @@ export function renderCasePhotos(cases) {
     if (!photo || !placeholder) return;
 
     const image = document.createElement('img');
-    image.src = photo;
     image.alt = `Fotografía de ${caseItem.nombreCompleto}`;
     image.className = 'case-photo-image';
     image.addEventListener('error', () => replaceWithMissingPhoto(image, caseItem.nombreCompleto), { once: true });
     placeholder.replaceWith(image);
+    // La foto exige sesión: se pide con el token (ver api.js).
+    showProtectedPhoto(image, photo).catch(() => replaceWithMissingPhoto(image, caseItem.nombreCompleto));
   });
 }
 

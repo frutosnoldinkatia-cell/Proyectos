@@ -20,7 +20,9 @@ ADMINISTRADOR
   ADMIN_IDENTIFICADOR y ADMIN_PASSWORD).
 
 SIN SESIÓN (no es un rol, es la ausencia de uno)
-  Persona que entra a la página sin iniciar sesión.
+  Persona que entra a la página sin iniciar sesión. El ingreso es
+  obligatorio: sin sesión solo puede registrarse, verificar el código e
+  iniciar sesión. La API responde 401 a todo lo demás.
 
 
 [ 2. REGLA DE LAS PISTAS ]
@@ -38,10 +40,10 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
 --------------------------------------------------------------------------------
   Acción                                         Sin sesión  Ciudadano  Admin
   ---------------------------------------------  ----------  ---------  -----
-  Ver feed de casos públicos y buscar               SÍ          SÍ       SÍ
-  Ver ficha pública de un caso                      SÍ          SÍ       SÍ
-  Ver estadísticas generales                        SÍ          SÍ       SÍ
-  Ver pistas VALIDADAS (anónimas)                   SÍ          SÍ       SÍ
+  Ver feed de casos publicados y buscar             NO          SÍ       SÍ
+  Ver ficha de un caso publicado                    NO          SÍ       SÍ
+  Ver estadísticas generales                        NO          SÍ       SÍ
+  Ver pistas VALIDADAS (anónimas)                   NO          SÍ       SÍ
   Registrarse / iniciar sesión / verificar OTP      SÍ          -        -
   Aceptar términos y condiciones                    -           SÍ       SÍ
   Enviar una pista                                  NO          SÍ       SÍ
@@ -64,8 +66,8 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
 --------------------------------------------------------------------------------
   Pantalla      Sin sesión            Ciudadano           Admin
   ------------  --------------------  ------------------  -------------------
-  home / feed   visible               visible             visible
-  stats         visible               visible             visible
+  home / feed   redirige a login      visible             visible
+  stats         redirige a login      visible             visible
   lead (pista)  redirige a login      visible             visible
   report        redirige a login      visible             visible
   my-cases      redirige a login      visible             visible

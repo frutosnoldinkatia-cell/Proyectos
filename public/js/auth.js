@@ -17,7 +17,6 @@ export function updateHeaderUser() {
   document.querySelectorAll('[data-role-nav="admin"]').forEach(item => item.classList.toggle('hidden', !isAdministrator));
   document.querySelectorAll('[data-role-nav="citizen"]').forEach(item => item.classList.toggle('hidden', !isCitizen));
   document.querySelectorAll('[data-hide-admin-nav]').forEach(item => item.classList.toggle('hidden', isAdministrator));
-  document.getElementById('reportNavLabel').textContent = 'Reportar';
   profile?.classList.toggle('hidden', !store.currentUser);
   document.getElementById('drawerIdentity')?.classList.toggle('hidden', !store.currentUser);
   document.getElementById('headerProfileName').textContent = displayName;

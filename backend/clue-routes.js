@@ -55,7 +55,7 @@ export function createClueRouter({ db, requireUser, requireAdmin }) {
     message: { error: 'Se alcanzó el límite temporal de envíos de pistas. Intente nuevamente más tarde.' }
   });
 
-  router.get('/pistas', asyncRoute(async (req, res) => {
+  router.get('/pistas', requireUser, asyncRoute(async (req, res) => {
     const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, p.descripcion, p.fecha_hora_avistamiento,
@@ -78,7 +78,7 @@ export function createClueRouter({ db, requireUser, requireAdmin }) {
     })), rows, pagination));
   }));
 
-  router.get('/pistas/:id/fotos/:n', asyncRoute((req, res) => sendCluePhoto(db, req, res, false)));
+  router.get('/pistas/:id/fotos/:n', requireUser, asyncRoute((req, res) => sendCluePhoto(db, req, res, false)));
   router.get('/admin/pistas/:id/fotos/:n', ...requireAdmin, asyncRoute((req, res) => sendCluePhoto(db, req, res, true)));
 
   router.get('/admin/pistas', ...requireAdmin, asyncRoute(async (req, res) => {

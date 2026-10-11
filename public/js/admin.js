@@ -1,5 +1,5 @@
 // Panel de administración: bandeja, casos, pistas, auditoría, historial y simulador.
-import { apiRequest } from './api.js';
+import { apiRequest, loadProtectedPhotos } from './api.js';
 import { escapeHtml } from './config.js';
 import { statusLabel, timeSince } from './my-cases.js';
 import { navigateTo, syncUrl } from './router.js';
@@ -140,7 +140,7 @@ export function renderAdminView(history, clues = [], audit = []) {
               <p class="muted">Enviada por: ${clue.autor ? `${escapeHtml(clue.autor.nombre)} · ${escapeHtml(clue.autor.correo)}` : 'sin cuenta (pista anterior al registro obligatorio)'}</p>
             </td>
             <td data-label="Fotografías"><div class="moderation-photos">
-              ${(clue.fotosUrl || []).map((url, index) => `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(url)}" alt="Fotografía ${index + 1} de la pista" data-admin-photo>`).join('') || 'Sin fotografías'}
+              ${(clue.fotosUrl || []).map((url, index) => `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(url)}" alt="Fotografía ${index + 1} de la pista" data-protected-photo>`).join('') || 'Sin fotografías'}
             </div></td>
             <td data-label="Estado y acciones">
               <span class="status-tag status-${escapeHtml(clue.estado)}">${escapeHtml(clue.estado)}</span>
@@ -192,7 +192,7 @@ export function renderAdminHistory(history) {
     <tbody>${history.casos.map(c => `
       <tr>
         <td data-label="Persona">
-          ${c.fotoUrl ? `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(c.fotoUrl)}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-admin-photo>` : ''}
+          ${c.fotoUrl ? `<img class="history-photo" src="data:," data-photo-url="${escapeHtml(c.fotoUrl)}" alt="Fotografía de ${escapeHtml(c.nombreCompleto)}" data-protected-photo>` : ''}
           <strong>${escapeHtml(c.nombreCompleto)}</strong>
           <p>${escapeHtml(c.ciudad)}, ${Number(c.edad)} años, ${escapeHtml(c.sexo)}</p>
         </td>
@@ -249,25 +249,8 @@ export function searchAdminHistory(event) {
   loadAdminHistory(1);
 }
 
-export async function loadAdminHistoryPhotos(container) {
-  const images = container.querySelectorAll('img[data-admin-photo]:not([data-admin-loaded])');
-  await Promise.all(Array.from(images, async image => {
-    const photoUrl = image.dataset.photoUrl;
-    if (!photoUrl) return;
-    image.dataset.adminLoaded = 'true';
-    try {
-      const response = await fetch(photoUrl, {
-        headers: { Authorization: ['Be', 'arer'].join('') + ' ' + sessionStorage.getItem('rastreo_token') }
-      });
-      if (!response.ok) throw new Error(`No se pudo obtener la fotografía (${response.status}).`);
-      const photo = URL.createObjectURL(await response.blob());
-      image.src = photo;
-      image.addEventListener('load', () => URL.revokeObjectURL(photo), { once: true });
-    } catch (error) {
-      console.error('No se pudo cargar una fotografía protegida:', error.message);
-      image.remove();
-    }
-  }));
+export function loadAdminHistoryPhotos(container) {
+  return loadProtectedPhotos(container);
 }
 
 export function adminAccept(caseId) {

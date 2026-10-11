@@ -140,8 +140,9 @@ export async function applyCurrentRoute() {
   else closeCaseDetail({ fromHistory: true });
 }
 
-// Pantallas visibles sin sesión. El resto exige cuenta (docs/ROLES_Y_PERMISOS.txt).
-export const PUBLIC_VIEWS = ['feed', 'stats'];
+// Pantallas visibles sin sesión: ninguna. El ingreso es obligatorio (decisión del
+// usuario, ROLES_Y_PERMISOS.txt); sin sesión solo se ve ingresar/registrarse.
+export const PUBLIC_VIEWS = [];
 
 export async function navigateTo(view, params = {}, options = {}) {
   if (estado.locatedExpiryTimer) {
@@ -168,22 +169,9 @@ export async function navigateTo(view, params = {}, options = {}) {
   // navegador queda diciendo una cosa y la pantalla muestra otra.
   const requestedView = view;
 
-  if (!store.currentUser && ACCESS_GATED_VIEWS[view]) {
+  if (!store.currentUser && !['auth', 'otp', 'feed'].includes(view)) {
     // Se recuerda adonde queria ir para devolverlo ahi despues del login.
     estado.pendingDestination = { view, params };
-    window.rastreoCurrentView = view;
-    window.rastreoCurrentParams = params;
-    document.querySelectorAll('[data-nav-view]').forEach(button => {
-      if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
-      else button.removeAttribute('aria-current');
-    });
-    header.classList.remove('hidden');
-    document.getElementById('publicThemeToggle').classList.add('hidden');
-    updateHeaderUser();
-    main.innerHTML = renderAccessView(view);
-    labelButtons(main);
-    if (!options.fromHistory) syncUrl(view, params, { replace: options.replace });
-    return;
   }
 
   if (!store.currentUser && view !== 'otp' && !PUBLIC_VIEWS.includes(view)) {
@@ -402,48 +390,4 @@ export function drawerNavigate(view) {
   document.querySelectorAll('.drawer-item').forEach(item => item.classList.remove('active'));
   document.querySelector(`.drawer-item[data-on-click="drawerNavigate('${view}')"]`)?.classList.add('active');
   navigateTo(view);
-}
-
-// ==========================================
-// VISTA 4: REPORTAR DESAPARECIDO (SECCIÓN 6)
-// ==========================================
-// Secciones que requieren cuenta. En vez de soltar al visitante en un
-// login pelado, se le explica que seccion pidio y por que hace falta
-// una cuenta. Despues de entrar vuelve justo ahi.
-export const ACCESS_GATED_VIEWS = {
-  report: {
-    titulo: 'Reportar persona desaparecida',
-    motivo: 'Para registrar una desaparición hace falta una cuenta de ciudadano: el reporte queda asociado a vos y por ahí te llegan los avisos de seguimiento. Buscar casos y ver estadísticas no requiere cuenta.'
-  },
-  lead: {
-    titulo: 'Generar pista',
-    motivo: 'Para evitar pistas falsas, cada pista queda asociada a una cuenta verificada. Igual se publica de forma anónima: nadie más que la administración ve quién la envió.'
-  },
-  'my-cases': {
-    titulo: 'Mis casos',
-    motivo: 'Acá se listan los reportes que registraste vos, así que primero necesitamos saber quién sos.'
-  },
-  alerts: {
-    titulo: 'Alertas',
-    motivo: 'Las alertas son avisos sobre los casos que seguís y sobre búsquedas cerca tuyo. Como son personales, hace falta una cuenta para verlas.'
-  },
-  admin: {
-    titulo: 'Panel de administración',
-    motivo: 'El panel es de uso interno. Ingresá con una cuenta autorizada del Ente Regulador.'
-  }
-};
-
-export function renderAccessView(targetView) {
-  const info = ACCESS_GATED_VIEWS[targetView] || ACCESS_GATED_VIEWS.report;
-  return `
-    <div class="access-page">
-      <section class="access-card card">
-        <span class="access-icon" aria-hidden="true">♙</span>
-        <p class="section-kicker">Acceso ciudadano</p>
-        <h1>${escapeHtml(info.titulo)}</h1>
-        <p>${escapeHtml(info.motivo)}</p>
-        <button type="button" class="btn btn-primary" data-on-click="navigateTo('auth')">Ingresar / Crear cuenta</button>
-      </section>
-    </div>
-  `;
 }

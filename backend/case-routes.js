@@ -41,7 +41,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     next();
   });
 
-  router.get('/casos', asyncRoute(async (req, res) => {
+  router.get('/casos', requireUser, asyncRoute(async (req, res) => {
     const search = typeof req.query.q === 'string' ? `%${req.query.q.trim()}%` : '%%';
     const city = typeof req.query.ciudad === 'string' ? `%${req.query.ciudad.trim()}%` : '%%';
     const department = typeof req.query.departamento === 'string' ? `%${req.query.departamento.trim()}%` : '%%';
@@ -67,7 +67,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.json(paginatedBody('casos', rows.map(toPublicCase), rows, pagination));
   }));
 
-  router.get('/casos/:id', asyncRoute(async (req, res) => {
+  router.get('/casos/:id', requireUser, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`
       SELECT * FROM casos
       WHERE id = $2 AND ${PUBLIC_CASE_FILTER} AND estado <> 'RECHAZADO'
@@ -76,7 +76,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.json({ caso: toPublicCase(rows[0]) });
   }));
 
-  router.get('/casos/:id/foto', asyncRoute((req, res) => sendStoredPhoto(db, req, res, false)));
+  router.get('/casos/:id/foto', requireUser, asyncRoute((req, res) => sendStoredPhoto(db, req, res, false)));
 
   router.get('/mis-casos', ...requireCitizen, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`

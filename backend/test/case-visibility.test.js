@@ -799,6 +799,7 @@ test('paginación del listado público con PostgreSQL', {
 }, async () => {
   const db = createDatabase(testDatabaseUrl);
   const marker = `Pagina${randomUUID().replaceAll('-', '')}`;
+  const adminEmail = `admin.pag.${randomUUID().replaceAll('-', '')}@gmail.com`;
   const ids = [1, 2, 3].map(n => `cas_test_pag_${n}_${marker}`);
   let server;
   let databaseInitialized = false;
@@ -835,9 +836,68 @@ test('paginación del listado público con PostgreSQL', {
     assert.equal(page1.total, 3);
     assert.equal(page2.total, 3);
     assert.equal((await fetch(`${baseUrl}/api/casos/${ids[0]}/foto`)).status, 200);
+
+    // Pistas públicas y listados de administración paginados contra PostgreSQL real.
+    for (const n of [1, 2, 3]) {
+      await db.query(`
+        INSERT INTO pistas (id, caso_id, descripcion, fecha_hora_avistamiento, latitud, longitud, estado)
+        VALUES ($1, $2, 'Pista paginada', CURRENT_TIMESTAMP, -25.3, -57.6, 'VALIDADA')
+      `, [`pst_test_pag_${n}_${marker}`, ids[0]]);
+    }
+    const cluesPage = await (await fetch(`${baseUrl}/api/pistas?limite=2&pagina=1`)).json();
+    assert.equal(cluesPage.pistas.length, 2);
+    assert.ok(cluesPage.total >= 3);
+    await seedAdministrator(db, adminEmail, 'Admin-paginacion-123');
+    const adminId = (await db.query('SELECT id FROM usuarios WHERE correo = $1', [adminEmail])).rows[0].id;
+    const adminToken = jwt.sign({ id: adminId, rol: 'administrador', ver: 0 }, secret);
+    for (const [path, key] of [['/api/admin/casos', 'casos'], ['/api/admin/pistas', 'pistas']]) {
+      const response = await fetch(`${baseUrl}${path}?limite=2&pagina=2`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      assert.equal(response.status, 200, path);
+      const body = await response.json();
+      assert.equal(body.pagina, 2, path);
+      assert.ok(body[key].length <= 2, path);
+      assert.ok(body.total >= 3, path);
+    }
   } finally {
     if (server?.listening) await new Promise(resolve => server.close(resolve));
-    if (databaseInitialized) await db.query('DELETE FROM casos WHERE id = ANY($1)', [ids]);
+    if (databaseInitialized) {
+      await db.query('DELETE FROM pistas WHERE caso_id = ANY($1)', [ids]);
+      await db.query('DELETE FROM casos WHERE id = ANY($1)', [ids]);
+      await db.query('DELETE FROM usuarios WHERE correo = $1', [adminEmail]);
+    }
     await db.end();
+  }
+});
+
+test('pistas públicas y listados de administración paginan solo si se pide', async () => {
+  const app = await startApp();
+  const adminToken = jwt.sign({ id: 11, rol: 'administrador' }, secret);
+  const get = (path, token) => fetch(`${app.baseUrl}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  const lastQuery = fragment => app.queries.filter(item => item.sql.includes(fragment)).at(-1);
+  try {
+    for (const [path, fragment, key, token] of [
+      ['/api/pistas', "p.estado = 'VALIDADA'", 'pistas'],
+      ['/api/admin/pistas', 'autor_correo', 'pistas', adminToken],
+      ['/api/admin/casos', 'contacto_reportante', 'casos', adminToken]
+    ]) {
+      const all = await get(path, token);
+      assert.equal(all.status, 200, path);
+      const allBody = await all.json();
+      assert.ok(Array.isArray(allBody[key]), path);
+      assert.equal(allBody.pagina, undefined, `${path} sin ?limite no informa página`);
+      assert.deepEqual(lastQuery(fragment).values.slice(-2), [null, 0], `${path} sin ?limite no limita`);
+
+      const paged = await (await get(`${path}?limite=5&pagina=2`, token)).json();
+      assert.equal(paged.pagina, 2, path);
+      assert.equal(paged.limite, 5, path);
+      assert.deepEqual(lastQuery(fragment).values.slice(-2), [5, 5], `${path} pagina con LIMIT/OFFSET`);
+    }
+    assert.equal((await get('/api/admin/casos?limite=5')).status, 401);
+  } finally {
+    await app.close();
   }
 });

@@ -33,6 +33,22 @@ function caseListColumns(alias = '') {
   ].map(column => `${prefix}${column}`).join(', ') + `, (${prefix}foto <> '') AS tiene_foto`;
 }
 
+// Paginación opcional de los listados: sin ?limite se devuelve todo (lo que espera
+// el frontend actual); con ?limite (1..100) y ?pagina se pagina.
+function paginationFromQuery(query) {
+  const paginated = query.limite !== undefined;
+  const page = Math.max(1, Number.parseInt(query.pagina, 10) || 1);
+  const limit = paginated ? Math.min(100, Math.max(1, Number.parseInt(query.limite, 10) || 20)) : null;
+  return { paginated, page, limit, offset: paginated ? (page - 1) * limit : 0 };
+}
+
+function paginatedBody(key, items, rows, { paginated, page, limit }) {
+  const total = Number(rows[0]?.total_registros || 0);
+  return paginated
+    ? { [key]: items, pagina: page, limite: limit, total }
+    : { [key]: items, total };
+}
+
 function hasPhoto(row) {
   return Boolean(row.foto || row.tiene_foto);
 }
@@ -218,11 +234,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     const sex = typeof req.query.sexo === 'string' ? req.query.sexo : '';
     const ageMin = Number.isInteger(Number(req.query.edadMin)) ? Number(req.query.edadMin) : null;
     const ageMax = Number.isInteger(Number(req.query.edadMax)) ? Number(req.query.edadMax) : null;
-    // Paginación opcional: sin ?limite se devuelven todos (lo que espera el frontend actual).
-    const paginated = req.query.limite !== undefined;
-    const page = Math.max(1, Number.parseInt(req.query.pagina, 10) || 1);
-    const limit = paginated ? Math.min(100, Math.max(1, Number.parseInt(req.query.limite, 10) || 20)) : null;
-    const offset = paginated ? (page - 1) * limit : 0;
+    const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT ${caseListColumns()}, COUNT(*) OVER() AS total_registros FROM casos
       WHERE ${PUBLIC_CASE_FILTER} AND estado <> 'RECHAZADO'
@@ -236,11 +248,9 @@ export function createCaseRouter({ db, jwtSecret }) {
         AND ($7::integer IS NULL OR edad <= $7)
       ORDER BY creado_en DESC
       LIMIT $8::integer OFFSET $9::integer
-    `, [...caseVisibilityParameters(), search, city, department, sex, ageMin, ageMax, limit, offset]);
-    const total = Number(rows[0]?.total_registros || 0);
-    res.json(paginated
-      ? { casos: rows.map(toPublicCase), pagina: page, limite: limit, total }
-      : { casos: rows.map(toPublicCase), total });
+    `, [...caseVisibilityParameters(), search, city, department, sex, ageMin, ageMax,
+      pagination.limit, pagination.offset]);
+    res.json(paginatedBody('casos', rows.map(toPublicCase), rows, pagination));
   }));
 
   router.get('/casos/:id', asyncRoute(async (req, res) => {
@@ -266,16 +276,19 @@ export function createCaseRouter({ db, jwtSecret }) {
     })) });
   }));
 
-  router.get('/pistas', asyncRoute(async (_req, res) => {
+  router.get('/pistas', asyncRoute(async (req, res) => {
+    const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, p.descripcion, p.fecha_hora_avistamiento,
-        p.latitud, p.longitud, p.direccion, p.fotos, p.fecha_envio
+        p.latitud, p.longitud, p.direccion, p.fotos, p.fecha_envio,
+        COUNT(*) OVER() AS total_registros
       FROM pistas p JOIN casos c ON c.id = p.caso_id
       WHERE ${PUBLIC_CASE_FILTER.replaceAll('estado', 'c.estado').replaceAll('localizado_en', 'c.localizado_en')}
         AND c.estado <> 'RECHAZADO' AND p.estado = 'VALIDADA'
       ORDER BY p.fecha_envio DESC
-    `, caseVisibilityParameters());
-    res.json({ pistas: rows.map(row => ({
+      LIMIT $2::integer OFFSET $3::integer
+    `, [...caseVisibilityParameters(), pagination.limit, pagination.offset]);
+    res.json(paginatedBody('pistas', rows.map(row => ({
       id: row.id,
       casoId: row.caso_id,
       descripcion: row.descripcion,
@@ -284,14 +297,16 @@ export function createCaseRouter({ db, jwtSecret }) {
       fotos: (row.fotos || []).filter(photo =>
         typeof photo === 'string' && IMAGE_DATA_URL.test(photo)),
       fechaEnvio: row.fecha_envio
-    })) });
+    })), rows, pagination));
   }));
 
-  router.get('/admin/pistas', ...requireAdmin, asyncRoute(async (_req, res) => {
+  router.get('/admin/pistas', ...requireAdmin, asyncRoute(async (req, res) => {
+    const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, c.nombre_completo, p.descripcion, p.fecha_hora_avistamiento,
         p.latitud, p.longitud, p.direccion, p.fotos, p.estado, p.fecha_envio,
         u.id AS autor_id, u.nombre_completo AS autor_nombre, u.correo AS autor_correo,
+        COUNT(*) OVER() AS total_registros,
         (SELECT COALESCE(json_agg(json_build_object(
           'estadoAnterior', m.estado_anterior,
           'estadoNuevo', m.estado_nuevo,
@@ -304,8 +319,9 @@ export function createCaseRouter({ db, jwtSecret }) {
       FROM pistas p JOIN casos c ON c.id = p.caso_id
       LEFT JOIN usuarios u ON u.id = p.usuario_id
       ORDER BY CASE WHEN p.estado = 'PENDIENTE' THEN 0 ELSE 1 END, p.fecha_envio DESC
-    `);
-    res.json({ pistas: rows.map(row => ({
+      LIMIT $1::integer OFFSET $2::integer
+    `, [pagination.limit, pagination.offset]);
+    res.json(paginatedBody('pistas', rows.map(row => ({
       id: row.id,
       casoId: row.caso_id,
       nombreCompleto: row.nombre_completo,
@@ -320,7 +336,7 @@ export function createCaseRouter({ db, jwtSecret }) {
         : null,
       cambiosEstado: row.cambios_estado || [],
       fechaEnvio: row.fecha_envio
-    })) });
+    })), rows, pagination));
   }));
 
   router.post('/casos', ...requireCitizen, asyncRoute(async (req, res) => {
@@ -599,13 +615,16 @@ export function createCaseRouter({ db, jwtSecret }) {
     });
   }));
 
-  router.get('/admin/casos', ...requireAdmin, asyncRoute(async (_req, res) => {
+  router.get('/admin/casos', ...requireAdmin, asyncRoute(async (req, res) => {
+    const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
-      SELECT ${caseListColumns('c')}, u.correo AS contacto_reportante
+      SELECT ${caseListColumns('c')}, u.correo AS contacto_reportante,
+        COUNT(*) OVER() AS total_registros
       FROM casos c LEFT JOIN usuarios u ON u.id = c.reportado_por_usr_id
       ORDER BY c.creado_en DESC
-    `);
-    res.json({ casos: rows.map(toAdminCase) });
+      LIMIT $1::integer OFFSET $2::integer
+    `, [pagination.limit, pagination.offset]);
+    res.json(paginatedBody('casos', rows.map(toAdminCase), rows, pagination));
   }));
 
   router.get('/admin/auditoria', ...requireAdmin, asyncRoute(async (_req, res) => {

@@ -431,7 +431,7 @@ test('las pistas exigen sesión, se guardan con su autor y se publican anónimas
             latitud: -25.2867,
             longitud: -57.6333,
             direccion: 'Asunción',
-            fotos: ['data:image/jpeg;base64,AAAA', 'javascript:alert(1)'],
+            fotos_indices: [0],
             fecha_envio: new Date()
           }]
         };
@@ -486,7 +486,10 @@ test('las pistas exigen sesión, se guardan con su autor y se publican anónimas
     assert.ok(statements.some(statement => statement.sql.includes('INSERT INTO notificaciones')
       && statement.sql.includes("WHERE rol = 'administrador'")));
     const publicClues = await (await fetch(`${baseUrl}/api/pistas`)).json();
-    assert.deepEqual(publicClues.pistas[0].fotos, ['data:image/jpeg;base64,AAAA']);
+    assert.deepEqual(publicClues.pistas[0].fotosUrl, ['/api/pistas/approved-clue/fotos/0']);
+    assert.equal('fotos' in publicClues.pistas[0], false, 'el listado ya no envía las fotos en base64');
+    assert.doesNotMatch(publicCluesQuery, /p\.direccion, p\.fotos/, 'el listado no lee el base64 de la base');
+    assert.match(publicCluesQuery, /AS fotos_indices/);
     assert.equal('autor' in publicClues.pistas[0], false);
     assert.doesNotMatch(publicCluesQuery, /usuario_id|correo/);
     assert.match(publicCluesQuery, /p\.estado = 'VALIDADA'/);
@@ -966,6 +969,7 @@ test('fotos de pistas por URL con PostgreSQL', {
       `/api/pistas/pst_val_${suffix}/fotos/0`,
       `/api/pistas/pst_val_${suffix}/fotos/2`
     ], 'se omite la foto inválida y se conserva el índice original');
+    assert.equal('fotos' in publicClue, false, 'el listado ya no envía las fotos en base64');
     const first = await fetch(`${baseUrl}${publicClue.fotosUrl[0]}`);
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('content-type'), 'image/png');

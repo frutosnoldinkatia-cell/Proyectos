@@ -189,11 +189,18 @@ export async function processDueFollowups(db) {
 const PUBLIC_CASE_FILTER_JOINED = PUBLIC_CASE_FILTER
   .replaceAll('estado', 'c.estado').replaceAll('localizado_en', 'c.localizado_en');
 
-// URLs de las fotos válidas de una pista; el índice es la posición en pistas.fotos.
+// Índices (desde 0) de las fotos con formato de imagen de una pista, calculados en
+// PostgreSQL para que los listados no lean ni envíen el base64. La validación
+// completa se hace al servir cada foto (sendCluePhoto).
+const CLUE_PHOTO_INDICES = `ARRAY(
+  SELECT i - 1 FROM generate_subscripts(p.fotos, 1) AS i
+  WHERE p.fotos[i] ~ '^data:image/(jpeg|png|webp);base64,'
+  ORDER BY i
+) AS fotos_indices`;
+
 function clueFotoUrls(row, administrator) {
   const base = `/api/${administrator ? 'admin/' : ''}pistas/${encodeURIComponent(row.id)}/fotos`;
-  return (row.fotos || []).flatMap((photo, index) =>
-    typeof photo === 'string' && IMAGE_DATA_URL.test(photo) ? [`${base}/${index}`] : []);
+  return (row.fotos_indices || []).map(index => `${base}/${index}`);
 }
 
 async function sendCluePhoto(db, req, res, administrator) {
@@ -307,7 +314,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, p.descripcion, p.fecha_hora_avistamiento,
-        p.latitud, p.longitud, p.direccion, p.fotos, p.fecha_envio,
+        p.latitud, p.longitud, p.direccion, ${CLUE_PHOTO_INDICES}, p.fecha_envio,
         COUNT(*) OVER() AS total_registros
       FROM pistas p JOIN casos c ON c.id = p.caso_id
       WHERE ${PUBLIC_CASE_FILTER_JOINED}
@@ -321,9 +328,6 @@ export function createCaseRouter({ db, jwtSecret }) {
       descripcion: row.descripcion,
       fechaHoraAvistamiento: row.fecha_hora_avistamiento,
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
-      // `fotos` (base64) se mantiene hasta que el frontend use `fotosUrl` (T17).
-      fotos: (row.fotos || []).filter(photo =>
-        typeof photo === 'string' && IMAGE_DATA_URL.test(photo)),
       fotosUrl: clueFotoUrls(row, false),
       fechaEnvio: row.fecha_envio
     })), rows, pagination));
@@ -336,7 +340,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, c.nombre_completo, p.descripcion, p.fecha_hora_avistamiento,
-        p.latitud, p.longitud, p.direccion, p.fotos, p.estado, p.fecha_envio,
+        p.latitud, p.longitud, p.direccion, ${CLUE_PHOTO_INDICES}, p.estado, p.fecha_envio,
         u.id AS autor_id, u.nombre_completo AS autor_nombre, u.correo AS autor_correo,
         COUNT(*) OVER() AS total_registros,
         (SELECT COALESCE(json_agg(json_build_object(
@@ -360,7 +364,6 @@ export function createCaseRouter({ db, jwtSecret }) {
       descripcion: row.descripcion,
       fechaHoraAvistamiento: row.fecha_hora_avistamiento,
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
-      fotos: row.fotos || [],
       fotosUrl: clueFotoUrls(row, true),
       estado: row.estado,
       // Solo para moderación: el público nunca recibe estos datos.

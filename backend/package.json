@@ -9,7 +9,7 @@
   "scripts": {
     "migrate:sqlite": "node migrate-sqlite.js",
     "start": "node server.js",
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "seed:demo": "node seed-demo.js"
   },
   "dependencies": {

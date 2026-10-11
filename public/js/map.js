@@ -34,7 +34,7 @@ export function initMainLeafletMap() {
               ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''} (${Number(c.edad)} años)<br>
               Fecha: ${new Date(c.fechaHoraDesaparicion).toLocaleDateString('es-PY')}<br>
               Estado: ${escapeHtml(c.estado)}<br>
-              <button aria-label="Ver ficha del caso" data-case-id="${escapeHtml(c.id)}" onclick="openCaseDetail(this.dataset.caseId)">Ver caso</button>
+              <button aria-label="Ver ficha del caso" data-case-id="${escapeHtml(c.id)}" data-on-click="openCaseDetail(this.dataset.caseId)">Ver caso</button>
             </div>
           `);
 

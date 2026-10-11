@@ -22,7 +22,7 @@ export function renderLeadCaseSelection() {
         <p>Paso 1 de 2 · Buscá el caso sobre el que viste algo.</p>
       </header>
       <label class="lead-search-field"><span class="sr-only">Buscar un caso</span>
-        <input type="search" id="leadCaseSearch" class="form-control" oninput="filterLeadCaseCards()" placeholder="Buscar por nombre, ciudad o señas particulares">
+        <input type="search" id="leadCaseSearch" class="form-control" data-on-input="filterLeadCaseCards()" placeholder="Buscar por nombre, ciudad o señas particulares">
       </label>
       <div id="leadCaseChoices" class="lead-case-choices">
         ${activeCases.map(c => {
@@ -31,7 +31,7 @@ export function renderLeadCaseSelection() {
           return `<article class="lead-case-choice" data-case-id="${escapeHtml(c.id)}" data-search="${escapeHtml([c.nombreCompleto, c.ciudad, c.departamento, c.descripcionFisica, c.senasParticulares].join(' ')).toLocaleLowerCase('es-PY')}">
             <div class="lead-case-avatar">${escapeHtml(initials)}</div>
             <div class="lead-case-info"><strong>${escapeHtml(c.nombreCompleto)}</strong><span>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</span><small>${escapeHtml(status)}</small></div>
-            <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
+            <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
           </article>`;
         }).join('')}
       </div>
@@ -59,12 +59,12 @@ export function renderLeadView(preCaseId) {
   return `
     <div class="lead-flow">
       <nav class="breadcrumbs" aria-label="Ruta de navegación">
-        <button type="button" onclick="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><button type="button" onclick="navigateTo('lead')">Generar pista</button><span aria-hidden="true">›</span><span>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</span>
+        <button type="button" data-on-click="navigateTo('feed')">Inicio</button><span aria-hidden="true">›</span><button type="button" data-on-click="navigateTo('lead')">Generar pista</button><span aria-hidden="true">›</span><span>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</span>
       </nav>
       <header class="page-heading">
         <span class="section-kicker">Paso 2 de 2 · Contanos qué viste.</span>
         <h1>Pista sobre ${escapeHtml(selectedCase.nombreCompleto)}</h1>
-        <button type="button" class="inline-detail-link" data-case-id="${escapeHtml(selectedCase.id)}" onclick="openCaseDetail(this.dataset.caseId)">Ver ficha del caso <span aria-hidden="true">›</span></button>
+        <button type="button" class="inline-detail-link" data-case-id="${escapeHtml(selectedCase.id)}" data-on-click="openCaseDetail(this.dataset.caseId)">Ver ficha del caso <span aria-hidden="true">›</span></button>
       </header>
       <article class="lead-selected-case">
         <div class="lead-case-avatar">${escapeHtml(selectedCase.nombreCompleto.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase())}</div>
@@ -74,7 +74,7 @@ export function renderLeadView(preCaseId) {
           <p>${escapeHtml(selectedCase.descripcionFisica)}</p>
         </div>
       </article>
-      <form onsubmit="handleLeadSubmit(event)" class="card lead-form">
+      <form data-on-submit="handleLeadSubmit(event)" class="card lead-form">
         <h2>Enviar una pista</h2>
         <p class="muted">Tu pista se publica de forma anónima. Solo la administración puede ver qué cuenta la envió.</p>
         <p class="notice notice-info">Si la pista se valida, su descripción, fotos y ubicación podrán mostrarse en la ficha; no solicitamos tus datos personales ni se muestran al público.</p>
@@ -85,7 +85,7 @@ export function renderLeadView(preCaseId) {
         </div>
         <div class="form-group">
           <label for="leadPhotos" class="lead-upload-zone"><span aria-hidden="true">▧</span><strong>Toca para sacar o subir fotos</strong><small>Hasta 3 imágenes JPG, PNG o WEBP</small></label>
-          <input type="file" id="leadPhotos" accept="image/jpeg,image/png,image/webp" capture="environment" multiple onchange="handleLeadPhotoSelection(event)" class="sr-only">
+          <input type="file" id="leadPhotos" accept="image/jpeg,image/png,image/webp" capture="environment" multiple data-on-change="handleLeadPhotoSelection(event)" class="sr-only">
           <div id="leadPhotoPreviews" class="lead-photo-previews"></div>
           <p id="leadPhotoError" class="hidden" role="alert"></p>
         </div>
@@ -102,10 +102,10 @@ export function renderLeadView(preCaseId) {
           <input type="hidden" id="leadlat" value="-25.2867">
           <input type="hidden" id="leadlng" value="-57.6333">
           <div class="lead-location-footer"><p id="leadCoordsText">Coordenadas aproximadas: -25.2867, -57.6333</p>
-            <button type="button" onclick="useBrowserLocation('leadlat', 'leadlng', estado.leadMarker, 'leadCoordsText')" class="btn btn-outline btn-sm">⌖ Usar mi ubicación</button>
+            <button type="button" data-on-click="useBrowserLocation('leadlat', 'leadlng', estado.leadMarker, 'leadCoordsText')" class="btn btn-outline btn-sm">⌖ Usar mi ubicación</button>
           </div>
         </div>
-        <div class="lead-form-actions"><button type="button" class="btn btn-outline" onclick="navigateTo('lead')">Volver a casos</button><button type="submit" class="btn btn-primary">Enviar una pista</button></div>
+        <div class="lead-form-actions"><button type="button" class="btn btn-outline" data-on-click="navigateTo('lead')">Volver a casos</button><button type="submit" class="btn btn-primary">Enviar una pista</button></div>
       </form>
     </div>
   `;
@@ -203,7 +203,7 @@ export function filterLeadCases() {
     return `<article class="lead-case-choice" data-case-id="${escapeHtml(c.id)}">
       <div class="lead-case-avatar">${escapeHtml(initials)}</div>
       <div class="lead-case-info"><strong>${escapeHtml(c.nombreCompleto)}</strong><span>${Number(c.edad)} años · ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</span><small>${c.estado === 'EN_SEGUIMIENTO' ? 'En seguimiento' : 'Búsqueda activa'}</small></div>
-      <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
+      <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="navigateTo('lead',{caseId:this.dataset.caseId})">Enviar pista <span aria-hidden="true">›</span></button>
     </article>`;
   }).join('');
   document.getElementById('leadCaseEmpty').classList.toggle('hidden', filtered.length > 0);

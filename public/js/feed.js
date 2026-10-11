@@ -48,8 +48,8 @@ export function renderFeedView(statistics = window.currentStatistics) {
           <h1 id="homeHeading">Rastreo PY</h1>
           <p class="hero-description">Un canal de difusión y ayuda colaborativa para encontrar personas desaparecidas en Paraguay. <strong>No reemplaza la denuncia policial</strong>: la complementa con alertas por zona, pistas ciudadanas con foto y ubicación, y un seguimiento automático de cada caso.</p>
           <div class="hero-actions">
-            <button type="button" onclick="navigateTo('report')" class="btn btn-primary">＋ Reportar persona desaparecida</button>
-            <button type="button" onclick="navigateTo('lead')" class="btn btn-outline">⌖ Generar pista</button>
+            <button type="button" data-on-click="navigateTo('report')" class="btn btn-primary">＋ Reportar persona desaparecida</button>
+            <button type="button" data-on-click="navigateTo('lead')" class="btn btn-outline">⌖ Generar pista</button>
             <a href="tel:911" class="btn btn-emergency">☎ 911</a>
           </div>
         </div>
@@ -59,7 +59,7 @@ export function renderFeedView(statistics = window.currentStatistics) {
       <section class="home-stats" aria-labelledby="homeStatsHeading">
         <div class="home-section-heading">
           <div><span class="section-kicker">Datos públicos</span><h2 id="homeStatsHeading">Estadísticas en tiempo real</h2></div>
-          <button type="button" class="section-link" onclick="navigateTo('stats')">Ver detalle <span aria-hidden="true">›</span></button>
+          <button type="button" class="section-link" data-on-click="navigateTo('stats')">Ver detalle <span aria-hidden="true">›</span></button>
         </div>
         <div class="home-stats-grid">
           <article class="metric-card"><span class="metric-icon">▤</span><strong id="metricTotal">${total}</strong><span>Casos registrados (validados)</span></article>
@@ -82,23 +82,23 @@ export function renderFeedView(statistics = window.currentStatistics) {
           </div>
         </div>
         <div class="feed-filters advanced-feed-filters">
-          <label class="filter-field"><span>Nombre, ciudad o seña</span><input type="search" id="feedSearch" class="form-control" oninput="filterFeedCases()" placeholder="Ej.: Lucía, Luque, mochila..." aria-label="Buscar por nombre, ciudad o seña"></label>
-          <label class="filter-field"><span>Estado</span><select id="feedStatus" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por estado">
+          <label class="filter-field"><span>Nombre, ciudad o seña</span><input type="search" id="feedSearch" class="form-control" data-on-input="filterFeedCases()" placeholder="Ej.: Lucía, Luque, mochila..." aria-label="Buscar por nombre, ciudad o seña"></label>
+          <label class="filter-field"><span>Estado</span><select id="feedStatus" class="form-control" data-on-change="filterFeedCases()" aria-label="Filtrar por estado">
             <option value="active">Búsqueda activa</option>
             <option value="localized24">Localizados (últimas 24 h)</option>
             <option value="all">Todos los publicados</option>
           </select></label>
-          <label class="filter-field"><span>Ciudad / zona (departamento)</span><select id="feedCity" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por ciudad o departamento">
+          <label class="filter-field"><span>Ciudad / zona (departamento)</span><select id="feedCity" class="form-control" data-on-change="filterFeedCases()" aria-label="Filtrar por ciudad o departamento">
             <option value="">Todos</option>${cityOptions}
           </select></label>
-          <label class="filter-field"><span>Edad</span><select id="feedAge" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por rango de edad">
+          <label class="filter-field"><span>Edad</span><select id="feedAge" class="form-control" data-on-change="filterFeedCases()" aria-label="Filtrar por rango de edad">
             <option value="all">Todas</option>
             <option value="minor">Menores de 18</option>
             <option value="adult">Adultos (18–64)</option>
             <option value="senior">65 o más</option>
           </select></label>
           <label class="filter-field"><span>Sexo</span>
-          <select id="feedSex" class="form-control" onchange="filterFeedCases()" aria-label="Filtrar por sexo">
+          <select id="feedSex" class="form-control" data-on-change="filterFeedCases()" aria-label="Filtrar por sexo">
             <option value="">Todos</option>
             <option value="Femenino">Femenino</option>
             <option value="Masculino">Masculino</option>
@@ -107,15 +107,15 @@ export function renderFeedView(statistics = window.currentStatistics) {
         </div>
         <div class="results-toolbar">
           <p class="results-count" id="caseListCount" aria-live="polite">0 resultados</p>
-          <button id="feedMapToggle" type="button" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="feedMapPanel" onclick="toggleFeedMap()">⌖ Mostrar mapa</button>
+          <button id="feedMapToggle" type="button" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="feedMapPanel" data-on-click="toggleFeedMap()">⌖ Mostrar mapa</button>
         </div>
 
       <div id="feedMapPanel" class="card home-map-card hidden">
         <div>
           <span>Mapa de desapariciones</span>
           <div>
-            <button onclick="useMyLocationOnMap()" class="btn btn-outline btn-sm">Mi ubicación</button>
-            <button onclick="centerMapOnParaguay()" class="btn btn-outline btn-sm">Centrar mapa</button>
+            <button data-on-click="useMyLocationOnMap()" class="btn btn-outline btn-sm">Mi ubicación</button>
+            <button data-on-click="centerMapOnParaguay()" class="btn btn-outline btn-sm">Centrar mapa</button>
           </div>
         </div>
         <div id="mainMap" class="map-container"></div>
@@ -160,9 +160,9 @@ export function renderFeedPage() {
         <div class="history-pagination" role="navigation" aria-label="Paginación de reportes">
           <span>Mostrando ${escapeHtml(String(fromItem))}–${escapeHtml(String(toItem))} de ${escapeHtml(String(estado.feedFilteredCases.length))} reportes</span>
           <div>
-            <button type="button" class="btn btn-outline btn-sm" onclick="changeFeedPage(${estado.feedCurrentPage - 1})" ${estado.feedCurrentPage <= 1 ? 'disabled' : ''} aria-label="Página anterior">« Anterior</button>
+            <button type="button" class="btn btn-outline btn-sm" data-on-click="changeFeedPage(${estado.feedCurrentPage - 1})" ${estado.feedCurrentPage <= 1 ? 'disabled' : ''} aria-label="Página anterior">« Anterior</button>
             <span class="pagination-current" aria-current="page">Página ${escapeHtml(String(estado.feedCurrentPage))} de ${escapeHtml(String(totalPages))}</span>
-            <button type="button" class="btn btn-outline btn-sm" onclick="changeFeedPage(${estado.feedCurrentPage + 1})" ${estado.feedCurrentPage >= totalPages ? 'disabled' : ''} aria-label="Página siguiente">Siguiente »</button>
+            <button type="button" class="btn btn-outline btn-sm" data-on-click="changeFeedPage(${estado.feedCurrentPage + 1})" ${estado.feedCurrentPage >= totalPages ? 'disabled' : ''} aria-label="Página siguiente">Siguiente »</button>
           </div>
         </div>
       `;
@@ -204,8 +204,8 @@ export function renderCaseItemRow(c) {
     <article id="case-${escapeHtml(c.id)}" class="case-row card"
       role="button" tabindex="0"
       aria-label="Ver ficha de ${escapeHtml(c.nombreCompleto)}"
-      onclick="openCaseDetail(this.dataset.caseId)"
-      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCaseDetail(this.dataset.caseId)}"
+      data-on-click="openCaseDetail(this.dataset.caseId)"
+      data-on-keydown="openCaseDetailWithKeyboard(event, this.dataset.caseId)"
       data-case-id="${escapeHtml(c.id)}"
       data-search="${escapeHtml([c.nombreCompleto, c.ciudad, c.departamento, c.descripcionFisica, c.vestimenta, c.senasParticulares].join(' '))}"
         data-city="${escapeHtml([c.ciudad, c.departamento].filter(Boolean).join(' · '))}"
@@ -321,8 +321,8 @@ export function openCaseDetail(caseId, options = {}) {
     ${approvedClues.length ? `<section class="public-clues"><h3>Pistas ciudadanas validadas</h3>${approvedClues.map(pista => `<article><p>${escapeHtml(pista.descripcion)}</p><small>${escapeHtml(new Date(pista.fechaHoraAvistamiento || pista.fechaEnvio).toLocaleString('es-PY'))}</small></article>`).join('')}${clueGallery ? `<div class="public-clue-photos">${clueGallery}</div>` : ''}</section>` : ''}
     <div class="case-detail-actions">
       <a class="btn btn-outline btn-sm" href="tel:911">Llamar al 911</a>
-      <button type="button" class="btn btn-outline btn-sm" onclick="shareCase('${escapeHtml(c.id)}')">Compartir ficha</button>
-      ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button type="button" class="btn btn-primary btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="closeCaseDetail({silent:true}); navigateTo('lead', {caseId:this.dataset.caseId}, {replace:true})">Enviar pista</button>` : ''}
+      <button type="button" class="btn btn-outline btn-sm" data-on-click="shareCase('${escapeHtml(c.id)}')">Compartir ficha</button>
+      ${c.estado !== 'LOCALIZADO' && c.estado !== 'CERRADO' && c.estado !== 'RECHAZADO' ? `<button type="button" class="btn btn-primary btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="closeCaseDetail({silent:true}); navigateTo('lead', {caseId:this.dataset.caseId}, {replace:true})">Enviar pista</button>` : ''}
     </div>
     <p class="muted">El contacto del reportante se mantiene restringido y no se publica en esta ficha.</p>
   `;
@@ -333,6 +333,13 @@ export function openCaseDetail(caseId, options = {}) {
 
 // silent: cerrar sin tocar el historial, para cuando justo despues se
 // navega a otra vista y esa navegacion es la que manda en la direccion.
+// Las filas de caso son role="button": Enter o espacio abren la ficha.
+export function openCaseDetailWithKeyboard(event, caseId) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  openCaseDetail(caseId);
+}
+
 export function closeCaseDetail(options = {}) {
   const modal = document.getElementById('caseDetailModal');
   const wasOpen = !modal.classList.contains('hidden');

@@ -179,10 +179,10 @@ export function renderStatsView(stats) {
       <section class="card stats-chart stats-live-chart" aria-labelledby="statsChartHeading">
         <h2 id="statsChartHeading">${chartTitle}</h2>
         <div class="filter-chips" role="group" aria-label="Vista de estadísticas en vivo">
-          <button class="filter-chip ${estado.activeStatsView === 'porMes' ? 'active' : ''}" onclick="setStatsView('porMes')" aria-label="Ver estadísticas por mes">Mes</button>
-          <button class="filter-chip ${estado.activeStatsView === 'porCiudad' ? 'active' : ''}" onclick="setStatsView('porCiudad')" aria-label="Ver estadísticas por ciudad">Ciudad</button>
-          <button class="filter-chip ${estado.activeStatsView === 'porSexo' ? 'active' : ''}" onclick="setStatsView('porSexo')" aria-label="Ver estadísticas por sexo">Sexo</button>
-          <button class="filter-chip ${estado.activeStatsView === 'porEdad' ? 'active' : ''}" onclick="setStatsView('porEdad')" aria-label="Ver estadísticas por edad">Edad</button>
+          <button class="filter-chip ${estado.activeStatsView === 'porMes' ? 'active' : ''}" data-on-click="setStatsView('porMes')" aria-label="Ver estadísticas por mes">Mes</button>
+          <button class="filter-chip ${estado.activeStatsView === 'porCiudad' ? 'active' : ''}" data-on-click="setStatsView('porCiudad')" aria-label="Ver estadísticas por ciudad">Ciudad</button>
+          <button class="filter-chip ${estado.activeStatsView === 'porSexo' ? 'active' : ''}" data-on-click="setStatsView('porSexo')" aria-label="Ver estadísticas por sexo">Sexo</button>
+          <button class="filter-chip ${estado.activeStatsView === 'porEdad' ? 'active' : ''}" data-on-click="setStatsView('porEdad')" aria-label="Ver estadísticas por edad">Edad</button>
         </div>
         <div class="chart-list">${chart}</div>
       </section>

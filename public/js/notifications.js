@@ -50,10 +50,10 @@ export async function renderNotifList() {
   container.innerHTML = store.notificaciones.map(n => renderNoticeItem(n,
       ['SEGUIMIENTO', 'SEGUIMIENTO_VENCIDO'].includes(n.tipo) && n.casoId ? `
         <div class="table-actions">
-          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
-          <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
-          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
-          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
+          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" data-on-click="respondToCaseFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
+          <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(n.casoId)}" data-on-click="respondToCaseFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
+          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" data-on-click="respondToCaseFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
+          <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" data-on-click="respondToCaseFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
         </div>` : '')).join('');
 }
 

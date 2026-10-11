@@ -16,62 +16,53 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <link rel="stylesheet" href="/styles.css">
-  <script>
-    // Aplica el tema guardado antes del primer pintado. Sin esto la página
-    // se dibuja en claro y recién después salta a oscuro: se ve un flash.
-    try {
-      const saved = localStorage.getItem('rastreo_theme');
-      if (saved === 'dark' || saved === 'light') document.documentElement.dataset.theme = saved;
-    } catch (error) {
-      /* Modo privado o almacenamiento bloqueado: se queda el tema claro por defecto. */
-    }
-  </script>
+  <script src="/js/tema-inicial.js"></script>
 </head>
 <body>
 
   <div class="app-container">
-    <button id="publicThemeToggle" class="public-theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
+    <button id="publicThemeToggle" class="public-theme-toggle" type="button" data-on-click="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
 
     <!-- BARRA PRINCIPAL DE NAVEGACIÓN -->
     <header id="topHeader" class="hidden">
       <div class="header-brand">
-        <button type="button" onclick="toggleDrawer(true)" class="menu-btn" aria-label="Abrir menú">
+        <button type="button" data-on-click="toggleDrawer(true)" class="menu-btn" aria-label="Abrir menú">
           <div class="hamburger-icon">
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
             <div class="hamburger-line"></div>
           </div>
         </button>
-        <button type="button" class="brand-title" onclick="navigateTo('home')" aria-label="Ir al inicio">Rastreo PY<span class="brand-subtitle">UNIDA · Ing. en Informática</span></button>
+        <button type="button" class="brand-title" data-on-click="navigateTo('home')" aria-label="Ir al inicio">Rastreo PY<span class="brand-subtitle">UNIDA · Ing. en Informática</span></button>
       </div>
       <nav class="main-nav" aria-label="Navegación principal">
-        <button type="button" data-nav-view="feed" onclick="navigateTo('home')"><span aria-hidden="true">⌂</span> Inicio</button>
-        <button type="button" data-hide-admin-nav data-nav-view="report" onclick="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
-        <button type="button" data-nav-view="lead" onclick="navigateTo('lead')"><span aria-hidden="true">⌖</span> Generar pista</button>
-        <button type="button" data-nav-view="alerts" onclick="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
-        <button type="button" data-nav-view="stats" onclick="navigateTo('stats')"><span aria-hidden="true">▥</span> Estadísticas</button>
-        <button type="button" data-role-nav="citizen" data-nav-view="my-cases" onclick="navigateTo('my-cases')"><span aria-hidden="true">▤</span> Mis casos</button>
-        <button type="button" data-role-nav="admin" data-nav-view="admin" onclick="navigateTo('admin')"><span aria-hidden="true">▦</span> Panel <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
+        <button type="button" data-nav-view="feed" data-on-click="navigateTo('home')"><span aria-hidden="true">⌂</span> Inicio</button>
+        <button type="button" data-hide-admin-nav data-nav-view="report" data-on-click="navigateTo('report')"><span aria-hidden="true">＋</span> <span id="reportNavLabel">Reportar</span></button>
+        <button type="button" data-nav-view="lead" data-on-click="navigateTo('lead')"><span aria-hidden="true">⌖</span> Generar pista</button>
+        <button type="button" data-nav-view="alerts" data-on-click="toggleNotificationsModal()"><span aria-hidden="true">♧</span> Alertas <span id="notifBadge" class="hidden">0</span></button>
+        <button type="button" data-nav-view="stats" data-on-click="navigateTo('stats')"><span aria-hidden="true">▥</span> Estadísticas</button>
+        <button type="button" data-role-nav="citizen" data-nav-view="my-cases" data-on-click="navigateTo('my-cases')"><span aria-hidden="true">▤</span> Mis casos</button>
+        <button type="button" data-role-nav="admin" data-nav-view="admin" data-on-click="navigateTo('admin')"><span aria-hidden="true">▦</span> Panel <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
       </nav>
       <div class="header-actions">
-        <button id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
-        <button type="button" class="header-notifications" onclick="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
-        <button type="button" id="headerProfile" class="header-profile hidden" onclick="toggleDrawer(true)" aria-label="Abrir menú de cuenta">
+        <button id="themeToggle" type="button" data-on-click="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
+        <button type="button" class="header-notifications" data-on-click="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
+        <button type="button" id="headerProfile" class="header-profile hidden" data-on-click="toggleDrawer(true)" aria-label="Abrir menú de cuenta">
           <span id="headerProfileAvatar" class="header-profile-avatar" aria-hidden="true"></span>
           <span class="header-profile-copy"><span id="headerProfileName"></span>
             <span id="headerProfileRole" class="role-badge role-badge-citizen">Ciudadano</span></span>
         </button>
-        <button id="headerAuthAction" class="header-auth-action" type="button" onclick="navigateTo('auth')">♙ Ingresar</button>
+        <button id="headerAuthAction" class="header-auth-action" type="button">♙ Ingresar</button>
       </div>
     </header>
 
     <!-- PANEL LATERAL (DRAWER) -->
-    <div id="drawerOverlay" onclick="toggleDrawer(false)" class="drawer-overlay hidden"></div>
+    <div id="drawerOverlay" data-on-click="toggleDrawer(false)" class="drawer-overlay hidden"></div>
     <aside id="drawer" class="drawer" aria-label="Menú principal">
       <div>
         <div class="drawer-header">
           <span>Rastreo PY</span>
-          <button type="button" onclick="toggleDrawer(false)" aria-label="Cerrar menú">Cerrar</button>
+          <button type="button" data-on-click="toggleDrawer(false)" aria-label="Cerrar menú">Cerrar</button>
         </div>
         
         <!-- Oculto hasta que haya sesión: antes mostraba "Usuario / CIUDADANO"
@@ -86,21 +77,21 @@
              queda marcando una sección donde ya no estás. El texto de cada ítem
              coincide con el <h1> de su vista. -->
         <nav class="drawer-navigation" aria-label="Secciones">
-          <button type="button" data-nav-view="feed" onclick="drawerNavigate('feed')" class="drawer-item">Inicio</button>
-          <button type="button" data-hide-admin-nav data-nav-view="report" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
-          <button type="button" data-nav-view="lead" onclick="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
-          <button type="button" data-nav-view="alerts" onclick="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
-          <button type="button" data-nav-view="stats" onclick="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
-          <button type="button" data-role-nav="citizen" data-nav-view="my-cases" onclick="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
-          <button type="button" data-role-nav="admin" data-nav-view="admin" onclick="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
+          <button type="button" data-nav-view="feed" data-on-click="drawerNavigate('feed')" class="drawer-item">Inicio</button>
+          <button type="button" data-hide-admin-nav data-nav-view="report" data-on-click="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
+          <button type="button" data-nav-view="lead" data-on-click="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
+          <button type="button" data-nav-view="alerts" data-on-click="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
+          <button type="button" data-nav-view="stats" data-on-click="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
+          <button type="button" data-role-nav="citizen" data-nav-view="my-cases" data-on-click="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
+          <button type="button" data-role-nav="admin" data-nav-view="admin" data-on-click="drawerNavigate('admin')" class="drawer-item">Panel de administración</button>
         </nav>
       </div>
 
       <div class="drawer-account">
         <p class="drawer-section-label">Cuenta y avisos</p>
-        <button type="button" onclick="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
-        <button id="simulateFollowupButton" onclick="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
-        <button onclick="logout()" class="btn btn-red">Cerrar sesión</button>
+        <button type="button" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
+        <button id="simulateFollowupButton" data-on-click="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
+        <button data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
     </aside>
 
@@ -121,7 +112,7 @@
       <p id="toastTitle">Notificación</p>
       <p id="toastMessage">Mensaje de sistema</p>
     </div>
-    <button onclick="hideToast()">Cerrar</button>
+    <button data-on-click="hideToast()">Cerrar</button>
   </div>
 
   <!-- MODAL DE CENTRO DE NOTIFICACIONES -->
@@ -129,14 +120,14 @@
     <div role="dialog" aria-modal="true" aria-labelledby="notifModalTitle">
       <div class="modal-header">
         <span id="notifModalTitle">Centro de notificaciones</span>
-        <button type="button" class="btn btn-outline btn-sm" onclick="enableSystemNotifications()">Activar avisos</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="enableSystemNotifications()">Activar avisos</button>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
       </div>
       <div id="notifList">
         <!-- Lista de notificaciones -->
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary btn-sm" onclick="clearNotifs()">Marcar todas como leídas</button>
+        <button type="button" class="btn btn-primary btn-sm" data-on-click="clearNotifs()">Marcar todas como leídas</button>
       </div>
     </div>
   </div>
@@ -146,22 +137,22 @@
     <div role="dialog" aria-modal="true" aria-labelledby="simTimeModalTitle">
       <div class="modal-header">
         <span id="simTimeModalTitle">Simulador de seguimiento</span>
-        <button type="button" class="btn btn-outline btn-sm" onclick="toggleSimulateTimeModal()">Cerrar</button>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleSimulateTimeModal()">Cerrar</button>
       </div>
       <p class="modal-body">Acción de demostración para administradores: fuerza el vencimiento del seguimiento de todos los casos activos y puede generar avisos y cambios de estado. No la use con registros reales.</p>
-      <div class="modal-footer"><button type="button" onclick="runTimeFastForward()" class="btn btn-primary btn-sm">Simular avance de 48 horas</button></div>
+      <div class="modal-footer"><button type="button" data-on-click="runTimeFastForward()" class="btn btn-primary btn-sm">Simular avance de 48 horas</button></div>
     </div>
   </div>
 
   <div id="caseDetailModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="caseDetailTitle">
     <section class="card">
-      <button type="button" class="btn btn-outline btn-sm" onclick="closeCaseDetail()">Cerrar</button>
+      <button type="button" class="btn btn-outline btn-sm" data-on-click="closeCaseDetail()">Cerrar</button>
       <div id="caseDetailContent"></div>
     </section>
   </div>
 
   <div id="reviewChecklistModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="reviewChecklistTitle">
-    <form id="reviewChecklistForm" class="card review-checklist" onsubmit="submitCaseReview(event)">
+    <form id="reviewChecklistForm" class="card review-checklist" data-on-submit="submitCaseReview(event)">
       <h2 id="reviewChecklistTitle">Lista de validación obligatoria</h2>
       <p>Confirme cada punto antes de publicar el caso.</p>
       <div id="reviewCaseDetails" class="review-case-details"></div>
@@ -172,7 +163,7 @@
       <label for="reviewDenuncia">Número oficial de denuncia</label>
       <input id="reviewDenuncia" name="numeroDenuncia" class="form-control" required>
       <div class="case-detail-actions">
-        <button type="button" class="btn btn-outline btn-sm" onclick="closeReviewChecklist()">Cancelar</button>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="closeReviewChecklist()">Cancelar</button>
         <button type="submit" class="btn btn-primary btn-sm">Validar y publicar</button>
       </div>
     </form>

@@ -27,13 +27,13 @@ export function renderAdminView(history, clues = [], audit = []) {
       </div>
 
       <nav class="admin-tabs" aria-label="Secciones del administrador">
-        <button class="admin-tab active" data-admin-tab="overview" onclick="selectAdminTab('overview', this)">Resumen</button>
-        <button class="admin-tab" data-admin-tab="validation" onclick="selectAdminTab('validation', this)">Bandeja de validación ${pending.length ? `<span class="tab-count">${pending.length}</span>` : ''}</button>
-        <button class="admin-tab" data-admin-tab="cases" onclick="selectAdminTab('cases', this)">Casos</button>
-        <button class="admin-tab" data-admin-tab="followup" onclick="selectAdminTab('followup', this)">Seguimiento ${staleCases.length ? `<span class="tab-count">${staleCases.length}</span>` : ''}</button>
-        <button class="admin-tab" data-admin-tab="clues" onclick="selectAdminTab('clues', this)">Pistas ${pendingClues.length ? `<span class="tab-count">${pendingClues.length}</span>` : ''}</button>
-        <button class="admin-tab" data-admin-tab="audit" onclick="selectAdminTab('audit', this)">Auditoría</button>
-        <button class="admin-tab" data-admin-tab="history" onclick="selectAdminTab('history', this)">Historial</button>
+        <button class="admin-tab active" data-admin-tab="overview" data-on-click="selectAdminTab('overview', this)">Resumen</button>
+        <button class="admin-tab" data-admin-tab="validation" data-on-click="selectAdminTab('validation', this)">Bandeja de validación ${pending.length ? `<span class="tab-count">${pending.length}</span>` : ''}</button>
+        <button class="admin-tab" data-admin-tab="cases" data-on-click="selectAdminTab('cases', this)">Casos</button>
+        <button class="admin-tab" data-admin-tab="followup" data-on-click="selectAdminTab('followup', this)">Seguimiento ${staleCases.length ? `<span class="tab-count">${staleCases.length}</span>` : ''}</button>
+        <button class="admin-tab" data-admin-tab="clues" data-on-click="selectAdminTab('clues', this)">Pistas ${pendingClues.length ? `<span class="tab-count">${pendingClues.length}</span>` : ''}</button>
+        <button class="admin-tab" data-admin-tab="audit" data-on-click="selectAdminTab('audit', this)">Auditoría</button>
+        <button class="admin-tab" data-admin-tab="history" data-on-click="selectAdminTab('history', this)">Historial</button>
       </nav>
 
       <section class="admin-tab-panel admin-overview-panel" data-admin-panel="overview">
@@ -52,7 +52,7 @@ export function renderAdminView(history, clues = [], audit = []) {
             const validation = isPending ? 'Sin validar' : 'Seguimiento vencido';
             return `<article class="priority-case-row"><div><strong>${escapeHtml(c.nombreCompleto)}</strong>
               <span>${escapeHtml(c.ciudad)} · ${escapeHtml(tag)} · ${escapeHtml(validation)}</span></div>
-              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="adminOpenCase(this.dataset.caseId, '${isPending ? 'validation' : 'followup'}')">Abrir</button></article>`;
+              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="adminOpenCase(this.dataset.caseId, '${isPending ? 'validation' : 'followup'}')">Abrir</button></article>`;
           }).join('')}</div>` : '<div class="empty-state"><h3>Todo al día</h3><p>No hay casos que requieran atención inmediata.</p></div>'}
         </section>
       </section>
@@ -67,9 +67,9 @@ export function renderAdminView(history, clues = [], audit = []) {
             <td data-label="Validación"><span class="validation-state">Sin validar</span></td>
             <td data-label="Reportado">${timeSince(c.fechaCreacion)}</td>
             <td data-label="Acciones"><div class="table-actions">
-              <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminAccept(this.dataset.caseId)" class="btn btn-outline btn-sm">Abrir</button>
-              <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminAccept(this.dataset.caseId)" class="btn btn-primary btn-sm">Validar y publicar</button>
-              <button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReject(this.dataset.caseId)" class="btn btn-danger btn-sm">Rechazar</button>
+              <button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminAccept(this.dataset.caseId)" class="btn btn-outline btn-sm">Abrir</button>
+              <button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminAccept(this.dataset.caseId)" class="btn btn-primary btn-sm">Validar y publicar</button>
+              <button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminReject(this.dataset.caseId)" class="btn btn-danger btn-sm">Rechazar</button>
             </div></td>
           </tr>`).join('')}
         </tbody></table></div>` : '<div class="empty-state"><h3>Sin pendientes</h3><p>No hay reportes pendientes de revisión en este momento.</p></div>'}
@@ -84,9 +84,9 @@ export function renderAdminView(history, clues = [], audit = []) {
             <td data-label="Denuncia">${escapeHtml(c.numeroDenuncia || 'Sin registrar')}</td>
             <td data-label="Estado"><span class="status-tag status-${escapeHtml(c.estado)}">${escapeHtml(statusLabel(c.estado))}</span></td>
             <td data-label="Acciones"><div class="table-actions">
-              ${!['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminMarkLocated(this.dataset.caseId)" class="btn btn-primary btn-sm">Marcar localizado</button><button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminCloseCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Cerrar caso</button>` : ''}
-              ${c.estado !== 'PENDIENTE' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReturnToReview(this.dataset.caseId)" class="btn btn-outline btn-sm">${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? 'Reabrir en revisión' : 'Devolver a revisión'}</button>` : ''}
-              ${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) && c.estado !== 'RECHAZADO' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" onclick="adminReopenCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Reabrir búsqueda</button>` : ''}
+              ${!['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? `<button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminMarkLocated(this.dataset.caseId)" class="btn btn-primary btn-sm">Marcar localizado</button><button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminCloseCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Cerrar caso</button>` : ''}
+              ${c.estado !== 'PENDIENTE' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminReturnToReview(this.dataset.caseId)" class="btn btn-outline btn-sm">${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) ? 'Reabrir en revisión' : 'Devolver a revisión'}</button>` : ''}
+              ${['CERRADO', 'LOCALIZADO', 'RECHAZADO'].includes(c.estado) && c.estado !== 'RECHAZADO' ? `<button type="button" data-case-id="${escapeHtml(c.id)}" data-on-click="adminReopenCase(this.dataset.caseId)" class="btn btn-outline btn-sm">Reabrir búsqueda</button>` : ''}
             </div></td>
           </tr>`).join('')}
         </tbody></table></div>` : '<div class="empty-state"><h3>Sin casos</h3><p>No hay casos para administrar.</p></div>'}
@@ -94,7 +94,7 @@ export function renderAdminView(history, clues = [], audit = []) {
 
       <section class="admin-tab-panel card hidden" data-admin-panel="history" aria-labelledby="locatedHistoryHeading">
         <h2 id="locatedHistoryHeading">Historial de casos localizados</h2>
-        <form onsubmit="searchAdminHistory(event)" class="grid-3">
+        <form data-on-submit="searchAdminHistory(event)" class="grid-3">
           <input id="historySearch" type="search" class="form-control" placeholder="Nombre o ciudad" aria-label="Buscar por nombre o ciudad">
           <input id="historyFrom" type="date" class="form-control" aria-label="Desde">
           <input id="historyTo" type="date" class="form-control" aria-label="Hasta">
@@ -146,8 +146,8 @@ export function renderAdminView(history, clues = [], audit = []) {
               <span class="status-tag status-${escapeHtml(clue.estado)}">${escapeHtml(clue.estado)}</span>
               ${(clue.cambiosEstado || []).map(change => `<p class="muted">${escapeHtml(change.estadoAnterior || 'Nueva')} → ${escapeHtml(change.estadoNuevo)} · ${escapeHtml(change.administrador || 'Administrador')} · ${new Date(change.cambiadoEn).toLocaleString('es-PY')}${change.motivo ? ` · ${escapeHtml(change.motivo)}` : ''}</p>`).join('')}
               ${clue.estado === 'PENDIENTE' ? `<div class="table-actions">
-                <button type="button" data-clue-id="${escapeHtml(clue.id)}" onclick="adminModerateClue(this.dataset.clueId, 'VALIDADA')" class="btn btn-success btn-sm">Aprobar pista</button>
-                <button type="button" data-clue-id="${escapeHtml(clue.id)}" onclick="adminModerateClue(this.dataset.clueId, 'RECHAZADA')" class="btn btn-danger btn-sm">Rechazar pista</button>
+                <button type="button" data-clue-id="${escapeHtml(clue.id)}" data-on-click="adminModerateClue(this.dataset.clueId, 'VALIDADA')" class="btn btn-success btn-sm">Aprobar pista</button>
+                <button type="button" data-clue-id="${escapeHtml(clue.id)}" data-on-click="adminModerateClue(this.dataset.clueId, 'RECHAZADA')" class="btn btn-danger btn-sm">Rechazar pista</button>
               </div>` : ''}
             </td>
           </tr>`).join('')}
@@ -163,7 +163,7 @@ export function adminOpenCase(caseId, panel) {
     return;
   }
   const tab = Array.from(document.querySelectorAll('.admin-tab'))
-    .find(item => item.getAttribute('onclick')?.includes("'followup'"));
+    .find(item => item.getAttribute('data-on-click')?.includes("'followup'"));
   selectAdminTab('followup', tab);
   document.getElementById(`followup-case-${caseId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -218,8 +218,8 @@ export function renderAdminHistory(history) {
   <div class="history-pagination">
     <span>Página ${history.pagina}, ${history.total} casos</span>
     <div>
-      <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina - 1})" ${history.pagina <= 1 ? 'disabled' : ''}>Anterior</button>
-      <button class="btn btn-outline btn-sm" onclick="loadAdminHistory(${history.pagina + 1})" ${history.pagina * history.limite >= history.total ? 'disabled' : ''}>Siguiente</button>
+      <button class="btn btn-outline btn-sm" data-on-click="loadAdminHistory(${history.pagina - 1})" ${history.pagina <= 1 ? 'disabled' : ''}>Anterior</button>
+      <button class="btn btn-outline btn-sm" data-on-click="loadAdminHistory(${history.pagina + 1})" ${history.pagina * history.limite >= history.total ? 'disabled' : ''}>Siguiente</button>
     </div>
   </div>`;
 }

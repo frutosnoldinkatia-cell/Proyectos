@@ -74,11 +74,11 @@ export function renderLegalTerms() {
         </label>
         <div id="termsSaveError" class="hidden" role="alert">
           <span id="termsSaveErrorText"></span>
-          <button type="button" onclick="retryTermsAcceptance()" class="btn btn-outline btn-sm">Reintentar</button>
+          <button type="button" data-on-click="retryTermsAcceptance()" class="btn btn-outline btn-sm">Reintentar</button>
         </div>
         <div class="grid-2">
-          <button onclick="rejectTerms()" class="btn btn-outline">No aceptar</button>
-          <button id="acceptTermsButton" onclick="acceptTerms()" class="btn btn-red">Aceptar y Continuar</button>
+          <button data-on-click="rejectTerms()" class="btn btn-outline">No aceptar</button>
+          <button id="acceptTermsButton" data-on-click="acceptTerms()" class="btn btn-red">Aceptar y Continuar</button>
         </div>
       </div>
     </div>
@@ -135,8 +135,8 @@ export function renderAuthScreen(mode = 'login', identifier = '') {
       </div>
 
       <div class="auth-tabs">
-        <button class="${isLogin ? 'active' : ''}" onclick="navigateTo('auth', {authMode: 'login'})">Iniciar sesión</button>
-        <button class="${isLogin ? '' : 'active'}" onclick="navigateTo('auth', {authMode: 'register'})">Crear cuenta</button>
+        <button class="${isLogin ? 'active' : ''}" data-on-click="navigateTo('auth', {authMode: 'login'})">Iniciar sesión</button>
+        <button class="${isLogin ? '' : 'active'}" data-on-click="navigateTo('auth', {authMode: 'register'})">Crear cuenta</button>
       </div>
 
       <div class="card auth-panel">
@@ -149,7 +149,7 @@ export function renderAuthScreen(mode = 'login', identifier = '') {
 
 export function renderLoginForm(identifier = '') {
   return `
-    <form onsubmit="handleLogin(event)">
+    <form data-on-submit="handleLogin(event)">
       <div class="form-group">
         <label>Correo Gmail</label>
         <input type="email" id="loginEmail" required value="${escapeHtml(identifier.includes('@') ? identifier : '')}" placeholder="usuario@gmail.com" class="form-control">
@@ -158,11 +158,11 @@ export function renderLoginForm(identifier = '') {
         <label>Contraseña</label>
         <div>
           <input type="password" id="loginPassword" required placeholder="Contraseña" class="form-control">
-          <button type="button" onclick="togglePass('loginPassword')">Mostrar</button>
+          <button type="button" data-on-click="togglePass('loginPassword')">Mostrar</button>
         </div>
       </div>
       <div>
-        <button type="button" onclick="handleForgotPassword()">¿Olvidaste tu contraseña?</button>
+        <button type="button" data-on-click="handleForgotPassword()">¿Olvidaste tu contraseña?</button>
       </div>
       <button type="submit" class="btn btn-primary">Ingresar al sistema</button>
     </form>
@@ -171,7 +171,7 @@ export function renderLoginForm(identifier = '') {
 
 export function renderRegisterForm() {
   return `
-    <form onsubmit="handleRegister(event)">
+    <form data-on-submit="handleRegister(event)">
       <div class="form-group">
         <label>Nombre Completo</label>
         <input type="text" id="regName" required minlength="3" value="${escapeHtml(estado.pendingRegistration?.nombre_completo || '')}" placeholder="Ej: Juan Pérez" class="form-control">
@@ -183,8 +183,8 @@ export function renderRegisterForm() {
       <div class="form-group">
         <label>Contraseña (mínimo 8 caracteres)</label>
         <div>
-          <input type="password" id="regPass" required minlength="8" oninput="updatePasswordStrength()" placeholder="Mínimo 8 caracteres" class="form-control">
-          <button type="button" onclick="togglePass('regPass')">Mostrar</button>
+          <input type="password" id="regPass" required minlength="8" data-on-input="updatePasswordStrength()" placeholder="Mínimo 8 caracteres" class="form-control">
+          <button type="button" data-on-click="togglePass('regPass')">Mostrar</button>
         </div>
         <div id="passwordStrength" aria-live="polite">Fortaleza de la contraseña: sin evaluar</div>
       </div>
@@ -192,7 +192,7 @@ export function renderRegisterForm() {
         <label>Confirmar contraseña</label>
         <div>
           <input type="password" id="regPassConfirm" required minlength="8" placeholder="Repita la contraseña" class="form-control">
-          <button type="button" onclick="togglePass('regPassConfirm')">Mostrar</button>
+          <button type="button" data-on-click="togglePass('regPassConfirm')">Mostrar</button>
         </div>
       </div>
       <label>
@@ -351,10 +351,10 @@ export function renderOTPView(params) {
         <input type="text" id="otpInput" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" aria-label="Código de 6 dígitos" class="form-control">
         ${isReset ? `<div class="form-group"><label>Nueva contraseña</label><input id="resetPassword" type="password" minlength="8" class="form-control" placeholder="Mínimo 8 caracteres"></div><div class="form-group"><label>Confirmar contraseña</label><input id="resetPasswordConfirm" type="password" minlength="8" class="form-control" placeholder="Repita la contraseña"></div>` : ''}
         <div id="otpFeedback" class="hidden" role="status"></div>
-        <button onclick="verifyEmailCode()" class="btn btn-primary">${isReset ? 'Cambiar contraseña' : 'Verificar y crear cuenta'}</button>
-        <button id="resendCodeButton" onclick="resendVerificationCode()" class="btn btn-outline" ${estado.resendSeconds > 0 ? 'disabled' : ''}>${estado.resendSeconds > 0 ? `Reenviar código (${estado.resendSeconds}s)` : 'Reenviar código'}</button>
-        ${!isReset ? `<button onclick="changeRegistrationEmail()" class="btn btn-outline">Cambiar correo</button>` : ''}
-        <button onclick="navigateTo('auth', {authMode:'login'})" class="btn btn-outline">Volver a iniciar sesión</button>
+        <button data-on-click="verifyEmailCode()" class="btn btn-primary">${isReset ? 'Cambiar contraseña' : 'Verificar y crear cuenta'}</button>
+        <button id="resendCodeButton" data-on-click="resendVerificationCode()" class="btn btn-outline" ${estado.resendSeconds > 0 ? 'disabled' : ''}>${estado.resendSeconds > 0 ? `Reenviar código (${estado.resendSeconds}s)` : 'Reenviar código'}</button>
+        ${!isReset ? `<button data-on-click="changeRegistrationEmail()" class="btn btn-outline">Cambiar correo</button>` : ''}
+        <button data-on-click="navigateTo('auth', {authMode:'login'})" class="btn btn-outline">Volver a iniciar sesión</button>
       </div>
     </div>
   `;

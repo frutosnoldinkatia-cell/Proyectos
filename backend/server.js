@@ -26,8 +26,10 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
-        scriptSrcAttr: ["'unsafe-inline'"],
+        // Sin 'unsafe-inline': el JS vive en public/js/ y los eventos usan
+        // data-on-*="..." (public/js/eventos.js), no on*="...".
+        scriptSrc: ["'self'", 'https://unpkg.com'],
+        scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
         styleSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://unpkg.com', 'https://images.unsplash.com', 'https://tile.openstreetmap.org'],

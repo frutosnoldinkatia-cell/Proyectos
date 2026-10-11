@@ -326,7 +326,7 @@ export async function navigateTo(view, params = {}, options = {}) {
         <h1>No se pudo cargar el panel</h1>
         <p>${escapeHtml(statusDescription)}</p>
         <p class="muted">Ruta consultada: ${escapeHtml(error.endpoint || `${API_BASE}/admin/casos`)}</p>
-        <button type="button" class="btn btn-primary" onclick="navigateTo('admin')">Reintentar</button>
+        <button type="button" class="btn btn-primary" data-on-click="navigateTo('admin')">Reintentar</button>
       </section>`;
       labelButtons(main);
       return;
@@ -400,7 +400,7 @@ export async function navigateTo(view, params = {}, options = {}) {
 
 export function drawerNavigate(view) {
   document.querySelectorAll('.drawer-item').forEach(item => item.classList.remove('active'));
-  document.querySelector(`.drawer-item[onclick="drawerNavigate('${view}')"]`)?.classList.add('active');
+  document.querySelector(`.drawer-item[data-on-click="drawerNavigate('${view}')"]`)?.classList.add('active');
   navigateTo(view);
 }
 
@@ -442,7 +442,7 @@ export function renderAccessView(targetView) {
         <p class="section-kicker">Acceso ciudadano</p>
         <h1>${escapeHtml(info.titulo)}</h1>
         <p>${escapeHtml(info.motivo)}</p>
-        <button type="button" class="btn btn-primary" onclick="navigateTo('auth')">Ingresar / Crear cuenta</button>
+        <button type="button" class="btn btn-primary" data-on-click="navigateTo('auth')">Ingresar / Crear cuenta</button>
       </section>
     </div>
   `;

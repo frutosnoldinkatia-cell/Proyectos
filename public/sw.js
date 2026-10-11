@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rastreopy-shell-v3';
+const CACHE_NAME = 'rastreopy-shell-v4';
 const APP_SHELL = [
   '/',
   '/styles.css',
@@ -20,6 +20,8 @@ const APP_SHELL = [
   '/js/my-cases.js',
   '/js/admin.js',
   '/js/notifications.js',
+  '/js/eventos.js',
+  '/js/tema-inicial.js',
   '/js/app.js'
 ];
 

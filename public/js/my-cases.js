@@ -15,7 +15,7 @@ export function renderMyCasesView(cases, notifications) {
       <div class="account-view-heading">
         <div><span class="section-kicker">Área ciudadana</span><h1>Mis casos</h1>
           <p>Consultá el estado de tus reportes y respondé los avisos de seguimiento.</p></div>
-        <button type="button" class="btn btn-primary" onclick="navigateTo('report')">＋ Nuevo reporte</button>
+        <button type="button" class="btn btn-primary" data-on-click="navigateTo('report')">＋ Nuevo reporte</button>
       </div>
       <div class="my-cases-layout">
         <section class="card my-cases-list" aria-labelledby="myCasesHeading">
@@ -30,10 +30,10 @@ export function renderMyCasesView(cases, notifications) {
               ${c.estado === 'PENDIENTE' ? '<p class="my-case-notice">Tu reporte está en revisión. Recibirás un aviso cuando se actualice.</p>' : ''}
               ${c.estado === 'RECHAZADO' ? `<p class="my-case-notice">${escapeHtml(c.motivoRechazo || 'El reporte no fue aprobado. Contactá a soporte para más información.')}</p>` : ''}
               ${needsResponse ? `<div class="my-case-actions table-actions">
-                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
-                <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
-                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
-                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
+                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="respondToFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
+                <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="respondToFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
+                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="respondToFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
+                <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" data-on-click="respondToFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
               </div>` : ''}
             </article>`;
           }).join('') : '<div class="empty-state"><h3>Aún no registraste casos</h3><p>Tus reportes aparecerán aquí para que puedas consultar su estado.</p></div>'}
@@ -41,7 +41,7 @@ export function renderMyCasesView(cases, notifications) {
         <aside class="card system-notices" aria-labelledby="systemNoticesHeading">
           <h2 id="systemNoticesHeading">Avisos</h2>
           ${relevantNotifications.length ? `<div class="notif-list">${relevantNotifications.map(notice => renderNoticeItem(notice)).join('')}</div>` : '<div class="notif-empty"><strong>Todo al día</strong><p>No tenés avisos por ahora.</p></div>'}
-          <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotificationsModal()">Abrir centro de avisos</button>
+          <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleNotificationsModal()">Abrir centro de avisos</button>
         </aside>
       </div>
     </section>`;

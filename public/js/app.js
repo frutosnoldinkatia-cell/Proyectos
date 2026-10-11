@@ -3,9 +3,8 @@
 import { adminAccept, adminCloseCase, adminMarkLocated, adminModerateClue, adminOpenCase, adminReject, adminReopenCase, adminReturnToReview, closeReviewChecklist, loadAdminHistory, loadAdminHistoryPhotos, runTimeFastForward, searchAdminHistory, selectAdminTab, submitCaseReview } from './admin.js';
 import { apiRequest } from './api.js';
 import { acceptTerms, changeRegistrationEmail, handleForgotPassword, handleLogin, handleRegister, logout, rejectTerms, resendVerificationCode, retryTermsAcceptance, togglePass, updatePasswordStrength, verifyEmailCode } from './auth.js';
-import { API_BASE, DB_KEY, escapeHtml } from './config.js';
-import { estado } from './estado.js';
-import { changeFeedPage, closeCaseDetail, filterFeedCases, openCaseDetail, setFeedView, shareCase, toggleFeedMap } from './feed.js';
+import { changeFeedPage, closeCaseDetail, filterFeedCases, openCaseDetail, openCaseDetailWithKeyboard, setFeedView, shareCase, toggleFeedMap } from './feed.js';
+import { iniciarEventos } from './eventos.js';
 import { clearLeadPhotoSelection, filterLeadCaseCards, filterLeadCases, handleLeadPhotoSelection, handleLeadSubmit } from './lead.js';
 import { centerMapOnParaguay, focusCaseOnMap, useMyLocationOnMap, viewCaseOnFeed } from './map.js';
 import { respondToFollowup } from './my-cases.js';
@@ -13,28 +12,7 @@ import { clearNotifs, enableSystemNotifications, respondToCaseFollowup, toggleNo
 import { centerReportMapOnSelection, handleReportPhotoSelection, handleReportSubmit, onReportCityChange, onReportDepartmentChange, removeReportPhoto, updateMinorAuthorization, useBrowserLocation } from './report.js';
 import { applyCurrentRoute, drawerNavigate, navigateTo } from './router.js';
 import { setStatsView } from './stats.js';
-import { getStore, saveStore } from './store.js';
-import { NOTICE_TONES, applyTheme, formatRelativeTime, hideToast, labelButtons, showToast, toggleDrawer, toggleSimulateTimeModal, toggleTheme } from './ui.js';
-
-// Puente window (sección 1): utilidades usadas desde handlers on*="...".
-Object.assign(window, {
-  estado,
-  DB_KEY,
-  API_BASE,
-  escapeHtml,
-  apiRequest,
-  getStore,
-  saveStore,
-  showToast,
-  hideToast,
-  applyTheme,
-  toggleTheme,
-  labelButtons,
-  toggleDrawer,
-  toggleSimulateTimeModal,
-  formatRelativeTime,
-  NOTICE_TONES
-});
+import { applyTheme, hideToast, labelButtons, openFilePicker, showToast, toggleDrawer, toggleSimulateTimeModal, toggleTheme } from './ui.js';
 
 window.backendCurrentUser = null;
 
@@ -45,8 +23,16 @@ window.addEventListener('popstate', () => { applyCurrentRoute(); });
 
 window.addEventListener('hashchange', () => { applyCurrentRoute(); });
 
-// Exponer funciones restantes a window para que los controladores inline HTML sigan funcionando
-Object.assign(window, {
+// Acciones que se pueden invocar desde data-on-<evento>="..." en el HTML (ver
+// eventos.js). Toda función usada en esos atributos tiene que estar acá; el test
+// backend/test/frontend-handlers.test.js lo verifica.
+export const acciones = {
+  hideToast,
+  toggleTheme,
+  toggleDrawer,
+  toggleSimulateTimeModal,
+  openFilePicker,
+  openCaseDetailWithKeyboard,
   navigateTo,
   drawerNavigate,
   toggleNotificationsModal,
@@ -106,7 +92,9 @@ Object.assign(window, {
   searchAdminHistory,
   loadAdminHistoryPhotos,
   shareCase
-});
+};
+
+iniciarEventos(acciones);
 
 async function initApp() {
   try {

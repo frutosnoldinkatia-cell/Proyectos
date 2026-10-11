@@ -14,7 +14,7 @@ export function renderReportView() {
         <p>Completá los datos de la persona. El reporte pasa por validación antes de publicarse.</p>
       </header>
 
-      <form onsubmit="handleReportSubmit(event)" class="card">
+      <form data-on-submit="handleReportSubmit(event)" class="card">
         <div class="form-group">
           <label>Nombre Completo *</label>
           <input type="text" id="repNombre" required placeholder="Nombre y apellido de la persona" class="form-control">
@@ -23,7 +23,7 @@ export function renderReportView() {
         <div class="grid-2">
           <div class="form-group">
             <label>Edad *</label>
-            <input type="number" id="repEdad" required min="0" max="120" oninput="updateMinorAuthorization()" placeholder="Años" class="form-control">
+            <input type="number" id="repEdad" required min="0" max="120" data-on-input="updateMinorAuthorization()" placeholder="Años" class="form-control">
           </div>
           <div class="form-group">
             <label>Sexo *</label>
@@ -38,19 +38,19 @@ export function renderReportView() {
         <div class="grid-3 location-select">
           <div class="form-group">
             <label for="repDepartamento">Departamento *</label>
-            <select id="repDepartamento" required class="form-control" onchange="onReportDepartmentChange()">
+            <select id="repDepartamento" required class="form-control" data-on-change="onReportDepartmentChange()">
               <option value="">Cargando…</option>
             </select>
           </div>
           <div class="form-group">
             <label for="repCiudad">Ciudad / distrito *</label>
-            <select id="repCiudad" required disabled class="form-control" onchange="onReportCityChange()">
+            <select id="repCiudad" required disabled class="form-control" data-on-change="onReportCityChange()">
               <option value="">Elegí un departamento</option>
             </select>
           </div>
           <div class="form-group">
             <label for="repBarrio">Barrio / localidad</label>
-            <select id="repBarrio" disabled class="form-control" onchange="centerReportMapOnSelection()">
+            <select id="repBarrio" disabled class="form-control" data-on-change="centerReportMapOnSelection()">
               <option value="">Elegí una ciudad</option>
             </select>
           </div>
@@ -81,7 +81,7 @@ export function renderReportView() {
           <div>
             <label>Lugar exacto de desaparición *</label>
             <p class="muted">El pin se ubica solo según el departamento, ciudad y barrio elegidos. Tocá el mapa o arrastrá el pin para marcar el punto exacto.</p>
-            <button type="button" onclick="useBrowserLocation('replat', 'replng', estado.reportMarker, 'repCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
+            <button type="button" data-on-click="useBrowserLocation('replat', 'replng', estado.reportMarker, 'repCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
           </div>
           <div id="reportMap" class="map-container"></div>
           <input type="hidden" id="replat" value="-25.2867">
@@ -91,13 +91,13 @@ export function renderReportView() {
 
         <div class="form-group">
           <label>Fotografía de referencia</label>
-          <input type="file" id="repFotoFile" accept="image/jpeg,image/png,image/webp" hidden onchange="handleReportPhotoSelection(event)">
-          <button type="button" id="selectReportPhotoButton" class="btn btn-outline" onclick="document.getElementById('repFotoFile').click()">Seleccionar fotografía</button>
+          <input type="file" id="repFotoFile" accept="image/jpeg,image/png,image/webp" hidden data-on-change="handleReportPhotoSelection(event)">
+          <button type="button" id="selectReportPhotoButton" class="btn btn-outline" data-on-click="openFilePicker('repFotoFile')">Seleccionar fotografía</button>
           <div id="reportPhotoPreviewWrap" class="hidden">
             <img id="reportPhotoPreview" alt="Vista previa de la fotografía seleccionada">
             <div>
-              <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('repFotoFile').click()">Cambiar fotografía</button>
-              <button type="button" class="btn btn-outline btn-sm" onclick="removeReportPhoto()">Quitar fotografía</button>
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="openFilePicker('repFotoFile')">Cambiar fotografía</button>
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="removeReportPhoto()">Quitar fotografía</button>
             </div>
           </div>
           <p id="reportPhotoError" class="hidden" role="alert"></p>
@@ -114,7 +114,7 @@ export function renderReportView() {
         <fieldset class="form-group consent-group">
           <legend>Verificación de edad y autorización *</legend>
           <label><input type="checkbox" id="reporterAdult" required> Declaro que soy mayor de 18 años y estoy autorizado a realizar este reporte.</label>
-          <label><input type="checkbox" id="minorAuthorization" onchange="updateMinorAuthorization()"> Confirmo que cuento con autorización parental o de tutor legal para reportar a la persona menor de edad.</label>
+          <label><input type="checkbox" id="minorAuthorization" data-on-change="updateMinorAuthorization()"> Confirmo que cuento con autorización parental o de tutor legal para reportar a la persona menor de edad.</label>
         </fieldset>
         <label class="privacy-consent">
           <input type="checkbox" id="privacyConsent" required>

@@ -27,6 +27,9 @@ test('sirve la página desde Express con el origen público y headers de segurid
     assert.match(response.headers.get('content-type'), /text\/html/);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://rastreo.example');
     assert.match(response.headers.get('content-security-policy'), /script-src/);
+    // Sin scripts ni handlers inline (E2): protege contra XSS por inyección de HTML.
+    assert.doesNotMatch(response.headers.get('content-security-policy'), /script-src[^;]*unsafe-inline/);
+    assert.match(response.headers.get('content-security-policy'), /script-src-attr 'none'/);
     // Las vistas previas de fotos usan URL blob: generadas en el navegador.
     assert.match(response.headers.get('content-security-policy'), /img-src[^;]*blob:/);
     assert.match(response.headers.get('content-security-policy'), /tile\.openstreetmap\.org/);

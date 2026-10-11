@@ -42,6 +42,11 @@ export function labelButtons(container = document) {
   });
 }
 
+// Abre el selector de un <input type="file"> oculto desde un botón propio.
+export function openFilePicker(inputId) {
+  document.getElementById(inputId)?.click();
+}
+
 export function toggleDrawer(open) {
   const drawer = document.getElementById('drawer');
   const overlay = document.getElementById('drawerOverlay');

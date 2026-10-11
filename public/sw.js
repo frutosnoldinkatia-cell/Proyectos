@@ -1,5 +1,16 @@
-const CACHE_NAME = 'rastreopy-shell-v1';
-const APP_SHELL = ['/', '/styles.css', '/manifest.webmanifest', '/icons/rastreopy.svg'];
+const CACHE_NAME = 'rastreopy-shell-v2';
+const APP_SHELL = [
+  '/',
+  '/styles.css',
+  '/manifest.webmanifest',
+  '/icons/rastreopy.svg',
+  '/js/estado.js',
+  '/js/config.js',
+  '/js/api.js',
+  '/js/store.js',
+  '/js/ui.js',
+  '/js/app.js'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));

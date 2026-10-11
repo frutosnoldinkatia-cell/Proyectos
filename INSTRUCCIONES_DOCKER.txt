@@ -23,6 +23,17 @@
 Abre una terminal (PowerShell o CMD) en la carpeta del proyecto (d:\Kat\Proyectos) 
 y ejecuta los siguientes comandos según lo que necesites:
 
+0) CONFIGURAR (solo la primera vez):
+   Copia backend/.env.example a backend/.env y completa los valores:
+     copy backend\.env.example backend\.env
+   - JWT_SECRET:          un texto aleatorio de al menos 32 caracteres.
+   - ADMIN_IDENTIFICADOR: el Gmail de la cuenta administradora.
+   - ADMIN_PASSWORD:      una contraseña segura (mínimo 8 caracteres).
+   - MAIL_USER / MAIL_PASS: ver sección 6.
+   - APP_URL:             http://localhost:3000 para uso local.
+   DATABASE_URL no hace falta cambiarlo: Docker usa su propia base.
+   backend/.env NO se sube a git. Sin este archivo el contenedor web no arranca.
+
 1) LEVANTAR TODO EN SEGUNDO PLANO (Base de datos + Web):
    docker compose up -d --build
 
@@ -35,10 +46,10 @@ y ejecuta los siguientes comandos según lo que necesites:
    👉 http://localhost:3000
 
 
-3) CREDENCIALES POR DEFECTO DEL ADMINISTRADOR:
-   - Correo / Identificador: frutosnoldinkatia@gmail.com
-   - Contraseña:             Rastreopy123
-   (Puedes cambiar estos valores en el archivo docker-compose.yml o en backend/.env)
+3) CREDENCIALES DEL ADMINISTRADOR:
+   Son las que definiste en backend/.env (ADMIN_IDENTIFICADOR y ADMIN_PASSWORD).
+   Ojo: cada vez que arranca el servidor, la contraseña del administrador se
+   vuelve a fijar con ADMIN_PASSWORD.
 
 
 [ 4. COMANDOS PRINCIPALES Y ÚTILES ]
@@ -91,7 +102,7 @@ y ejecuta los siguientes comandos según lo que necesites:
 Si deseas que se envíen correos reales de recuperación de clave y avisos:
 1. Crea una contraseña de aplicación en tu cuenta de Google:
    (Seguridad de Google -> Verificación en dos pasos -> Contraseñas de aplicaciones).
-2. Puedes configurar estas variables en backend/.env o directamente en docker-compose.yml:
+2. Configura estas variables en backend/.env (no en docker-compose.yml):
    MAIL_USER=tu-cuenta@gmail.com
    MAIL_PASS=tu_clave_de_aplicacion_de_16_caracteres
 
@@ -100,6 +111,12 @@ Si deseas que se envíen correos reales de recuperación de clave y avisos:
 --------------------------------------------------------------------------------
 - Error: "error during connect: ... open //./pipe/docker_engine":
   -> Causa: Docker Desktop no está abierto. Inicia el programa en Windows y espera unos segundos.
+
+- Error: "env file ...backend/.env not found":
+  -> Causa: falta crear backend/.env. Ver paso 0 de la sección 3.
+
+- El contenedor web se reinicia y en los logs dice "Faltan variables en backend/.env":
+  -> Completa en backend/.env las variables que indica el mensaje.
 
 - Error: "port 3000 is already allocated":
   -> Causa: Hay otro proceso (como un `node server.js` local) usando el puerto 3000.

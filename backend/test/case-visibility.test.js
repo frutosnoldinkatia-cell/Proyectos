@@ -746,3 +746,72 @@ test('solo se aceptan ubicaciones de la lista oficial de Paraguay', async () => 
     await app.close();
   }
 });
+
+test('el listado público no lee la foto de la base y pagina solo si se pide', async () => {
+  const app = await startApp();
+  try {
+    assert.equal((await fetch(`${app.baseUrl}/api/casos`)).status, 200);
+    const unpaginated = app.queries.find(item => item.sql.includes('ORDER BY creado_en DESC'));
+    assert.doesNotMatch(unpaginated.sql, /SELECT \*/);
+    assert.match(unpaginated.sql, /\(foto <> ''\) AS tiene_foto/);
+    assert.deepEqual(unpaginated.values.slice(-2), [null, 0], 'sin ?limite no se limita');
+
+    const paginatedResponse = await fetch(`${app.baseUrl}/api/casos?pagina=3&limite=500`);
+    assert.equal(paginatedResponse.status, 200);
+    const body = await paginatedResponse.json();
+    assert.equal(body.pagina, 3);
+    assert.equal(body.limite, 100, 'el límite máximo es 100');
+    const paginatedQuery = app.queries.filter(item => item.sql.includes('ORDER BY creado_en DESC')).at(-1);
+    assert.deepEqual(paginatedQuery.values.slice(-2), [100, 200]);
+  } finally {
+    await app.close();
+  }
+});
+
+test('paginación del listado público con PostgreSQL', {
+  skip: !testDatabaseUrl && 'Defina TEST_DATABASE_URL para ejecutar la prueba de integración con PostgreSQL.'
+}, async () => {
+  const db = createDatabase(testDatabaseUrl);
+  const marker = `Pagina${randomUUID().replaceAll('-', '')}`;
+  const ids = [1, 2, 3].map(n => `cas_test_pag_${n}_${marker}`);
+  let server;
+  let databaseInitialized = false;
+  try {
+    await initializeDatabase(db);
+    databaseInitialized = true;
+    for (const [index, id] of ids.entries()) {
+      await db.query(`
+        INSERT INTO casos (id, nombre_completo, edad, sexo, ciudad, departamento, descripcion_fisica,
+          vestimenta, fecha_hora_desaparicion, foto, latitud, longitud, estado, creado_en)
+        VALUES ($1, $2, 30, 'Femenino', 'Asunción', 'Capital', 'Descripción', 'Ropa',
+          CURRENT_TIMESTAMP, $3, -25.3, -57.6, 'VALIDADO', CURRENT_TIMESTAMP - ($4 * INTERVAL '1 minute'))
+      `, [id, `Persona ${marker} ${index}`, index === 0 ? 'data:image/png;base64,iVBORw0KGgo=' : '', index]);
+    }
+    server = createApp({
+      db,
+      mailer: { sendMail: async () => {} },
+      jwtSecret: secret,
+      appUrl: 'http://127.0.0.1'
+    }).listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+    const all = await (await fetch(`${baseUrl}/api/casos?q=${marker}`)).json();
+    assert.equal(all.casos.length, 3);
+    assert.equal(all.total, 3);
+    assert.equal(all.casos[0].fotoUrl, `/api/casos/${ids[0]}/foto`);
+    assert.equal(all.casos[1].fotoUrl, '');
+
+    const page1 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=1`)).json();
+    const page2 = await (await fetch(`${baseUrl}/api/casos?q=${marker}&limite=2&pagina=2`)).json();
+    assert.deepEqual(page1.casos.map(item => item.id), [ids[0], ids[1]]);
+    assert.deepEqual(page2.casos.map(item => item.id), [ids[2]]);
+    assert.equal(page1.total, 3);
+    assert.equal(page2.total, 3);
+    assert.equal((await fetch(`${baseUrl}/api/casos/${ids[0]}/foto`)).status, 200);
+  } finally {
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
+    if (databaseInitialized) await db.query('DELETE FROM casos WHERE id = ANY($1)', [ids]);
+    await db.end();
+  }
+});

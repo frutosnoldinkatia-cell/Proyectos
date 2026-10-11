@@ -18,6 +18,25 @@ const PUBLIC_CASE_FILTER = `
         AND CURRENT_TIMESTAMP < localizado_en + ($1 * INTERVAL '1 hour'))))
 `;
 
+// Columnas de casos para listados: todo menos la foto (base64 de hasta 10 MB),
+// que se reemplaza por un indicador. La foto se sirve aparte en /casos/:id/foto.
+function caseListColumns(alias = '') {
+  const prefix = alias ? `${alias}.` : '';
+  return [
+    'id', 'nombre_completo', 'edad', 'sexo', 'ciudad', 'departamento', 'barrio',
+    'descripcion_fisica', 'vestimenta', 'senas_particulares', 'fecha_hora_desaparicion',
+    'latitud', 'longitud', 'direccion', 'numero_denuncia', 'estado', 'motivo_rechazo',
+    'reportado_por_usr_id', 'localizado_en', 'creado_en', 'proximo_seguimiento',
+    'reportante_mayor_edad', 'autorizacion_parental', 'aviso_privacidad_aceptado',
+    'checklist_denuncia', 'checklist_coherencia', 'checklist_duplicados', 'checklist_menores',
+    'motivo_cierre', 'seguimiento_etapa'
+  ].map(column => `${prefix}${column}`).join(', ') + `, (${prefix}foto <> '') AS tiene_foto`;
+}
+
+function hasPhoto(row) {
+  return Boolean(row.foto || row.tiene_foto);
+}
+
 function validDateFilter(value) {
   if (!value) return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -47,7 +66,7 @@ function toPublicCase(row) {
     vestimenta: row.vestimenta,
     senasParticulares: row.senas_particulares,
     fechaHoraDesaparicion: row.fecha_hora_desaparicion,
-    fotoUrl: row.foto ? `/api/casos/${encodeURIComponent(row.id)}/foto` : '',
+    fotoUrl: hasPhoto(row) ? `/api/casos/${encodeURIComponent(row.id)}/foto` : '',
     ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
     numeroDenuncia: row.numero_denuncia,
     estado: row.estado,
@@ -64,8 +83,8 @@ function toPublicCase(row) {
 function toAdminCase(row) {
   return {
     ...toPublicCase(row),
-    fotoUrl: row.foto ? `/api/admin/casos/${encodeURIComponent(row.id)}/foto` : '',
-    fotoDisponible: Boolean(row.foto),
+    fotoUrl: hasPhoto(row) ? `/api/admin/casos/${encodeURIComponent(row.id)}/foto` : '',
+    fotoDisponible: hasPhoto(row),
     motivoRechazo: row.motivo_rechazo,
     reportadoPorUsrId: row.reportado_por_usr_id,
     contactoReportante: row.contacto_reportante,
@@ -192,8 +211,13 @@ export function createCaseRouter({ db, jwtSecret }) {
     const sex = typeof req.query.sexo === 'string' ? req.query.sexo : '';
     const ageMin = Number.isInteger(Number(req.query.edadMin)) ? Number(req.query.edadMin) : null;
     const ageMax = Number.isInteger(Number(req.query.edadMax)) ? Number(req.query.edadMax) : null;
+    // Paginación opcional: sin ?limite se devuelven todos (lo que espera el frontend actual).
+    const paginated = req.query.limite !== undefined;
+    const page = Math.max(1, Number.parseInt(req.query.pagina, 10) || 1);
+    const limit = paginated ? Math.min(100, Math.max(1, Number.parseInt(req.query.limite, 10) || 20)) : null;
+    const offset = paginated ? (page - 1) * limit : 0;
     const { rows } = await db.query(`
-      SELECT * FROM casos
+      SELECT ${caseListColumns()}, COUNT(*) OVER() AS total_registros FROM casos
       WHERE ${PUBLIC_CASE_FILTER} AND estado <> 'RECHAZADO'
         AND ($2 = '%%' OR nombre_completo ILIKE $2 OR ciudad ILIKE $2
           OR departamento ILIKE $2 OR descripcion_fisica ILIKE $2
@@ -204,8 +228,12 @@ export function createCaseRouter({ db, jwtSecret }) {
         AND ($6::integer IS NULL OR edad >= $6)
         AND ($7::integer IS NULL OR edad <= $7)
       ORDER BY creado_en DESC
-    `, [...caseVisibilityParameters(), search, city, department, sex, ageMin, ageMax]);
-    res.json({ casos: rows.map(toPublicCase) });
+      LIMIT $8::integer OFFSET $9::integer
+    `, [...caseVisibilityParameters(), search, city, department, sex, ageMin, ageMax, limit, offset]);
+    const total = Number(rows[0]?.total_registros || 0);
+    res.json(paginated
+      ? { casos: rows.map(toPublicCase), pagina: page, limite: limit, total }
+      : { casos: rows.map(toPublicCase), total });
   }));
 
   router.get('/casos/:id', asyncRoute(async (req, res) => {
@@ -221,7 +249,7 @@ export function createCaseRouter({ db, jwtSecret }) {
 
   router.get('/mis-casos', requireUser, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`
-      SELECT * FROM casos
+      SELECT ${caseListColumns()} FROM casos
       WHERE reportado_por_usr_id = $1
       ORDER BY creado_en DESC
     `, [req.auth.id]);
@@ -566,7 +594,7 @@ export function createCaseRouter({ db, jwtSecret }) {
 
   router.get('/admin/casos', ...requireAdmin, asyncRoute(async (_req, res) => {
     const { rows } = await db.query(`
-      SELECT c.*, u.correo AS contacto_reportante
+      SELECT ${caseListColumns('c')}, u.correo AS contacto_reportante
       FROM casos c LEFT JOIN usuarios u ON u.id = c.reportado_por_usr_id
       ORDER BY c.creado_en DESC
     `);

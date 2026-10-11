@@ -675,6 +675,13 @@ test('matriz de permisos: sin sesión 401, ciudadano 403 en rutas de administrac
     for (const [method, path] of adminRoutes) {
       assert.equal((await call(method, path, citizenToken)).status, 403, `${method} ${path} como ciudadano`);
     }
+    // El administrador no reporta ni sigue casos propios (ROLES_Y_PERMISOS.txt).
+    const adminToken = jwt.sign({ id: 11, rol: 'administrador' }, secret);
+    for (const [method, path] of [['GET', '/api/mis-casos'], ['POST', '/api/casos'], ['POST', '/api/casos/c1/seguimiento']]) {
+      const response = await call(method, path, adminToken);
+      assert.equal(response.status, 403, `${method} ${path} como administrador`);
+      assert.match((await response.json()).error, /administrador no reporta/);
+    }
     for (const [method, path] of publicRoutes) {
       assert.equal((await call(method, path)).status, 200, `${method} ${path} sin sesión`);
     }

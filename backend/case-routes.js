@@ -189,6 +189,14 @@ export function createCaseRouter({ db, jwtSecret }) {
   const router = express.Router();
   const requireUser = authenticate(jwtSecret);
   const requireAdmin = [requireUser, requireAdministrator];
+  // La cuenta de administrador es institucional: no reporta ni sigue casos
+  // propios (ROLES_Y_PERMISOS.txt, tabla de permisos).
+  const requireCitizen = [requireUser, (req, res, next) => {
+    if (String(req.auth?.rol).toLowerCase() === 'administrador') {
+      return res.status(403).json({ error: 'La cuenta de administrador no reporta ni sigue casos propios.' });
+    }
+    next();
+  }];
   // Las pistas exigen sesión (ver docs/ROLES_Y_PERMISOS.txt); el límite es por usuario.
   const clueLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
@@ -247,7 +255,7 @@ export function createCaseRouter({ db, jwtSecret }) {
 
   router.get('/casos/:id/foto', asyncRoute((req, res) => sendStoredPhoto(db, req, res, false)));
 
-  router.get('/mis-casos', requireUser, asyncRoute(async (req, res) => {
+  router.get('/mis-casos', ...requireCitizen, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`
       SELECT ${caseListColumns()} FROM casos
       WHERE reportado_por_usr_id = $1
@@ -316,7 +324,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     })) });
   }));
 
-  router.post('/casos', requireUser, asyncRoute(async (req, res) => {
+  router.post('/casos', ...requireCitizen, asyncRoute(async (req, res) => {
     const body = req.body || {};
     const requiredText = ['nombreCompleto', 'sexo', 'ciudad', 'departamento', 'descripcionFisica', 'vestimenta', 'fechaHoraDesaparicion'];
     if (requiredText.some(key => typeof body[key] !== 'string' || !body[key].trim())
@@ -452,7 +460,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.json({ id: moderated.id, estado: moderated.estado });
   }));
 
-  router.post('/casos/:id/seguimiento', requireUser, asyncRoute(async (req, res) => {
+  router.post('/casos/:id/seguimiento', ...requireCitizen, asyncRoute(async (req, res) => {
     const action = req.body?.accion;
     const reason = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
     if (!['SIGUE_ACTIVA', 'LOCALIZADO', 'PRORROGA', 'CERRAR'].includes(action)) {

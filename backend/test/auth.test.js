@@ -31,7 +31,10 @@ test('sirve la página desde Express con el origen público y headers de segurid
     assert.match(response.headers.get('content-security-policy'), /img-src[^;]*blob:/);
     assert.match(response.headers.get('content-security-policy'), /tile\.openstreetmap\.org/);
     assert.match(response.headers.get('content-security-policy'), /connect-src[^;]*nominatim\.openstreetmap\.org/);
-    assert.match(await response.text(), /const API_BASE = '\/api'/);
+    assert.match(await response.text(), /<script type="module" src="\/js\/app\.js"><\/script>/);
+    const configModule = await fetch(`http://127.0.0.1:${server.address().port}/js/config.js`);
+    assert.match(configModule.headers.get('content-type'), /javascript/);
+    assert.match(await configModule.text(), /export const API_BASE = '\/api'/);
     assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/manifest.webmanifest`)).text(), /"display": "standalone"/);
     assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/sw.js`)).text(), /notificationclick/);
     assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/icons/rastreopy.svg`)).status, 200);

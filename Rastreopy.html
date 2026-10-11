@@ -766,8 +766,14 @@
         view = 'feed';
       }
 
-      if (view === 'admin' && (!store.currentUser
-        || !['administrador', 'ADMINISTRADOR'].includes(store.currentUser.rol))) {
+      const isAdmin = store.currentUser && ['administrador', 'ADMINISTRADOR'].includes(store.currentUser.rol);
+
+      if (isAdmin && ['report', 'my-cases'].includes(view)) {
+        showToast('Acceso no disponible', 'La cuenta de administrador no reporta ni gestiona casos propios.', 'error');
+        view = 'feed';
+      }
+
+      if (view === 'admin' && !isAdmin) {
         showToast('Acceso restringido', 'Acceso restringido únicamente para personal autorizado del Ente Regulador.', 'error');
         view = 'feed';
       }

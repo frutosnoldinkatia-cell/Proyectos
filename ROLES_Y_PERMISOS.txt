@@ -47,9 +47,9 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
   Registrarse / iniciar sesión / verificar OTP      SÍ          -        -
   Aceptar términos y condiciones                    -           SÍ       SÍ
   Enviar una pista                                  NO          SÍ       SÍ
-  Reportar una persona desaparecida                 NO          SÍ       SÍ
-  Ver "Mis casos" (solo los propios)                NO          SÍ       SÍ
-  Responder seguimiento de un caso PROPIO           NO          SÍ       SÍ
+  Reportar una persona desaparecida                 NO          SÍ       NO*
+  Ver "Mis casos" (solo los propios)                NO          SÍ       NO*
+  Responder seguimiento de un caso PROPIO           NO          SÍ       NO*
   Recibir y leer notificaciones / alertas           NO          SÍ       SÍ
   Ver casos de OTROS usuarios no publicados         NO          NO       SÍ
   Aprobar / rechazar casos, cambiar estado          NO          NO       SÍ
@@ -61,6 +61,10 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
   Crear otro administrador                          NO          NO    solo script
   Eliminar casos y pistas                           NO          NO       SÍ
 
+  * La cuenta de administrador es institucional: no reporta ni sigue casos
+    propios. El backend responde 403 en esas rutas y el frontend no muestra
+    esas opciones en su menú; si entra por URL vuelve al inicio con un aviso.
+
 
 [ 4. PANTALLAS DEL FRONTEND ]
 --------------------------------------------------------------------------------
@@ -69,8 +73,8 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
   home / feed   redirige a login      visible             visible
   stats         redirige a login      visible             visible
   lead (pista)  redirige a login      visible             visible
-  report        redirige a login      visible             visible
-  my-cases      redirige a login      visible             visible
+  report        redirige a login      visible             vuelve al inicio con aviso
+  my-cases      redirige a login      visible             vuelve al inicio con aviso
   alerts        redirige a login      visible             visible
   admin         redirige a login      "Acceso denegado"   visible
   auth / otp    visible               redirige a home     redirige a home

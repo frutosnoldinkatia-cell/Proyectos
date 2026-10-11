@@ -104,14 +104,6 @@ export function authenticate(secret) {
   };
 }
 
-export function optionalAuthenticate(secret) {
-  const requireValidToken = authenticate(secret);
-  return (req, res, next) => {
-    if (!req.get('authorization')) return next();
-    return requireValidToken(req, res, next);
-  };
-}
-
 export function requireAdministrator(req, res, next) {
   if (req.auth?.rol !== 'administrador' && req.auth?.rol !== 'ADMINISTRADOR') {
     return res.status(403).json({ error: 'Acceso exclusivo para administradores.' });

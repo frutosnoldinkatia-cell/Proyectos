@@ -27,7 +27,7 @@ const CASOS = [
   {
     id: 'demo_001',
     nombre_completo: 'Sofía Montserrat Giménez',
-    edad: 16, sexo: 'Femenino', ciudad: 'Asunción', departamento: 'Central',
+    edad: 16, sexo: 'Femenino', ciudad: 'Asunción', departamento: 'Capital',
     descripcion_fisica: 'Estatura 1,62 m, contextura delgada, cabello castaño largo.',
     vestimenta: 'Buzo gris con capucha, pantalón vaquero azul y zapatillas blancas.',
     senas_particulares: 'Lunar sobre la ceja izquierda.',

@@ -1,8 +1,9 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
-import { authenticate, optionalAuthenticate, requireAdministrator } from './auth-routes.js';
+import { authenticate, requireAdministrator } from './auth-routes.js';
 import { withTransaction } from './db.js';
+import { ubicacionValida } from './ubicaciones.js';
 
 const LOCATED_WINDOW_HOURS = Number(process.env.VENTANA_LOCALIZADOS_HORAS ?? 24);
 
@@ -41,6 +42,7 @@ function toPublicCase(row) {
     sexo: row.sexo,
     ciudad: row.ciudad,
     departamento: row.departamento || '',
+    barrio: row.barrio || '',
     descripcionFisica: row.descripcion_fisica,
     vestimenta: row.vestimenta,
     senasParticulares: row.senas_particulares,
@@ -167,12 +169,12 @@ async function sendStoredPhoto(db, req, res, administrator) {
 export function createCaseRouter({ db, jwtSecret }) {
   const router = express.Router();
   const requireUser = authenticate(jwtSecret);
-  const optionalUser = optionalAuthenticate(jwtSecret);
   const requireAdmin = [requireUser, requireAdministrator];
-  const anonymousClueLimiter = rateLimit({
+  // Las pistas exigen sesión (ver docs/ROLES_Y_PERMISOS.txt); el límite es por usuario.
+  const clueLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     limit: 10,
-    skip: req => Boolean(req.get('authorization')),
+    keyGenerator: req => `usuario:${req.auth.id}`,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     message: { error: 'Se alcanzó el límite temporal de envíos de pistas. Intente nuevamente más tarde.' }
@@ -254,6 +256,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, c.nombre_completo, p.descripcion, p.fecha_hora_avistamiento,
         p.latitud, p.longitud, p.direccion, p.fotos, p.estado, p.fecha_envio,
+        u.id AS autor_id, u.nombre_completo AS autor_nombre, u.correo AS autor_correo,
         (SELECT COALESCE(json_agg(json_build_object(
           'estadoAnterior', m.estado_anterior,
           'estadoNuevo', m.estado_nuevo,
@@ -264,6 +267,7 @@ export function createCaseRouter({ db, jwtSecret }) {
         FROM cambios_estado_pista m LEFT JOIN usuarios a ON a.id = m.cambiado_por
         WHERE m.pista_id = p.id) AS cambios_estado
       FROM pistas p JOIN casos c ON c.id = p.caso_id
+      LEFT JOIN usuarios u ON u.id = p.usuario_id
       ORDER BY CASE WHEN p.estado = 'PENDIENTE' THEN 0 ELSE 1 END, p.fecha_envio DESC
     `);
     res.json({ pistas: rows.map(row => ({
@@ -275,6 +279,10 @@ export function createCaseRouter({ db, jwtSecret }) {
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
       fotos: row.fotos || [],
       estado: row.estado,
+      // Solo para moderación: el público nunca recibe estos datos.
+      autor: row.autor_id
+        ? { id: row.autor_id, nombre: row.autor_nombre, correo: row.autor_correo }
+        : null,
       cambiosEstado: row.cambios_estado || [],
       fechaEnvio: row.fecha_envio
     })) });
@@ -292,6 +300,10 @@ export function createCaseRouter({ db, jwtSecret }) {
       || (body.edad < 18 && body.autorizacionParental !== true)) {
       return res.status(400).json({ error: 'Los datos del caso están incompletos o no son válidos.' });
     }
+    const barrio = typeof body.barrio === 'string' ? body.barrio.trim() : '';
+    if (!ubicacionValida(body.departamento, body.ciudad, barrio)) {
+      return res.status(400).json({ error: 'Elegí un departamento, ciudad y barrio de la lista de Paraguay.' });
+    }
     if (body.foto && (typeof body.foto !== 'string'
       || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(body.foto)
       || Buffer.byteLength(body.foto, 'utf8') > 10 * 1024 * 1024)) {
@@ -302,15 +314,15 @@ export function createCaseRouter({ db, jwtSecret }) {
     const created = await withTransaction(db, async client => {
       const { rows } = await client.query(`
         INSERT INTO casos (
-          id, nombre_completo, edad, sexo, ciudad, departamento, descripcion_fisica, vestimenta,
+          id, nombre_completo, edad, sexo, ciudad, departamento, barrio, descripcion_fisica, vestimenta,
           senas_particulares, fecha_hora_desaparicion, foto, latitud, longitud, direccion,
           numero_denuncia, estado, reportado_por_usr_id, proximo_seguimiento,
           reportante_mayor_edad, autorizacion_parental, aviso_privacidad_aceptado
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         RETURNING *
       `, [
         id, body.nombreCompleto.trim(), Number(body.edad), body.sexo.trim(), body.ciudad.trim(),
-        body.departamento.trim(), body.descripcionFisica.trim(), body.vestimenta.trim(), body.senasParticulares || '',
+        body.departamento.trim(), barrio, body.descripcionFisica.trim(), body.vestimenta.trim(), body.senasParticulares || '',
         body.fechaHoraDesaparicion, body.foto || '', Number(body.ubicacion.lat), Number(body.ubicacion.lng),
         body.ubicacion.direccion || body.ciudad, denuncia, 'PENDIENTE',
         req.auth.id, new Date(Date.now() + 48 * 60 * 60 * 1000),
@@ -334,7 +346,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.status(201).json({ caso: toPublicCase(created) });
   }));
 
-  router.post('/casos/:id/pistas', anonymousClueLimiter, optionalUser, asyncRoute(async (req, res) => {
+  router.post('/casos/:id/pistas', requireUser, clueLimiter, asyncRoute(async (req, res) => {
     const body = req.body || {};
     const photos = body.fotos === undefined ? [] : body.fotos;
     if (typeof body.descripcion !== 'string' || !body.descripcion.trim()
@@ -359,14 +371,12 @@ export function createCaseRouter({ db, jwtSecret }) {
         INSERT INTO pistas (
           id, caso_id, usuario_id, descripcion, fecha_hora_avistamiento, latitud, longitud, direccion, fotos
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [id, req.params.id, req.auth?.id || null, body.descripcion.trim(), body.fechaHoraAvistamiento,
+      `, [id, req.params.id, req.auth.id, body.descripcion.trim(), body.fechaHoraAvistamiento,
         Number(body.ubicacion.lat), Number(body.ubicacion.lng), body.ubicacion.direccion || '', photos]);
-      if (req.auth?.id) {
-        await client.query(
-          'INSERT INTO suscripciones_caso (caso_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-          [req.params.id, req.auth.id]
-        );
-      }
+      await client.query(
+        'INSERT INTO suscripciones_caso (caso_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, req.auth.id]
+      );
       await client.query(`
         INSERT INTO notificaciones (usuario_id, caso_id, titulo, mensaje, tipo)
         SELECT id, $1, 'Nueva pista recibida', $2, 'PISTA_RECIBIDA'

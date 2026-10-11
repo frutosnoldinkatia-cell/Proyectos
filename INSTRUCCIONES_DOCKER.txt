@@ -1,0 +1,111 @@
+================================================================================
+                    GUÍA PARA LEVANTAR EL PROYECTO CON DOCKER
+                              RASTREO PY
+================================================================================
+
+[ 1. REQUISITOS PREVIOS ]
+--------------------------------------------------------------------------------
+1. Tener instalado Docker Desktop en Windows:
+   - Descarga: https://www.docker.com/products/docker-desktop/
+2. Asegurarse de que Docker Desktop esté ABIERTO y ejecutándose 
+   (el icono de la ballena debe estar en verde en la barra de tareas de Windows).
+
+
+[ 2. ARCHIVOS CREADOS ]
+--------------------------------------------------------------------------------
+- Dockerfile: Construye la imagen con Node.js 22, instala dependencias y copia el backend y frontend.
+- docker-compose.yml: Orquesta la base de datos PostgreSQL 16 y la aplicación web.
+- .dockerignore: Evita subir archivos temporales o node_modules pesados a la imagen.
+
+
+[ 3. CÓMO LEVANTAR EL SISTEMA (PASO A PASO) ]
+--------------------------------------------------------------------------------
+Abre una terminal (PowerShell o CMD) en la carpeta del proyecto (d:\Kat\Proyectos) 
+y ejecuta los siguientes comandos según lo que necesites:
+
+1) LEVANTAR TODO EN SEGUNDO PLANO (Base de datos + Web):
+   docker compose up -d --build
+
+   -> Esto descargará PostgreSQL, compilará la aplicación y la iniciará.
+   -> La base de datos inicializará sus tablas automáticamente al arrancar.
+
+
+2) ACCEDER A LA APLICACIÓN:
+   Abre tu navegador web e ingresa a:
+   👉 http://localhost:3000
+
+
+3) CREDENCIALES POR DEFECTO DEL ADMINISTRADOR:
+   - Correo / Identificador: frutosnoldinkatia@gmail.com
+   - Contraseña:             Rastreopy123
+   (Puedes cambiar estos valores en el archivo docker-compose.yml o en backend/.env)
+
+
+[ 4. COMANDOS PRINCIPALES Y ÚTILES ]
+--------------------------------------------------------------------------------
+
+- VER LOS LOGS EN TIEMPO REAL:
+  docker compose logs -f
+
+- VER LOGS SOLO DE LA APLICACIÓN WEB:
+  docker compose logs -f web
+
+- VER EL ESTADO DE LOS CONTENEDORES:
+  docker compose ps
+
+- DETENER EL PROYECTO (sin borrar datos):
+  docker compose down
+
+- DETENER Y BORRAR LA BASE DE DATOS (RESETEO COMPLETO):
+  docker compose down -v
+
+- REINICIAR LOS CONTENEDORES:
+  docker compose restart
+
+- RECONSTRUIR DESPUÉS DE HACER CAMBIOS EN EL CÓDIGO:
+  docker compose up -d --build
+
+
+[ 5. EJECUTAR SCRIPTS DENTRO DEL CONTENEDOR (OPCIONAL) ]
+--------------------------------------------------------------------------------
+
+- Crear o resetear usuario Administrador manualmente:
+  docker compose exec web node backend/crear-admin.js
+
+- Cargar datos demo de prueba (básico):
+  docker compose exec -e NODE_ENV=development web node backend/seed-demo.js
+
+- Cargar 100 casos masivos para pruebas de rendimiento y vista:
+  docker cp backend/seed-100.js rastreopy-app:/app/backend/seed-100.js
+  docker compose exec web node backend/seed-100.js
+
+- Entrar a la terminal interactiva del contenedor web:
+  docker compose exec web sh
+
+- Entrar a la consola de PostgreSQL (psql):
+  docker compose exec db psql -U postgres -d rastreo_py
+
+
+[ 6. CONFIGURACIÓN DE CORREO GMAIL (NOTIFICACIONES) ]
+--------------------------------------------------------------------------------
+Si deseas que se envíen correos reales de recuperación de clave y avisos:
+1. Crea una contraseña de aplicación en tu cuenta de Google:
+   (Seguridad de Google -> Verificación en dos pasos -> Contraseñas de aplicaciones).
+2. Puedes configurar estas variables en backend/.env o directamente en docker-compose.yml:
+   MAIL_USER=tu-cuenta@gmail.com
+   MAIL_PASS=tu_clave_de_aplicacion_de_16_caracteres
+
+
+[ 7. SOLUCIÓN DE PROBLEMAS COMUNES ]
+--------------------------------------------------------------------------------
+- Error: "error during connect: ... open //./pipe/docker_engine":
+  -> Causa: Docker Desktop no está abierto. Inicia el programa en Windows y espera unos segundos.
+
+- Error: "port 3000 is already allocated":
+  -> Causa: Hay otro proceso (como un `node server.js` local) usando el puerto 3000.
+  -> Solución: Cierra la otra terminal o cambia el puerto en docker-compose.yml (ej: "3001:3000").
+
+- Error: "port 5432 is already allocated":
+  -> Causa: Tienes un PostgreSQL local corriendo en Windows en el puerto 5432.
+  -> Solución: Cambia el puerto en docker-compose.yml en la sección db a "5433:5432".
+================================================================================

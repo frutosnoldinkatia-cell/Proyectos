@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rastreopy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rastreo_py}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rastreo_py}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rastreopy-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rastreo_py}
+      MAIL_USER: ${MAIL_USER:-tu-cuenta@gmail.com}
+      MAIL_PASS: ${MAIL_PASS:-contraseña_de_aplicacion_de_16_caracteres}
+      JWT_SECRET: ${JWT_SECRET:-clave_secreta_super_segura_de_al_menos_32_caracteres_12345}
+      ADMIN_IDENTIFICADOR: ${ADMIN_IDENTIFICADOR:-frutosnoldinkatia@gmail.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Rastreopy123}
+      VENTANA_LOCALIZADOS_HORAS: ${VENTANA_LOCALIZADOS_HORAS:-24}
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: ./.env
+        required: false
+
+volumes:
+  pgdata:
+    driver: local

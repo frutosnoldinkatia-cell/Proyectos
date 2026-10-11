@@ -1,0 +1,93 @@
+================================================================================
+                      RASTREO PY - ROLES Y PERMISOS
+                           Borrador v1 (2026-10-11)
+================================================================================
+
+Este documento define quién puede hacer qué en la plataforma. Es la referencia
+para el backend (rutas /api) y para el frontend (pantallas y botones).
+Si algo no está permitido acá, el sistema debe bloquearlo en AMBOS lados.
+
+
+[ 1. ROLES ]
+--------------------------------------------------------------------------------
+CIUDADANO
+  Cualquier persona que se registró y verificó su correo (código OTP).
+  Es el rol por defecto al registrarse.
+
+ADMINISTRADOR
+  Personal autorizado que modera la plataforma. No se puede obtener desde el
+  registro: se crea solo con el script crear-admin.js (variables
+  ADMIN_IDENTIFICADOR y ADMIN_PASSWORD).
+
+SIN SESIÓN (no es un rol, es la ausencia de uno)
+  Persona que entra a la página sin iniciar sesión.
+
+
+[ 2. REGLA DE LAS PISTAS ]
+--------------------------------------------------------------------------------
+- Para enviar una pista hay que tener sesión iniciada (ciudadano o admin).
+  Motivo: evitar pistas falsas o basura sin nadie responsable detrás.
+- La pista se publica como ANÓNIMA: el público nunca ve quién la envió.
+- El sistema guarda internamente qué usuario la envió. Solo un
+  administrador puede verlo, y solo para moderar abusos.
+- Una pista solo se muestra al público después de que un administrador
+  la VALIDA. Las pendientes y rechazadas no son públicas.
+
+
+[ 3. TABLA DE PERMISOS ]
+--------------------------------------------------------------------------------
+  Acción                                         Sin sesión  Ciudadano  Admin
+  ---------------------------------------------  ----------  ---------  -----
+  Ver feed de casos públicos y buscar               SÍ          SÍ       SÍ
+  Ver ficha pública de un caso                      SÍ          SÍ       SÍ
+  Ver estadísticas generales                        SÍ          SÍ       SÍ
+  Ver pistas VALIDADAS (anónimas)                   SÍ          SÍ       SÍ
+  Registrarse / iniciar sesión / verificar OTP      SÍ          -        -
+  Aceptar términos y condiciones                    -           SÍ       SÍ
+  Enviar una pista                                  NO          SÍ       SÍ
+  Reportar una persona desaparecida                 NO          SÍ       SÍ
+  Ver "Mis casos" (solo los propios)                NO          SÍ       SÍ
+  Responder seguimiento de un caso PROPIO           NO          SÍ       SÍ
+  Recibir y leer notificaciones / alertas           NO          SÍ       SÍ
+  Ver casos de OTROS usuarios no publicados         NO          NO       SÍ
+  Aprobar / rechazar casos, cambiar estado          NO          NO       SÍ
+  Validar / rechazar pistas                         NO          NO       SÍ
+  Ver quién envió una pista                         NO          NO       SÍ
+  Ver auditoría e historial de localizados          NO          NO       SÍ
+  Panel administrador (pantalla completa)           NO          NO       SÍ
+  Simulador "avanzar 48 h" (solo demo)              NO          NO       SÍ
+  Crear otro administrador                          NO          NO    solo script
+  Eliminar casos y pistas                           NO          NO       SÍ
+
+
+[ 4. PANTALLAS DEL FRONTEND ]
+--------------------------------------------------------------------------------
+  Pantalla      Sin sesión            Ciudadano           Admin
+  ------------  --------------------  ------------------  -------------------
+  home / feed   visible               visible             visible
+  stats         visible               visible             visible
+  lead (pista)  redirige a login      visible             visible
+  report        redirige a login      visible             visible
+  my-cases      redirige a login      visible             visible
+  alerts        redirige a login      visible             visible
+  admin         redirige a login      "Acceso denegado"   visible
+  auth / otp    visible               redirige a home     redirige a home
+
+  - Los botones y enlaces a una pantalla no permitida NO se muestran
+    (no alcanza con bloquearlos al hacer clic).
+  - El botón de demo "Vista Administrador" se elimina.
+
+
+[ 5. CÓMO SE APLICA ]
+--------------------------------------------------------------------------------
+Backend (la protección real):
+  - Rutas de ciudadano: middleware authenticate  -> 401 si no hay sesión.
+  - Rutas de admin:     middleware requireAdministrator -> 403 si es ciudadano.
+  - El rol se lee siempre del token/servidor, nunca de lo que mande el navegador.
+Frontend (la experiencia):
+  - Un único guard en navigateTo() que use esta tabla.
+  - El menú se arma según el rol del usuario actual.
+
+Respuestas estándar:
+  401 = no iniciaste sesión          403 = no tenés permiso para esto
+================================================================================

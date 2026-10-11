@@ -32,21 +32,6 @@
   <div class="app-container">
     <button id="publicThemeToggle" class="public-theme-toggle" type="button" onclick="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
 
-    <div id="workshopBar" class="workshop-bar hidden">
-      <strong class="workshop-label"><span class="workshop-mode">MODO DEMO</span><span class="workshop-separator">·</span><span>Workshop</span></strong>
-      <div class="workshop-role-switch" role="group" aria-label="Navegación por vistas">
-        <button type="button" data-demo-view="feed" onclick="navigateTo('feed')" aria-current="page">Vista Ciudadano</button>
-        <button type="button" data-demo-view="admin" onclick="navigateTo('admin')">Vista Administrador</button>
-      </div>
-      <div class="workshop-tools">
-        <button type="button" class="workshop-simulate hidden" id="workshopSimulate" onclick="toggleSimulateTimeModal()"><span aria-hidden="true">◷</span> <span>Simular +48 h</span></button>
-        <button type="button" class="workshop-reset" disabled title="El restablecimiento solo está disponible en un entorno de demostración aislado."><span aria-hidden="true">↻</span> Restablecer datos semilla</button>
-      </div>
-      <div class="workshop-clock" aria-label="Fecha y hora actual de Paraguay">
-        <span>Reloj: <time id="workshopDateTime"></time></span>
-      </div>
-    </div>
-
     <!-- BARRA PRINCIPAL DE NAVEGACIÓN -->
     <header id="topHeader" class="hidden">
       <div class="header-brand">
@@ -74,7 +59,7 @@
         <button type="button" id="headerProfile" class="header-profile hidden" onclick="toggleDrawer(true)" aria-label="Abrir menú de cuenta">
           <span id="headerProfileAvatar" class="header-profile-avatar" aria-hidden="true"></span>
           <span class="header-profile-copy"><span id="headerProfileName"></span>
-            <span id="headerProfileRole" class="role-badge role-badge-citizen">CIUDADANO</span></span>
+            <span id="headerProfileRole" class="role-badge role-badge-citizen">Ciudadano</span></span>
         </button>
         <button id="headerAuthAction" class="header-auth-action" type="button" onclick="navigateTo('auth')">♙ Ingresar</button>
       </div>
@@ -93,7 +78,7 @@
              a cualquier visitante y parecía que ya había entrado. -->
         <div id="drawerIdentity" class="drawer-identity hidden">
           <p id="drawerUserName">Usuario</p>
-          <p id="drawerUserRole" class="role-badge role-badge-citizen">CIUDADANO</p>
+          <p id="drawerUserRole" class="role-badge role-badge-citizen">Ciudadano</p>
         </div>
 
         <!-- Cada ítem lleva data-nav-view: navigateTo() le pone aria-current="page"
@@ -102,7 +87,7 @@
              coincide con el <h1> de su vista. -->
         <nav class="drawer-navigation" aria-label="Secciones">
           <button type="button" data-nav-view="feed" onclick="drawerNavigate('feed')" class="drawer-item">Inicio</button>
-          <button type="button" data-role-nav="citizen" data-nav-view="report" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
+          <button type="button" data-hide-admin-nav data-nav-view="report" onclick="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
           <button type="button" data-nav-view="lead" onclick="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
           <button type="button" data-nav-view="alerts" onclick="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas</button>
           <button type="button" data-nav-view="stats" onclick="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
@@ -126,13 +111,6 @@
     <footer class="app-footer institutional-footer">
       <div class="footer-brand"><span class="footer-logo">R</span><span><strong>Rastreo PY · UNIDA Paraguay</strong><small>Facultad de Ingeniería en Informática · Prototipo académico</small></span></div>
       <p>Marco de referencia: Ley N.º 7605/2025 (RENAPED/MAFE) y Ley N.º 7593/2025, Art. 16 num. 7. Ante una emergencia, llamá al <a href="tel:911">911</a>.</p>
-      <p class="footer-disclaimer">Los registros de demostración son ficticios y no representan denuncias reales. Los controles de avance temporal solo deben habilitarse en un entorno aislado de pruebas.</p>
-      <div class="footer-time-controls" aria-label="Controles de tiempo de demostración">
-        <span>Avance de tiempo · demo aislada:</span>
-        <button type="button" disabled title="Disponible solo con base de datos aislada">+8 h</button>
-        <button type="button" disabled title="Disponible solo con base de datos aislada">+24 h</button>
-        <button type="button" disabled title="Disponible solo con base de datos aislada">+72 h</button>
-      </div>
     </footer>
 
   </div>
@@ -148,30 +126,30 @@
 
   <!-- MODAL DE CENTRO DE NOTIFICACIONES -->
   <div id="notifModal" class="hidden">
-    <div>
-      <div>
-        <span>Centro de Notificaciones</span>
-        <button type="button" onclick="enableSystemNotifications()">Activar avisos del sistema</button>
-        <button type="button" onclick="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
+    <div role="dialog" aria-modal="true" aria-labelledby="notifModalTitle">
+      <div class="modal-header">
+        <span id="notifModalTitle">Centro de notificaciones</span>
+        <button type="button" class="btn btn-outline btn-sm" onclick="enableSystemNotifications()">Activar avisos</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
       </div>
       <div id="notifList">
         <!-- Lista de notificaciones -->
       </div>
-      <div>
-        <button onclick="clearNotifs()">Marcar todas como leídas</button>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" onclick="clearNotifs()">Marcar todas como leídas</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL SIMULADOR DE TIEMPO -->
   <div id="simTimeModal" class="hidden">
-    <div>
-      <div>
-        <span>Simulador de seguimiento</span>
-        <button onclick="toggleSimulateTimeModal()">Cerrar</button>
+    <div role="dialog" aria-modal="true" aria-labelledby="simTimeModalTitle">
+      <div class="modal-header">
+        <span id="simTimeModalTitle">Simulador de seguimiento</span>
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleSimulateTimeModal()">Cerrar</button>
       </div>
-      <p>Acción de demostración para administradores: fuerza el vencimiento del seguimiento de todos los casos activos y puede generar avisos y cambios de estado. No la use con registros reales.</p>
-      <button onclick="runTimeFastForward()" class="btn btn-primary">Simular avance de 48 horas</button>
+      <p class="modal-body">Acción de demostración para administradores: fuerza el vencimiento del seguimiento de todos los casos activos y puede generar avisos y cambios de estado. No la use con registros reales.</p>
+      <div class="modal-footer"><button type="button" onclick="runTimeFastForward()" class="btn btn-primary btn-sm">Simular avance de 48 horas</button></div>
     </div>
   </div>
 
@@ -202,123 +180,23 @@
 
   <!-- LÓGICA JAVASCRIPT DE LA SPA -->
   <script>
-    const DB_KEY = 'RASTREO_PY_INSTITUCIONAL_V4';
+    const DB_KEY = 'RASTREO_PY_INSTITUCIONAL_V5';
+    // La V4 guardaba casos de demostración: se descarta para no mostrarlos.
+    try { localStorage.removeItem('RASTREO_PY_INSTITUCIONAL_V4'); } catch { /* almacenamiento bloqueado */ }
     const API_BASE = '/api';
-    const paraguayDateTimeFormatter = new Intl.DateTimeFormat('es-PY', {
-      timeZone: 'America/Asuncion',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hourCycle: 'h12'
-    });
-
-    function updateParaguayClock() {
-      const now = new Date();
-      const time = document.getElementById('workshopDateTime');
-      if (time) {
-        time.dateTime = now.toISOString();
-        time.textContent = paraguayDateTimeFormatter.format(now);
-      } else showToast('Ubicación no disponible', 'Este navegador no permite obtener la ubicación. Marque el lugar directamente en el mapa.', 'error');
-    }
 
     window.backendCurrentUser = null;
     let pendingRegistration = null;
     let resendTimer = null;
-
-    // DATOS INICIALES REALISTAS DE PARAGUAY
-    const INITIAL_CASES = [
-      {
-        id: 'cas_101',
-        nombreCompleto: 'Sofía Montserrat Giménez',
-        edad: 16,
-        sexo: 'Femenino',
-        ciudad: 'Asunción',
-        descripcionFisica: 'Estatura 1.62m, tez clara, cabello castaño lacio.',
-        vestimenta: 'Jean azul, remera negra con estampado, championes blancos.',
-        senasParticulares: 'Pulsera roja en la muñeca derecha.',
-        fechaHoraDesaparicion: '2026-10-06T14:30',
-        fotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
-        ubicacion: { lat: -25.2867, lng: -57.6333, direccion: 'Barrio Sajonia, Asunción' },
-        numeroDenuncia: 'DEN-2026-9012',
-        estado: 'VALIDADO',
-        motivoRechazo: null,
-        reportadoPorUsrId: 'usr_demo_1',
-        contactoReportante: '0981999888',
-        fechaCreacion: '2026-10-06T16:00:00Z',
-        proximoSeguimiento: '2026-10-09T16:00:00Z'
-      },
-      {
-        id: 'cas_102',
-        nombreCompleto: 'Carlos Alberto Benítez',
-        edad: 42,
-        sexo: 'Masculino',
-        ciudad: 'Ciudad del Este',
-        descripcionFisica: 'Estatura 1.75m, tez morena, contextura robusta.',
-        vestimenta: 'Camisa azul manga corta, bermuda beige.',
-        senasParticulares: 'Cicatriz leve en la frente.',
-        fechaHoraDesaparicion: '2026-10-05T09:00',
-        fotoUrl: '',
-        ubicacion: { lat: -25.5097, lng: -54.6111, direccion: 'Km 7 Ciudad del Este' },
-        numeroDenuncia: '',
-        estado: 'PENDIENTE',
-        motivoRechazo: null,
-        reportadoPorUsrId: 'usr_demo_2',
-        contactoReportante: '0971555444',
-        fechaCreacion: '2026-10-07T10:00:00Z',
-        proximoSeguimiento: '2026-10-10T10:00:00Z'
-      },
-      {
-        id: 'cas_103',
-        nombreCompleto: 'Lucía Mabel Duarte',
-        edad: 28,
-        sexo: 'Femenino',
-        ciudad: 'Encarnación',
-        descripcionFisica: 'Estatura 1.68m, cabello rubio ondulado.',
-        vestimenta: 'Vestido floreado y campera de jean.',
-        senasParticulares: 'Tatuaje pequeño de flor en la muñeca.',
-        fechaHoraDesaparicion: '2026-09-28T19:00',
-        fotoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400',
-        ubicacion: { lat: -27.3306, lng: -55.8667, direccion: 'Costanera Encarnación' },
-        numeroDenuncia: 'DEN-2026-4431',
-        estado: 'LOCALIZADO',
-        motivoRechazo: null,
-        reportadoPorUsrId: 'usr_demo_3',
-        contactoReportante: '0983111222',
-        fechaCreacion: '2026-09-29T08:00:00Z',
-        proximoSeguimiento: '2026-10-02T08:00:00Z'
-      }
-    ];
 
     function getStore() {
       const data = localStorage.getItem(DB_KEY);
       let store;
       if (!data) {
         store = {
-          casos: INITIAL_CASES,
-          pistas: [
-            {
-              id: 'pst_1',
-              casoId: 'cas_101',
-              usuarioId: 'usr_demo_2',
-              descripcion: 'Vista en la Parada de Colectivos sobre Av. Carlos A. López.',
-              fechaHoraAvistamiento: '2026-10-06T16:00',
-              ubicacion: { lat: -25.2900, lng: -57.6350, direccion: 'Av. Carlos A. López' },
-              fechaEnvio: '2026-10-06T17:15:00Z'
-            }
-          ],
-          notificaciones: [
-            {
-              id: 'not_1',
-              usuarioId: 'usr_demo_1',
-              titulo: 'Alerta de Búsqueda Cercana (Radio 60 km)',
-              mensaje: 'Se ha registrado la búsqueda de Sofía Giménez en Asunción.',
-              tipo: 'ALERTA_BUSQUEDA',
-              leida: false,
-              fecha: '2026-10-06T16:05:00Z'
-            }
-          ],
+          casos: [],
+          pistas: [],
+          notificaciones: []
         };
         localStorage.setItem(DB_KEY, JSON.stringify(store));
       } else {
@@ -787,6 +665,9 @@
       if (!alreadyRendered) {
         await navigateTo(route.view, route.params, { fromHistory: true });
         if (token !== routeApplyToken) return;
+      } else if (route.view === 'admin') {
+        // La pestaña no forma parte de routeRenderKey: se cambia sin recargar el panel.
+        selectAdminTab(route.params.tab || 'overview', null, { silent: true });
       }
       if (route.caseId) openCaseDetail(route.caseId, { fromHistory: true });
       else closeCaseDetail({ fromHistory: true });
@@ -797,6 +678,9 @@
     // molesta que los dos disparen.
     window.addEventListener('popstate', () => { applyCurrentRoute(); });
     window.addEventListener('hashchange', () => { applyCurrentRoute(); });
+
+    // Pantallas visibles sin sesión. El resto exige cuenta (docs/ROLES_Y_PERMISOS.txt).
+    const PUBLIC_VIEWS = ['feed', 'stats'];
 
     async function navigateTo(view, params = {}, options = {}) {
       if (locatedExpiryTimer) {
@@ -833,7 +717,6 @@
           else button.removeAttribute('aria-current');
         });
         header.classList.remove('hidden');
-        document.getElementById('workshopBar').classList.remove('hidden');
         document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
         main.innerHTML = renderAccessView(view);
@@ -842,9 +725,8 @@
         return;
       }
 
-      if (!store.currentUser && view !== 'otp' && !['feed', 'stats', 'lead'].includes(view)) {
+      if (!store.currentUser && view !== 'otp' && !PUBLIC_VIEWS.includes(view)) {
         header.classList.add('hidden');
-        document.getElementById('workshopBar').classList.add('hidden');
         main.innerHTML = renderAuthScreen(params.authMode || 'login', params.identifier || '');
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
@@ -867,7 +749,6 @@
 
       if (store.currentUser && !store.currentUser.acepto_terminos) {
         header.classList.add('hidden');
-        document.getElementById('workshopBar').classList.add('hidden');
         main.innerHTML = renderLegalTerms();
         document.getElementById('publicThemeToggle').classList.remove('hidden');
         labelButtons(main);
@@ -879,15 +760,17 @@
 
       if (store.currentUser) {
         header.classList.remove('hidden');
-        document.getElementById('workshopBar').classList.remove('hidden');
         document.getElementById('publicThemeToggle').classList.add('hidden');
         updateHeaderUser();
       } else {
-        const showPublicNavigation = ['feed', 'stats', 'lead'].includes(view);
+        const showPublicNavigation = PUBLIC_VIEWS.includes(view);
         header.classList.toggle('hidden', !showPublicNavigation);
-        document.getElementById('workshopBar').classList.toggle('hidden', !showPublicNavigation);
         document.getElementById('publicThemeToggle').classList.toggle('hidden', showPublicNavigation);
         updateHeaderUser();
+      }
+
+      if (store.currentUser && ['auth', 'otp'].includes(view)) {
+        view = 'feed';
       }
 
       if (view === 'admin' && (!store.currentUser
@@ -903,10 +786,6 @@
       }
       document.querySelectorAll('[data-nav-view]').forEach(button => {
         if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
-        else button.removeAttribute('aria-current');
-      });
-      document.querySelectorAll('[data-demo-view]').forEach(button => {
-        if (button.dataset.demoView === (view === 'admin' ? 'admin' : 'feed')) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
       });
 
@@ -1013,6 +892,7 @@
         case 'report':
           removeReportPhoto();
           main.innerHTML = renderReportView();
+          initReportLocationSelects();
           initReportLeafletMap();
           break;
         case 'lead':
@@ -1106,7 +986,7 @@
       avatar.classList.toggle('header-profile-avatar-admin', isAdministrator);
       avatar.classList.toggle('header-profile-avatar-citizen', !isAdministrator);
       const roleBadge = document.getElementById('headerProfileRole');
-      roleBadge.textContent = isAdministrator ? 'ADMIN' : 'CIUDADANO';
+      roleBadge.textContent = isAdministrator ? 'Administración' : 'Ciudadano';
       roleBadge.classList.toggle('role-badge-admin', isAdministrator);
       roleBadge.classList.toggle('role-badge-citizen', !isAdministrator);
       if (authAction) {
@@ -1114,15 +994,10 @@
         authAction.onclick = store.currentUser ? logout : () => navigateTo('auth');
         authAction.classList.toggle('hidden', Boolean(store.currentUser));
       }
-      document.getElementById('workshopSimulate')?.classList.toggle('hidden', !isAdministrator);
-      document.querySelectorAll('[data-demo-view="admin"]').forEach(button => {
-        button.disabled = !isAdministrator;
-        button.title = isAdministrator ? 'Abrir el panel administrativo autorizado' : 'Requiere una cuenta autorizada de administrador';
-      });
       if (!store.currentUser) return;
       document.getElementById('drawerUserName').innerText = displayName;
       const drawerRole = document.getElementById('drawerUserRole');
-      drawerRole.innerText = isAdministrator ? 'ADMIN' : 'CIUDADANO';
+      drawerRole.innerText = isAdministrator ? 'Administración' : 'Ciudadano';
       drawerRole.classList.toggle('role-badge-admin', isAdministrator);
       drawerRole.classList.toggle('role-badge-citizen', !isAdministrator);
       document.getElementById('simulateFollowupButton').classList.toggle('hidden', !isAdministrator);
@@ -1790,7 +1665,7 @@
         <h2 id="caseDetailTitle">${escapeHtml(c.nombreCompleto)}</h2>
         <p><span class="status-tag ${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'status-SIN_ACTUALIZAR' : `status-${escapeHtml(c.estado)}`}">${c.estado === 'EN_SEGUIMIENTO' && c.seguimientoEtapa >= 2 ? 'EN SEGUIMIENTO · SIN ACTUALIZAR' : escapeHtml(c.estado.replaceAll('_', ' '))}</span></p>
         <p><strong>Edad:</strong> ${Number(c.edad)} años · ${escapeHtml(c.sexo)}</p>
-        <p><strong>Ciudad:</strong> ${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</p>
+        <p><strong>Ciudad:</strong> ${c.barrio ? `${escapeHtml(c.barrio)}, ` : ''}${escapeHtml(c.ciudad)}${c.departamento ? `, ${escapeHtml(c.departamento)}` : ''}</p>
         <p><strong>Desaparición:</strong> ${new Date(c.fechaHoraDesaparicion).toLocaleString('es-PY')}</p>
         <p><strong>Descripción física:</strong> ${escapeHtml(c.descripcionFisica)}</p>
         <p><strong>Vestimenta:</strong> ${escapeHtml(c.vestimenta)}</p>
@@ -1877,11 +1752,7 @@
           const map = L.map('mainMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 7);
           addTextMapZoomControl(map);
           
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            subdomains: 'abcd',
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-          }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          addBaseTiles(map, mapEl);
 
           const store = getStore();
           store.casos.forEach(c => {
@@ -1948,6 +1819,14 @@
       mapEl.appendChild(notice);
     }
 
+    // Mapa base de OpenStreetMap: no requiere API key (CARTO empezó a pedirla).
+    function addBaseTiles(map, mapEl) {
+      return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+      }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+    }
+
     function addTextMapZoomControl(map) {
       L.control.attribution({ prefix: false }).addTo(map);
       L.control.zoom({
@@ -2000,7 +1879,11 @@
     const ACCESS_GATED_VIEWS = {
       report: {
         titulo: 'Reportar persona desaparecida',
-        motivo: 'Para registrar una desaparición hace falta una cuenta de ciudadano: el reporte queda asociado a vos y por ahí te llegan los avisos de seguimiento. Buscar casos y enviar pistas no requiere cuenta.'
+        motivo: 'Para registrar una desaparición hace falta una cuenta de ciudadano: el reporte queda asociado a vos y por ahí te llegan los avisos de seguimiento. Buscar casos y ver estadísticas no requiere cuenta.'
+      },
+      lead: {
+        titulo: 'Generar pista',
+        motivo: 'Para evitar pistas falsas, cada pista queda asociada a una cuenta verificada. Igual se publica de forma anónima: nadie más que la administración ve quién la envió.'
       },
       'my-cases': {
         titulo: 'Mis casos',
@@ -2061,19 +1944,30 @@
               </div>
             </div>
 
-            <div class="grid-2">
+            <div class="grid-3 location-select">
               <div class="form-group">
-                <label>Ciudad *</label>
-                <input type="text" id="repCiudad" required placeholder="Ej: Asunción" class="form-control">
+                <label for="repDepartamento">Departamento *</label>
+                <select id="repDepartamento" required class="form-control" onchange="onReportDepartmentChange()">
+                  <option value="">Cargando…</option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Departamento *</label>
-                <input type="text" id="repDepartamento" required placeholder="Ej: Central" class="form-control">
+                <label for="repCiudad">Ciudad / distrito *</label>
+                <select id="repCiudad" required disabled class="form-control" onchange="onReportCityChange()">
+                  <option value="">Elegí un departamento</option>
+                </select>
               </div>
               <div class="form-group">
-                <label>Fecha y Hora *</label>
-                <input type="datetime-local" id="repFechaHora" required class="form-control">
+                <label for="repBarrio">Barrio / localidad</label>
+                <select id="repBarrio" disabled class="form-control" onchange="centerReportMapOnSelection()">
+                  <option value="">Elegí una ciudad</option>
+                </select>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label for="repFechaHora">Fecha y hora de la desaparición *</label>
+              <input type="datetime-local" id="repFechaHora" required class="form-control">
             </div>
 
             <div class="form-group">
@@ -2095,6 +1989,7 @@
             <div class="form-group">
               <div>
                 <label>Lugar exacto de desaparición *</label>
+                <p class="muted">El pin se ubica solo según el departamento, ciudad y barrio elegidos. Tocá el mapa o arrastrá el pin para marcar el punto exacto.</p>
                 <button type="button" onclick="useBrowserLocation('replat', 'replng', reportMarker, 'repCoordsText')" class="btn btn-outline btn-sm">Usar mi ubicación actual</button>
               </div>
               <div id="reportMap" class="map-container"></div>
@@ -2152,17 +2047,15 @@
         try {
           const map = L.map('reportMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
           addTextMapZoomControl(map);
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-          }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          addBaseTiles(map, mapEl);
 
           reportMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Lugar de desaparición', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
           reportMarker.on('dragend', function (e) {
-            const coord = e.target.getLatLng();
-            document.getElementById('replat').value = coord.lat.toFixed(5);
-            document.getElementById('replng').value = coord.lng.toFixed(5);
-            document.getElementById('repCoordsText').innerText = `Coordenadas: ${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`;
+            setReportCoordinates(e.target.getLatLng());
+          });
+          map.on('click', event => {
+            reportMarker.setLatLng(event.latlng);
+            setReportCoordinates(event.latlng);
           });
 
           activeMap = map;
@@ -2170,6 +2063,36 @@
           mapEl.innerHTML = '<div>No se pudo cargar el mapa. Verifique su conexión.</div>';
         }
       }, 100);
+    }
+
+    function setReportCoordinates({ lat, lng }) {
+      document.getElementById('replat').value = Number(lat).toFixed(5);
+      document.getElementById('replng').value = Number(lng).toFixed(5);
+      document.getElementById('repCoordsText').innerText = `Coordenadas: ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+    }
+
+    // Al elegir departamento, ciudad o barrio, el pin se mueve solo a esa zona
+    // (geocodificación gratuita de OpenStreetMap). Después se puede ajustar a mano.
+    let reportGeocodeToken = 0;
+    async function centerReportMapOnSelection() {
+      const parts = ['repBarrio', 'repCiudad', 'repDepartamento']
+        .map(id => document.getElementById(id)?.value || '')
+        .filter(Boolean)
+        .map(value => value === 'Capital' ? 'Asunción' : value);
+      if (!parts.length || !activeMap || !reportMarker) return;
+      const token = ++reportGeocodeToken;
+      try {
+        const query = new URLSearchParams({ q: [...parts, 'Paraguay'].join(', '), format: 'json', limit: '1', countrycodes: 'py' });
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?${query}`, { headers: { Accept: 'application/json' } });
+        const [place] = response.ok ? await response.json() : [];
+        if (!place || token !== reportGeocodeToken) return;
+        const position = { lat: Number(place.lat), lng: Number(place.lon) };
+        reportMarker.setLatLng(position);
+        activeMap.setView(position, document.getElementById('repBarrio').value ? 15 : document.getElementById('repCiudad').value ? 13 : 9);
+        setReportCoordinates(position);
+      } catch (error) {
+        console.error('No se pudo ubicar la zona elegida en el mapa:', error.message);
+      }
     }
 
     function useBrowserLocation(latId, lngId, markerObj, coordsTextId) {
@@ -2188,6 +2111,8 @@
       }
     }
 
+    // Las fotos se reducen a 800 px antes de enviarse, así que se acepta el tamaño de una foto de celular.
+    const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
     let selectedReportPhoto = null;
     let reportPhotoPreviewUrl = '';
 
@@ -2208,9 +2133,9 @@
         setReportPhotoError('Seleccione una imagen JPG, PNG o WEBP.');
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > MAX_PHOTO_BYTES) {
         clearReportPhotoSelection();
-        setReportPhotoError('La fotografía no debe superar los 5 MB.');
+        setReportPhotoError('La fotografía no debe superar los 15 MB.');
         return;
       }
 
@@ -2277,6 +2202,57 @@
       });
     }
 
+    // Lista oficial de Paraguay (departamento -> ciudad -> barrio). Se pide una sola vez.
+    let paraguayLocationsPromise = null;
+    function loadParaguayLocations() {
+      paraguayLocationsPromise ||= fetch('/data/paraguay-ubicaciones.json')
+        .then(response => {
+          if (!response.ok) throw new Error('No se pudo cargar la lista de ciudades.');
+          return response.json();
+        })
+        .then(data => data.departamentos)
+        .catch(error => {
+          paraguayLocationsPromise = null;
+          throw error;
+        });
+      return paraguayLocationsPromise;
+    }
+
+    function fillSelect(select, placeholder, values) {
+      select.replaceChildren(new Option(placeholder, ''), ...values.map(value => new Option(value, value)));
+      select.disabled = values.length === 0;
+    }
+
+    async function initReportLocationSelects() {
+      const department = document.getElementById('repDepartamento');
+      if (!department) return;
+      try {
+        const departments = await loadParaguayLocations();
+        fillSelect(department, 'Elegí un departamento', departments.map(item => item.departamento));
+      } catch (error) {
+        department.replaceChildren(new Option('No se pudo cargar la lista', ''));
+        showToast('Lista de ciudades no disponible', error.message, 'error');
+      }
+    }
+
+    async function onReportDepartmentChange() {
+      const departments = await loadParaguayLocations();
+      const selected = departments.find(item => item.departamento === document.getElementById('repDepartamento').value);
+      fillSelect(document.getElementById('repCiudad'), selected ? 'Elegí una ciudad' : 'Elegí un departamento',
+        selected ? selected.ciudades.map(item => item.ciudad) : []);
+      fillSelect(document.getElementById('repBarrio'), 'Elegí una ciudad', []);
+      centerReportMapOnSelection();
+    }
+
+    async function onReportCityChange() {
+      const departments = await loadParaguayLocations();
+      const department = departments.find(item => item.departamento === document.getElementById('repDepartamento').value);
+      const city = department?.ciudades.find(item => item.ciudad === document.getElementById('repCiudad').value);
+      const barrios = city?.barrios || [];
+      fillSelect(document.getElementById('repBarrio'), barrios.length ? 'Sin especificar' : 'Sin barrios cargados', barrios);
+      centerReportMapOnSelection();
+    }
+
     async function handleReportSubmit(e) {
       e.preventDefault();
       const name = document.getElementById('repNombre').value.trim();
@@ -2305,7 +2281,8 @@
         edad: parseInt(document.getElementById('repEdad').value),
         sexo: document.getElementById('repSexo').value,
         ciudad: city,
-        departamento: document.getElementById('repDepartamento').value.trim(),
+        departamento: document.getElementById('repDepartamento').value,
+        barrio: document.getElementById('repBarrio').value,
         descripcionFisica: document.getElementById('repFisica').value,
         vestimenta: document.getElementById('repVestimenta').value,
         senasParticulares: document.getElementById('repSenas').value,
@@ -2410,6 +2387,7 @@
           </article>
           <form onsubmit="handleLeadSubmit(event)" class="card lead-form">
             <h2>Enviar una pista</h2>
+            <p class="muted">Tu pista se publica de forma anónima. Solo la administración puede ver qué cuenta la envió.</p>
             <p class="notice notice-info">Si la pista se valida, su descripción, fotos y ubicación podrán mostrarse en la ficha; no solicitamos tus datos personales ni se muestran al público.</p>
             <input type="hidden" id="leadCaseId" value="${escapeHtml(selectedCase.id)}">
             <div class="form-group">
@@ -2469,10 +2447,10 @@
       clearLeadPhotoSelection();
       const error = document.getElementById('leadPhotoError');
       if (files.length > 3 || files.some(file =>
-        !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024
+        !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_PHOTO_BYTES
       )) {
         input.value = '';
-        error.textContent = 'Seleccione hasta 3 fotografías JPG, PNG o WEBP de máximo 5 MB cada una.';
+        error.textContent = 'Seleccione hasta 3 fotografías JPG, PNG o WEBP de máximo 15 MB cada una.';
         error.classList.remove('hidden');
         return;
       }
@@ -2498,10 +2476,7 @@
         try {
           const map = L.map('leadMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([-25.2867, -57.6333], 12);
           addTextMapZoomControl(map);
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-          }).addTo(map).on('tileerror', () => showMapLoadError(mapEl));
+          addBaseTiles(map, mapEl);
 
           leadMarker = L.marker([-25.2867, -57.6333], { draggable: true, title: 'Ubicación de la pista', icon: L.divIcon({ className: 'location-marker', html: '', iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(map);
           map.on('click', event => {
@@ -2714,9 +2689,9 @@
                   <p class="my-case-meta">Reportado ${new Date(c.fechaCreacion).toLocaleString('es-PY')}</p>
                   ${c.estado === 'PENDIENTE' ? '<p class="my-case-notice">Tu reporte está en revisión. Recibirás un aviso cuando se actualice.</p>' : ''}
                   ${c.estado === 'RECHAZADO' ? `<p class="my-case-notice">${escapeHtml(c.motivoRechazo || 'El reporte no fue aprobado. Contactá a soporte para más información.')}</p>` : ''}
-                  ${needsResponse ? `<div class="my-case-actions">
+                  ${needsResponse ? `<div class="my-case-actions table-actions">
                     <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
-                    <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'LOCALIZADO')">Fue localizada</button>
+                    <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
                     <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
                     <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(c.id)}" onclick="respondToFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
                   </div>` : ''}
@@ -2725,10 +2700,7 @@
             </section>
             <aside class="card system-notices" aria-labelledby="systemNoticesHeading">
               <h2 id="systemNoticesHeading">Avisos</h2>
-              ${relevantNotifications.length ? `<ul>${relevantNotifications.map(notice => `<li class="${notice.leida ? '' : 'unread'}">
-                <strong>${escapeHtml(notice.titulo)}</strong><p>${escapeHtml(notice.mensaje)}</p>
-                <time datetime="${escapeHtml(notice.fecha)}">${new Date(notice.fecha).toLocaleString('es-PY')}</time>
-              </li>`).join('')}</ul>` : '<p class="muted">No tenés avisos del sistema por el momento.</p>'}
+              ${relevantNotifications.length ? `<div class="notif-list">${relevantNotifications.map(notice => renderNoticeItem(notice)).join('')}</div>` : '<div class="notif-empty"><strong>Todo al día</strong><p>No tenés avisos por ahora.</p></div>'}
               <button type="button" class="btn btn-outline btn-sm" onclick="toggleNotificationsModal()">Abrir centro de avisos</button>
             </aside>
           </div>
@@ -2792,7 +2764,6 @@
         <section class="admin-dashboard">
           <div class="admin-dashboard-heading">
             <div><span class="section-kicker">Gestión institucional</span><h1>Panel de administración</h1></div>
-            <span class="role-badge role-badge-admin">ADMIN</span>
           </div>
 
           <nav class="admin-tabs" aria-label="Secciones del administrador">
@@ -2906,6 +2877,7 @@
                   <p>${escapeHtml(clue.descripcion)}</p>
                   <p>${new Date(clue.fechaHoraAvistamiento).toLocaleString('es-PY')}</p>
                   <p>${Number(clue.ubicacion?.lat)}, ${Number(clue.ubicacion?.lng)} · ${escapeHtml(clue.ubicacion?.direccion || '')}</p>
+                  <p class="muted">Enviada por: ${clue.autor ? `${escapeHtml(clue.autor.nombre)} · ${escapeHtml(clue.autor.correo)}` : 'sin cuenta (pista anterior al registro obligatorio)'}</p>
                 </td>
                 <td data-label="Fotografías"><div class="moderation-photos">
                   ${(clue.fotos || []).map((photo, index) => `<img src="${escapeHtml(photo)}" alt="Fotografía ${index + 1} de la pista">`).join('') || 'Sin fotografías'}
@@ -3172,6 +3144,41 @@
       if (!modal.classList.contains('hidden')) renderNotifList();
     }
 
+    // Componente estándar de aviso: se usa igual en el centro de notificaciones y en "Mis casos".
+    const NOTICE_TONES = {
+      SEGUIMIENTO: 'warning', SEGUIMIENTO_VENCIDO: 'warning', CASO_SIN_ACTUALIZAR: 'warning', CASO_PENDIENTE: 'warning',
+      CASO_LOCALIZADO: 'success', PISTA_VALIDADA: 'success', CASO_VALIDADO: 'success',
+      CASO_RECHAZADO: 'danger'
+    };
+    const relativeTimeFormatter = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+
+    function formatRelativeTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const minutes = Math.round((date.getTime() - Date.now()) / 60000);
+      if (Math.abs(minutes) < 60) return relativeTimeFormatter.format(minutes, 'minute');
+      const hours = Math.round(minutes / 60);
+      if (Math.abs(hours) < 24) return relativeTimeFormatter.format(hours, 'hour');
+      const days = Math.round(hours / 24);
+      if (Math.abs(days) < 7) return relativeTimeFormatter.format(days, 'day');
+      return date.toLocaleDateString('es-PY', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function renderNoticeItem(notice, actionsHtml = '') {
+      const tone = NOTICE_TONES[notice.tipo] || 'info';
+      return `<article class="notif-item notif-${tone}${notice.leida ? '' : ' notif-unread'}">
+        <span class="notif-dot" aria-hidden="true"></span>
+        <div class="notif-body">
+          <div class="notif-head">
+            <strong>${escapeHtml(notice.titulo)}</strong>
+            <time datetime="${escapeHtml(notice.fecha)}" title="${escapeHtml(new Date(notice.fecha).toLocaleString('es-PY'))}">${escapeHtml(formatRelativeTime(notice.fecha))}</time>
+          </div>
+          <p>${escapeHtml(notice.mensaje)}</p>
+          ${actionsHtml}
+        </div>
+      </article>`;
+    }
+
     async function renderNotifList() {
       const store = getStore();
       const container = document.getElementById('notifList');
@@ -3184,23 +3191,17 @@
       }
       if (!Array.isArray(store.notificaciones)) store.notificaciones = [];
       if (store.notificaciones.length === 0) {
-        container.innerHTML = '<p>Sin notificaciones registradas.</p>';
+        container.innerHTML = '<div class="notif-empty"><strong>Todo al día</strong><p>No tenés notificaciones por ahora.</p></div>';
         return;
       }
-      container.innerHTML = store.notificaciones.map(n => `
-        <div>
-          <p>${escapeHtml(n.titulo)}</p>
-          <p>${escapeHtml(n.mensaje)}</p>
-          <span>${new Date(n.fecha).toLocaleString('es-PY')}</span>
-          ${['SEGUIMIENTO', 'SEGUIMIENTO_VENCIDO'].includes(n.tipo) && n.casoId ? `
-            <div class="case-detail-actions">
+      container.innerHTML = store.notificaciones.map(n => renderNoticeItem(n,
+          ['SEGUIMIENTO', 'SEGUIMIENTO_VENCIDO'].includes(n.tipo) && n.casoId ? `
+            <div class="table-actions">
               <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'SIGUE_ACTIVA')">Sigue activa</button>
-              <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'LOCALIZADO')">Localizada</button>
+              <button type="button" class="btn btn-success btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'LOCALIZADO')">Persona localizada</button>
               <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'PRORROGA')">Solicitar prórroga</button>
               <button type="button" class="btn btn-outline btn-sm" data-case-id="${escapeHtml(n.casoId)}" onclick="respondToCaseFollowup(this.dataset.caseId, 'CERRAR')">Cerrar caso</button>
-            </div>` : ''}
-        </div>
-      `).join('');
+            </div>` : '')).join('');
     }
 
     async function respondToCaseFollowup(caseId, action) {
@@ -3369,8 +3370,6 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        updateParaguayClock();
-        window.setInterval(updateParaguayClock, 1000);
         applyTheme(localStorage.getItem('rastreo_theme') || 'light');
         labelButtons();
         const token = sessionStorage.getItem('rastreo_token');

@@ -3,13 +3,22 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
+function resolveSsl(connectionString) {
+  if (process.env.DATABASE_SSL === 'true') return { rejectUnauthorized: false };
+  if (process.env.DATABASE_SSL === 'false') return false;
+  if (connectionString && (connectionString.includes('@db:') || connectionString.includes('@localhost') || connectionString.includes('@127.0.0.1'))) {
+    return false;
+  }
+  return process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false;
+}
+
 export function createDatabase(connectionString = process.env.DATABASE_URL) {
   if (!connectionString) {
     throw new Error('Falta la variable DATABASE_URL.');
   }
   return new Pool({
     connectionString,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: resolveSsl(connectionString)
   });
 }
 
@@ -88,6 +97,7 @@ export async function initializeDatabase(db) {
 
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS localizado_en TIMESTAMPTZ;
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS departamento TEXT NOT NULL DEFAULT '';
+    ALTER TABLE casos ADD COLUMN IF NOT EXISTS barrio TEXT NOT NULL DEFAULT '';
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS reportante_mayor_edad BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS autorizacion_parental BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE casos ADD COLUMN IF NOT EXISTS aviso_privacidad_aceptado BOOLEAN NOT NULL DEFAULT FALSE;

@@ -33,18 +33,23 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
         scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
         styleSrcAttr: ["'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https://unpkg.com', 'https://images.unsplash.com', 'https://tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://unpkg.com', 'https://images.unsplash.com', 'https://tile.openstreetmap.org'],
         fontSrc: ["'self'", 'data:', 'https://unpkg.com'],
-        connectSrc: ["'self'"]
+        connectSrc: ["'self'", 'https://nominatim.openstreetmap.org']
       }
     },
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   }));
 
-  // Configuración de CORS permisiva para evitar bloqueos durante el desarrollo local
-  app.use(cors({
-    origin: true,
-    credentials: true
+  // CORS solo para el origen público (APP_URL) y para la propia página servida por Express.
+  const allowedOrigin = appUrl ? new URL(appUrl).origin : null;
+  app.use(cors((req, callback) => {
+    const origin = req.get('origin');
+    const sameOrigin = `${req.protocol}://${req.get('host')}`;
+    if (!origin || origin === allowedOrigin || origin === sameOrigin) {
+      return callback(null, { origin: origin || false, credentials: true });
+    }
+    callback(new Error(`Origen no permitido por CORS: ${origin}`));
   }));
 
   app.use(express.json({ limit: '12mb' }));

@@ -214,3 +214,134 @@ test('registro, verificación, login persistente y autorización por rol', {
     await db.end();
   }
 });
+
+function mockDatabase(handler) {
+  const queries = [];
+  const query = async (sql, values = []) => {
+    queries.push({ sql, values });
+    return handler(sql, values) || { rows: [], rowCount: 0 };
+  };
+  return { queries, db: { query, connect: async () => ({ query, release() {} }) } };
+}
+
+test('restablecer contraseña valida datos y no revela si la cuenta existe', async () => {
+  const { db, queries } = mockDatabase(sql => {
+    if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '0' }] };
+    return null;
+  });
+  const sentMessages = [];
+  const app = createApp({
+    db,
+    mailer: { sendMail: async message => { sentMessages.push(message); } },
+    jwtSecret: 'test-secret-with-at-least-thirty-two-characters',
+    appUrl: 'http://127.0.0.1'
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const post = async (endpoint, body) => {
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return { status: response.status, data: await response.json() };
+  };
+
+  try {
+    const invalid = await post('/api/auth/restablecer/solicitar', { correo: 'alguien@example.com' });
+    assert.equal(invalid.status, 400);
+
+    const unknown = await post('/api/auth/restablecer/solicitar', { correo: 'NoExiste@Gmail.com' });
+    assert.equal(unknown.status, 200);
+    assert.match(unknown.data.mensaje, /Si el Gmail está registrado/);
+    assert.equal(sentMessages.length, 0, 'no se envía correo a cuentas inexistentes');
+    assert.ok(queries.some(({ sql, values }) => sql.includes('FROM usuarios') && values[0] === 'noexiste@gmail.com'));
+
+    const before = queries.length;
+    const shortPassword = await post('/api/auth/restablecer/confirmar', {
+      correo: 'alguien@gmail.com', codigo: '123456', nueva_contrasena: 'corta'
+    });
+    assert.equal(shortPassword.status, 400);
+    assert.equal(shortPassword.data.error, 'La contraseña debe tener al menos 8 caracteres.');
+    assert.equal(queries.length, before, 'una contraseña inválida no consume intentos del código');
+
+    const badCode = await post('/api/auth/restablecer/confirmar', {
+      correo: 'alguien@gmail.com', codigo: '12ab', nueva_contrasena: 'Password-nueva-1'
+    });
+    assert.equal(badCode.status, 400);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('restablecer contraseña cambia la clave con el código del correo', {
+  skip: !testDatabaseUrl && 'Defina TEST_DATABASE_URL para ejecutar la prueba de integración con PostgreSQL.'
+}, async () => {
+  const db = createDatabase(testDatabaseUrl);
+  const email = `reset.${randomUUID().replaceAll('-', '')}@gmail.com`;
+  const secret = 'test-secret-with-at-least-thirty-two-characters';
+  const sentMessages = [];
+  let server;
+  let databaseInitialized = false;
+
+  try {
+    await initializeDatabase(db);
+    databaseInitialized = true;
+    await db.query(`
+      INSERT INTO usuarios (nombre_completo, correo, contrasena_hash, rol, verificado)
+      VALUES ('Persona Reset', $1, $2, 'ciudadano', TRUE)
+    `, [email, await bcrypt.hash('Password-vieja-1', 10)]);
+    server = createApp({
+      db,
+      mailer: { sendMail: async message => { sentMessages.push(message); } },
+      jwtSecret: secret,
+      appUrl: 'https://rastreo.example'
+    }).listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    const post = async (endpoint, body) => {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      return { status: response.status, data: await response.json() };
+    };
+
+    const requested = await post('/api/auth/restablecer/solicitar', { correo: email });
+    assert.equal(requested.status, 200);
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0].subject, /restablecer la contraseña/);
+    assert.match(sentMessages[0].text, /Persona Reset/);
+    const code = sentMessages[0].text.match(/código de verificación es: (\d{6})/)[1];
+    const wrongCode = code === '000000' ? '111111' : '000000';
+
+    const wrong = await post('/api/auth/restablecer/confirmar', {
+      correo: email, codigo: wrongCode, nueva_contrasena: 'Password-nueva-1'
+    });
+    assert.equal(wrong.status, 400);
+    assert.equal(wrong.data.error, 'Código incorrecto. Le quedan 4 intentos.');
+
+    const confirmed = await post('/api/auth/restablecer/confirmar', {
+      correo: email, codigo: code, nueva_contrasena: 'Password-nueva-1'
+    });
+    assert.equal(confirmed.status, 200);
+
+    const reused = await post('/api/auth/restablecer/confirmar', {
+      correo: email, codigo: code, nueva_contrasena: 'Password-otra-1'
+    });
+    assert.equal(reused.status, 400, 'el código no se puede reutilizar');
+
+    assert.equal((await post('/api/auth/login', { correo: email, contrasena: 'Password-vieja-1' })).status, 401);
+    assert.equal((await post('/api/auth/login', { correo: email, contrasena: 'Password-nueva-1' })).status, 200);
+  } finally {
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
+    if (databaseInitialized) {
+      await db.query('DELETE FROM solicitudes_codigo WHERE correo = $1', [email]);
+      await db.query('DELETE FROM codigos_verificacion WHERE correo = $1', [email]);
+      await db.query('DELETE FROM usuarios WHERE correo = $1', [email]);
+    }
+    await db.end();
+  }
+});

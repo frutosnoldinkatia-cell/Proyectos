@@ -278,6 +278,65 @@ export function createAuthRouter({ db, mailer, jwtSecret }) {
     }
   }));
 
+  router.post('/restablecer/solicitar', (req, res, next) => {
+    req.codePurpose = 'restablecer';
+    next();
+  }, sendLimiter, sendCodeLimiter(db), asyncRoute(async (req, res) => {
+    const correo = validGmail(req.body?.correo);
+    if (!correo) return res.status(400).json({ error: 'Ingrese una cuenta de Gmail válida (terminada en @gmail.com).' });
+
+    // Misma respuesta exista o no la cuenta, para no revelar qué correos están registrados.
+    const respuesta = { mensaje: 'Si el Gmail está registrado, recibirá un código para restablecer la contraseña.' };
+    const { rows } = await db.query(
+      'SELECT nombre_completo FROM usuarios WHERE correo = $1 AND verificado = TRUE',
+      [correo]
+    );
+    if (!rows[0]) return res.json(respuesta);
+
+    const { code, hash } = makeCode(jwtSecret);
+    await persistCode({ correo, codeHash: hash, proposito: 'restablecer' });
+    try {
+      await sendCode({ correo, nombre: rows[0].nombre_completo, code, purpose: 'restablecer' });
+    } catch (error) {
+      await db.query(
+        'DELETE FROM codigos_verificacion WHERE correo = $1 AND proposito = $2',
+        [correo, 'restablecer']
+      );
+      console.error('No se pudo enviar el correo para restablecer la contraseña:', error);
+      return res.status(503).json({ error: 'No se pudo enviar el correo. Intente nuevamente.' });
+    }
+    res.json(respuesta);
+  }));
+
+  router.post('/restablecer/confirmar', asyncRoute(async (req, res) => {
+    const correo = validGmail(req.body?.correo);
+    const code = typeof req.body?.codigo === 'string' ? req.body.codigo.trim() : '';
+    const password = req.body?.nueva_contrasena;
+    if (!correo || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: 'Ingrese el Gmail y el código de 6 dígitos.' });
+    }
+    // Se valida antes del código para que una contraseña corta no consuma intentos.
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+    }
+    const pending = await checkCode(correo, 'restablecer', code, res);
+    if (!pending) return;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const updated = await withTransaction(db, async client => {
+      const result = await client.query(`
+        UPDATE usuarios SET contrasena_hash = $2, actualizado_en = CURRENT_TIMESTAMP
+        WHERE correo = $1 AND verificado = TRUE
+      `, [correo, passwordHash]);
+      await client.query('DELETE FROM codigos_verificacion WHERE id = $1', [pending.id]);
+      return result.rowCount > 0;
+    });
+    if (!updated) {
+      return res.status(400).json({ error: 'No hay un código pendiente. Solicite uno nuevo.' });
+    }
+    res.json({ mensaje: 'La contraseña se actualizó correctamente.' });
+  }));
+
   router.post('/login', loginLimiter, asyncRoute(async (req, res) => {
     try {
       const rawInput = String(req.body?.correo || req.body?.identificador || '').trim();

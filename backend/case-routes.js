@@ -185,6 +185,33 @@ export async function processDueFollowups(db) {
   });
 }
 
+// PUBLIC_CASE_FILTER para consultas que unen pistas (p) con casos (c).
+const PUBLIC_CASE_FILTER_JOINED = PUBLIC_CASE_FILTER
+  .replaceAll('estado', 'c.estado').replaceAll('localizado_en', 'c.localizado_en');
+
+// URLs de las fotos válidas de una pista; el índice es la posición en pistas.fotos.
+function clueFotoUrls(row, administrator) {
+  const base = `/api/${administrator ? 'admin/' : ''}pistas/${encodeURIComponent(row.id)}/fotos`;
+  return (row.fotos || []).flatMap((photo, index) =>
+    typeof photo === 'string' && IMAGE_DATA_URL.test(photo) ? [`${base}/${index}`] : []);
+}
+
+async function sendCluePhoto(db, req, res, administrator) {
+  const index = Number(req.params.n);
+  if (!Number.isInteger(index) || index < 0 || index > 2) return res.status(404).json({ error: 'Foto no disponible' });
+  // Los arrays de PostgreSQL empiezan en 1.
+  const { rows } = administrator
+    ? await db.query('SELECT fotos[$2] AS foto FROM pistas WHERE id = $1', [req.params.id, index + 1])
+    : await db.query(`
+      SELECT p.fotos[$3] AS foto FROM pistas p JOIN casos c ON c.id = p.caso_id
+      WHERE p.id = $2 AND p.estado = 'VALIDADA' AND c.estado <> 'RECHAZADO'
+        AND ${PUBLIC_CASE_FILTER_JOINED}
+    `, [...caseVisibilityParameters(), req.params.id, index + 1]);
+  const match = typeof rows[0]?.foto === 'string' ? rows[0].foto.match(IMAGE_DATA_URL) : null;
+  if (!match) return res.status(404).json({ error: 'Foto no disponible' });
+  res.type(`image/${match[1]}`).set('Cache-Control', 'private, no-store').send(Buffer.from(match[2], 'base64'));
+}
+
 async function sendStoredPhoto(db, req, res, administrator) {
   const visibility = administrator ? '' : `AND ${PUBLIC_CASE_FILTER}`;
   const idPlaceholder = administrator ? '$1' : '$2';
@@ -283,7 +310,7 @@ export function createCaseRouter({ db, jwtSecret }) {
         p.latitud, p.longitud, p.direccion, p.fotos, p.fecha_envio,
         COUNT(*) OVER() AS total_registros
       FROM pistas p JOIN casos c ON c.id = p.caso_id
-      WHERE ${PUBLIC_CASE_FILTER.replaceAll('estado', 'c.estado').replaceAll('localizado_en', 'c.localizado_en')}
+      WHERE ${PUBLIC_CASE_FILTER_JOINED}
         AND c.estado <> 'RECHAZADO' AND p.estado = 'VALIDADA'
       ORDER BY p.fecha_envio DESC
       LIMIT $2::integer OFFSET $3::integer
@@ -294,11 +321,16 @@ export function createCaseRouter({ db, jwtSecret }) {
       descripcion: row.descripcion,
       fechaHoraAvistamiento: row.fecha_hora_avistamiento,
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
+      // `fotos` (base64) se mantiene hasta que el frontend use `fotosUrl` (T17).
       fotos: (row.fotos || []).filter(photo =>
         typeof photo === 'string' && IMAGE_DATA_URL.test(photo)),
+      fotosUrl: clueFotoUrls(row, false),
       fechaEnvio: row.fecha_envio
     })), rows, pagination));
   }));
+
+  router.get('/pistas/:id/fotos/:n', asyncRoute((req, res) => sendCluePhoto(db, req, res, false)));
+  router.get('/admin/pistas/:id/fotos/:n', ...requireAdmin, asyncRoute((req, res) => sendCluePhoto(db, req, res, true)));
 
   router.get('/admin/pistas', ...requireAdmin, asyncRoute(async (req, res) => {
     const pagination = paginationFromQuery(req.query);
@@ -329,6 +361,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       fechaHoraAvistamiento: row.fecha_hora_avistamiento,
       ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
       fotos: row.fotos || [],
+      fotosUrl: clueFotoUrls(row, true),
       estado: row.estado,
       // Solo para moderación: el público nunca recibe estos datos.
       autor: row.autor_id

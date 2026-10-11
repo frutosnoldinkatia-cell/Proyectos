@@ -901,3 +901,91 @@ test('pistas públicas y listados de administración paginan solo si se pide', a
     await app.close();
   }
 });
+
+test('fotos de pistas por URL: índice válido y visibilidad pública', async () => {
+  const app = await startApp();
+  try {
+    for (const bad of ['3', '-1', 'x', '1.5']) {
+      assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/${bad}`)).status, 404, bad);
+    }
+    assert.equal((await fetch(`${app.baseUrl}/api/pistas/p1/fotos/0`)).status, 404, 'sin pista visible');
+    const query = app.queries.filter(item => item.sql.includes('p.fotos[$3]')).at(-1);
+    assert.match(query.sql, /p\.estado = 'VALIDADA'/);
+    assert.match(query.sql, /c\.localizado_en/);
+    assert.deepEqual(query.values, [windowHours, 'p1', 1], 'índice 0 → posición 1 del array');
+    assert.equal((await fetch(`${app.baseUrl}/api/admin/pistas/p1/fotos/0`)).status, 401);
+  } finally {
+    await app.close();
+  }
+});
+
+test('fotos de pistas por URL con PostgreSQL', {
+  skip: !testDatabaseUrl && 'Defina TEST_DATABASE_URL para ejecutar la prueba de integración con PostgreSQL.'
+}, async () => {
+  const db = createDatabase(testDatabaseUrl);
+  const suffix = randomUUID().replaceAll('-', '');
+  const caseId = `cas_test_fotos_${suffix}`;
+  const adminEmail = `admin.fotos.${suffix}@gmail.com`;
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const jpeg = 'data:image/jpeg;base64,/9j/2Q==';
+  let server;
+  let databaseInitialized = false;
+  try {
+    await initializeDatabase(db);
+    databaseInitialized = true;
+    await db.query(`
+      INSERT INTO casos (id, nombre_completo, edad, sexo, ciudad, departamento, descripcion_fisica,
+        vestimenta, fecha_hora_desaparicion, latitud, longitud, estado)
+      VALUES ($1, 'Caso fotos', 30, 'Otro', 'Asunción', 'Capital', 'Descripción', 'Ropa',
+        CURRENT_TIMESTAMP, -25.3, -57.6, 'VALIDADO')
+    `, [caseId]);
+    for (const [id, estado, fotos] of [
+      [`pst_val_${suffix}`, 'VALIDADA', [png, 'javascript:alert(1)', jpeg]],
+      [`pst_pen_${suffix}`, 'PENDIENTE', [png]]
+    ]) {
+      await db.query(`
+        INSERT INTO pistas (id, caso_id, descripcion, fecha_hora_avistamiento, latitud, longitud, fotos, estado)
+        VALUES ($1, $2, 'Pista con fotos', CURRENT_TIMESTAMP, -25.3, -57.6, $3, $4)
+      `, [id, caseId, fotos, estado]);
+    }
+    await seedAdministrator(db, adminEmail, 'Admin-fotos-123');
+    const adminId = (await db.query('SELECT id FROM usuarios WHERE correo = $1', [adminEmail])).rows[0].id;
+    const adminAuth = { Authorization: `Bearer ${jwt.sign({ id: adminId, rol: 'administrador', ver: 0 }, secret)}` };
+    server = createApp({
+      db,
+      mailer: { sendMail: async () => {} },
+      jwtSecret: secret,
+      appUrl: 'http://127.0.0.1'
+    }).listen(0, '127.0.0.1');
+    await new Promise(resolve => server.once('listening', resolve));
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+    const publicClue = (await (await fetch(`${baseUrl}/api/pistas`)).json()).pistas
+      .find(item => item.id === `pst_val_${suffix}`);
+    assert.deepEqual(publicClue.fotosUrl, [
+      `/api/pistas/pst_val_${suffix}/fotos/0`,
+      `/api/pistas/pst_val_${suffix}/fotos/2`
+    ], 'se omite la foto inválida y se conserva el índice original');
+    const first = await fetch(`${baseUrl}${publicClue.fotosUrl[0]}`);
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(`${baseUrl}${publicClue.fotosUrl[1]}`)).headers.get('content-type'), 'image/jpeg');
+    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_val_${suffix}/fotos/1`)).status, 404, 'foto inválida');
+
+    assert.equal((await fetch(`${baseUrl}/api/pistas/pst_pen_${suffix}/fotos/0`)).status, 404,
+      'la foto de una pista pendiente no es pública');
+    const adminClues = (await (await fetch(`${baseUrl}/api/admin/pistas`, { headers: adminAuth })).json()).pistas;
+    const pendingUrl = adminClues.find(item => item.id === `pst_pen_${suffix}`).fotosUrl[0];
+    assert.equal(pendingUrl, `/api/admin/pistas/pst_pen_${suffix}/fotos/0`);
+    assert.equal((await fetch(`${baseUrl}${pendingUrl}`, { headers: adminAuth })).status, 200);
+    assert.equal((await fetch(`${baseUrl}${pendingUrl}`)).status, 401);
+  } finally {
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
+    if (databaseInitialized) {
+      await db.query('DELETE FROM pistas WHERE caso_id = $1', [caseId]);
+      await db.query('DELETE FROM casos WHERE id = $1', [caseId]);
+      await db.query('DELETE FROM usuarios WHERE correo = $1', [adminEmail]);
+    }
+    await db.end();
+  }
+});

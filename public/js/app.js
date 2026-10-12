@@ -1,7 +1,7 @@
 // Punto de entrada: inicialización, eventos de navegación, puente window y service worker.
 // Los demás módulos solo declaran; todo lo que se ejecuta al cargar está acá.
 import { adminAccept, adminCloseCase, adminMarkLocated, adminModerateClue, adminOpenCase, adminReject, adminReopenCase, adminReturnToReview, closeReviewChecklist, loadAdminHistory, loadAdminHistoryPhotos, runTimeFastForward, searchAdminHistory, selectAdminTab, submitCaseReview } from './admin.js';
-import { apiRequest } from './api.js';
+import { apiRequest, avisarServidor } from './api.js';
 import { acceptTerms, changeRegistrationEmail, handleForgotPassword, handleLogin, handleRegister, logout, rejectTerms, resendVerificationCode, retryTermsAcceptance, togglePass, updatePasswordStrength, verifyEmailCode } from './auth.js';
 import { changeFeedPage, closeCaseDetail, filterFeedCases, openCaseDetail, openCaseDetailWithKeyboard, setFeedView, shareCase, toggleFeedMap } from './feed.js';
 import { iniciarEventos } from './eventos.js';
@@ -9,6 +9,7 @@ import { clearLeadPhotoSelection, filterLeadCaseCards, filterLeadCases, handleLe
 import { centerMapOnParaguay, focusCaseOnMap, useMyLocationOnMap, viewCaseOnFeed } from './map.js';
 import { respondToFollowup } from './my-cases.js';
 import { iniciarPwa, installApp, toggleInstallGuide } from './pwa.js';
+import { restaurarSesion } from './sesion.js';
 import { clearNotifs, enableSystemNotifications, respondToCaseFollowup, toggleNotificationsModal } from './notifications.js';
 import { centerReportMapOnSelection, handleReportPhotoSelection, handleReportSubmit, onReportCityChange, onReportDepartmentChange, removeReportPhoto, updateMinorAuthorization, useBrowserLocation } from './report.js';
 import { applyCurrentRoute, drawerNavigate, navigateTo } from './router.js';
@@ -100,19 +101,38 @@ export const acciones = {
 iniciarEventos(acciones);
 iniciarPwa();
 
+// Con un proxy o túnel caído el pedido puede quedar colgado: se corta a los 8 s.
+const pedirUsuario = () => apiRequest('/auth/me', { signal: AbortSignal.timeout?.(8000) })
+  .then(result => result.usuario);
+
+// Si la sesión se conservó sin poder comprobarla, se reintenta cada 10 s; cuando el
+// servidor responde se vuelve a dibujar la vista con datos reales (o se va al login
+// si rechazó el token). Se abandona si mientras tanto alguien ingresó o salió.
+function reintentarSesion(token) {
+  setTimeout(async () => {
+    if (sessionStorage.getItem('rastreo_token') !== token) return;
+    const { usuario, sinConexion } = await restaurarSesion({ pedirUsuario });
+    if (sessionStorage.getItem('rastreo_token') !== token && usuario) return;
+    if (sinConexion) return reintentarSesion(token);
+    window.backendCurrentUser = usuario;
+    const vista = window.rastreoCurrentView;
+    if (!usuario) navigateTo('auth', { authMode: 'login' }, { replace: true });
+    else if (!vista || vista === 'auth') navigateTo('home', {}, { replace: true });
+    else navigateTo(vista, window.rastreoCurrentParams || {}, { replace: true });
+  }, 10000);
+}
+
 async function initApp() {
   try {
     applyTheme(localStorage.getItem('rastreo_theme') || 'light');
     labelButtons();
-    const token = sessionStorage.getItem('rastreo_token');
-    if (token) {
-      try {
-        const result = await apiRequest('/auth/me');
-        window.backendCurrentUser = result.usuario;
-      } catch (error) {
-        sessionStorage.removeItem('rastreo_token');
-        window.backendCurrentUser = null;
-      }
+    // Solo un 401/403 borra el token; sin red o con 5xx se conserva (ver sesion.js)
+    // y se muestra la franja de "Sin conexión" (pwa.js) hasta que el servidor responda.
+    const { usuario, sinConexion } = await restaurarSesion({ pedirUsuario });
+    window.backendCurrentUser = usuario;
+    if (sinConexion) {
+      avisarServidor(false);
+      reintentarSesion(sessionStorage.getItem('rastreo_token'));
     }
     await applyCurrentRoute();
   } catch (error) {

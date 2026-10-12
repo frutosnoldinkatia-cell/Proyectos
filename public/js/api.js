@@ -28,6 +28,15 @@ export async function loadProtectedPhotos(container) {
   }));
 }
 
+// Avisa si el servidor respondió. navigator.onLine solo mira la red del equipo:
+// con Wi-Fi pero el servidor (o el túnel/proxy) caído sigue diciendo "en línea".
+// pwa.js escucha este evento para la franja de "Sin conexión".
+export const EVENTO_SERVIDOR = 'rastreo:servidor';
+
+export function avisarServidor(disponible) {
+  globalThis.dispatchEvent?.(new CustomEvent(EVENTO_SERVIDOR, { detail: { disponible } }));
+}
+
 export async function apiRequest(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   const token = sessionStorage.getItem('rastreo_token');
@@ -40,10 +49,14 @@ export async function apiRequest(path, options = {}) {
       body: options.body ? JSON.stringify(options.body) : undefined
     });
   } catch (error) {
+    avisarServidor(false);
     const requestError = new Error('No se pudo conectar con el servidor. Compruebe que esté disponible e intente nuevamente.');
     requestError.cause = error;
     throw requestError;
   }
+  // 502/503/504 los responde el proxy (Render, túnel de Cloudflare) cuando la app
+  // no está. Un 500 es un error de la app: el servidor sí respondió.
+  avisarServidor(![502, 503, 504].includes(response.status));
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const requestError = new Error(payload.error || `Error del servidor (${response.status}).`);

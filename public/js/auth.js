@@ -4,6 +4,7 @@ import { escapeHtml } from './config.js';
 import { estado } from './estado.js';
 import { startNotificationPolling } from './notifications.js';
 import { consumePendingDestination, navigateTo } from './router.js';
+import { olvidarSesion, recordarUsuario } from './sesion.js';
 import { getStore } from './store.js';
 import { showToast } from './ui.js';
 
@@ -102,6 +103,7 @@ export async function acceptTerms() {
   try {
     await apiRequest('/auth/terminos', { method: 'POST' });
     window.backendCurrentUser = { ...window.backendCurrentUser, acepto_terminos: true };
+    recordarUsuario(window.backendCurrentUser);
     navigateTo('home');
   } catch (error) {
     showTermsSaveError(error);
@@ -244,6 +246,7 @@ export async function handleLogin(e) {
     const result = await apiRequest('/auth/login', { method: 'POST', body: { correo: email, contrasena: password } });
     sessionStorage.setItem('rastreo_token', result.token);
     window.backendCurrentUser = result.usuario;
+    recordarUsuario(result.usuario);
     const destino = consumePendingDestination();
     navigateTo(destino ? destino.view : 'home', destino ? destino.params : {}, { replace: true });
   } catch (error) {
@@ -439,7 +442,7 @@ export async function logout() {
     clearInterval(estado.notificationRefreshTimer);
     estado.notificationRefreshTimer = null;
   }
-  sessionStorage.removeItem('rastreo_token');
+  olvidarSesion();
   window.backendCurrentUser = null;
   window.backendCaseData = null;
   estado.pendingDestination = null;

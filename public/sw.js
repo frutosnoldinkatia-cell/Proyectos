@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rastreopy-shell-v7';
+const CACHE_NAME = 'rastreopy-shell-v8';
 const OFFLINE_PAGE = '/offline.html';
 const APP_SHELL = [
   '/',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   '/icons/rastreopy-maskable-192.png',
   '/icons/rastreopy-maskable-512.png',
   '/js/pwa.js',
+  '/js/sesion.js',
   '/js/estado.js',
   '/js/config.js',
   '/js/api.js',

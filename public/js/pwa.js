@@ -2,9 +2,12 @@
 // Android/Chrome/Edge disparan beforeinstallprompt: se guarda el evento y el botón
 // "Instalar app" del menú lo usa. iOS no tiene ese evento: el mismo botón abre una
 // guía corta (Compartir > Añadir a pantalla de inicio).
+import { EVENTO_SERVIDOR } from './api.js';
 import { showToast } from './ui.js';
 
 let eventoInstalacion = null;
+// Lo actualiza api.js en cada pedido: false si no respondió o respondió 5xx.
+let servidorDisponible = true;
 
 function esIos() {
   // iPadOS se presenta como "MacIntel", pero con pantalla táctil.
@@ -41,7 +44,14 @@ export function toggleInstallGuide() {
 function actualizarAvisoConexion() {
   // Solo se muestra la franja: lo que ya está en pantalla (por ejemplo el feed)
   // no se toca, y la sincronización sigue intentando por su cuenta.
-  document.getElementById('offlineBanner')?.classList.toggle('hidden', navigator.onLine);
+  const banner = document.getElementById('offlineBanner');
+  if (!banner) return;
+  const estabaVisible = !banner.classList.contains('hidden');
+  const sinConexion = !navigator.onLine || !servidorDisponible;
+  banner.classList.toggle('hidden', !sinConexion);
+  if (estabaVisible && !sinConexion) {
+    showToast('Conexión restablecida', 'Ya podés seguir usando Rastreo PY.', 'success');
+  }
 }
 
 export function iniciarPwa() {
@@ -58,9 +68,10 @@ export function iniciarPwa() {
   if (esIos() && !yaInstalada()) mostrarBotonInstalar(true);
 
   window.addEventListener('offline', actualizarAvisoConexion);
-  window.addEventListener('online', () => {
+  window.addEventListener('online', actualizarAvisoConexion);
+  window.addEventListener(EVENTO_SERVIDOR, event => {
+    servidorDisponible = event.detail.disponible;
     actualizarAvisoConexion();
-    showToast('Conexión restablecida', 'Ya podés seguir usando Rastreo PY.', 'success');
   });
   actualizarAvisoConexion();
 }

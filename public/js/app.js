@@ -14,6 +14,7 @@ import { clearNotifs, enableSystemNotifications, respondToCaseFollowup, toggleNo
 import { centerReportMapOnSelection, handleReportPhotoSelection, handleReportSubmit, onReportCityChange, onReportDepartmentChange, removeReportPhoto, updateMinorAuthorization, useBrowserLocation } from './report.js';
 import { applyCurrentRoute, drawerNavigate, navigateTo } from './router.js';
 import { setStatsView } from './stats.js';
+import { syncOnVisible } from './sync.js';
 import { applyTheme, hideToast, labelButtons, openFilePicker, showToast, toggleDrawer, toggleSimulateTimeModal, toggleTheme } from './ui.js';
 
 window.backendCurrentUser = null;
@@ -24,6 +25,10 @@ window.backendCurrentUser = null;
 window.addEventListener('popstate', () => { applyCurrentRoute(); });
 
 window.addEventListener('hashchange', () => { applyCurrentRoute(); });
+
+// Las actualizaciones periódicas se pausan con la pestaña oculta (sync.js); al
+// volver se pide una enseguida.
+document.addEventListener('visibilitychange', syncOnVisible);
 
 // Acciones que se pueden invocar desde data-on-<evento>="..." en el HTML (ver
 // eventos.js). Toda función usada en esos atributos tiene que estar acá; el test

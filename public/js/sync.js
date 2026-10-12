@@ -15,7 +15,7 @@ import { labelButtons, showToast } from './ui.js';
 export function startPublicStatsPolling() {
   if (estado.publicStatsTimer) clearInterval(estado.publicStatsTimer);
   estado.publicStatsTimer = window.setInterval(async () => {
-    if (window.rastreoCurrentView !== 'feed') return;
+    if (window.rastreoCurrentView !== 'feed' || document.hidden) return;
     try {
       const statistics = await apiRequest('/estadisticas');
       window.currentStatistics = statistics;
@@ -26,10 +26,16 @@ export function startPublicStatsPolling() {
   }, 60000);
 }
 
+// Cada cuánto se actualiza cada vista. El feed y la pista son públicos: en un
+// evento hay ~100 celulares contra el mismo servidor, así que van cada 20 s. Mis
+// casos y el panel admin los usa poca gente y conviene verlos al instante.
+const LIVE_SYNC_MS = { feed: 20_000, lead: 20_000, 'my-cases': 5_000, admin: 5_000 };
+
 export function startLiveSyncPolling(view) {
   if (estado.liveSyncTimer) clearInterval(estado.liveSyncTimer);
-  estado.liveSyncTimer = window.setInterval(async () => {
-    if (window.rastreoCurrentView !== view) return;
+  const tick = async () => {
+    // Con la pestaña oculta (o el celular bloqueado) no se pide nada.
+    if (window.rastreoCurrentView !== view || document.hidden) return;
     if (estado.liveSyncInProgress) return;
     estado.liveSyncInProgress = true;
     try {
@@ -39,7 +45,14 @@ export function startLiveSyncPolling(view) {
     } finally {
       estado.liveSyncInProgress = false;
     }
-  }, 5000);
+  };
+  estado.liveSyncTick = tick;
+  estado.liveSyncTimer = window.setInterval(tick, LIVE_SYNC_MS[view] || 20_000);
+}
+
+// Al volver a la pestaña se actualiza enseguida, sin esperar al próximo intervalo.
+export function syncOnVisible() {
+  if (!document.hidden) estado.liveSyncTick?.();
 }
 
 export function caseCollectionSignature(cases) {

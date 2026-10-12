@@ -101,7 +101,7 @@ export async function updateNotifBadge() {
 export function startNotificationPolling() {
   if (estado.notificationRefreshTimer) return;
   estado.notificationRefreshTimer = window.setInterval(() => {
-    if (window.backendCurrentUser) updateNotifBadge();
+    if (window.backendCurrentUser && !document.hidden) updateNotifBadge();
   }, 15_000);
 }
 

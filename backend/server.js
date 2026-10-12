@@ -18,9 +18,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(projectRoot, 'public');
 
+// Proxies delante de la app en los que se confía para X-Forwarded-For/-Proto
+// (Render, un túnel de Cloudflare...). De esto dependen req.ip (límites por IP) y
+// req.protocol (CORS del mismo origen). Para verificarlo al desplegar:
+// GET /api/admin/diagnostico-red con sesión de administrador.
+export function trustProxyHops(value = process.env.TRUST_PROXY_HOPS) {
+  if (value === undefined || value === '') return 1;
+  const hops = Number(value);
+  if (!Number.isInteger(hops) || hops < 0) {
+    throw new Error('TRUST_PROXY_HOPS debe ser un entero mayor o igual a cero.');
+  }
+  return hops;
+}
+
 export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL }) {
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustProxyHops());
 
   app.use(helmet({
     contentSecurityPolicy: {
@@ -87,6 +100,21 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
 
   app.get('/api/admin/health', authenticate(jwtSecret, db), requireAdministrator, (_req, res) => {
     res.json({ estado: 'ok' });
+  });
+
+  // Para verificar TRUST_PROXY_HOPS al desplegar: "ip" tiene que ser la IP pública
+  // de quien consulta (compararla con la de un sitio tipo "cuál es mi IP"), y
+  // "protocolo" tiene que ser https. Si "ip" es la de un proxy, faltan saltos; si
+  // alguien puede elegirla mandando X-Forwarded-For, sobran.
+  app.get('/api/admin/diagnostico-red', authenticate(jwtSecret, db), requireAdministrator, (req, res) => {
+    res.json({
+      ip: req.ip,
+      cadenaIps: req.ips,
+      trustProxyHops: app.get('trust proxy'),
+      protocolo: req.protocol,
+      xForwardedFor: req.get('x-forwarded-for') || null,
+      cfConnectingIp: req.get('cf-connecting-ip') || null
+    });
   });
 
   app.get('/', (_req, res) => {
@@ -178,6 +206,7 @@ async function start() {
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor Rastreo PY disponible en el puerto ${port}.`);
+    console.log(`Proxies de confianza (TRUST_PROXY_HOPS): ${trustProxyHops()}. Para verificar que se ve la IP real de cada cliente, abrí ${process.env.APP_URL.replace(/\/$/, '')}/api/admin/diagnostico-red con sesión de administrador.`);
   });
 }
 

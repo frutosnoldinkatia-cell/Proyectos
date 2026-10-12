@@ -14,6 +14,7 @@ export const estado = {
   locatedExpiryTimer: null,
   publicStatsTimer: null,
   liveSyncTimer: null,
+  liveSyncTick: null,
   liveSyncInProgress: false,
   lastPublicCaseSignature: '',
   feedCurrentPage: 1,

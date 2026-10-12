@@ -32,24 +32,39 @@ function codeMatches(code, storedHash, secret) {
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 
+// Límites por IP pensados para un evento: ~100 celulares salen por la misma IP
+// (Wi-Fi del Workshop, NAT). Por correo ya hay un límite propio (sendCodeLimiter).
 function codeRateLimiter() {
   return rateLimit({
     windowMs: 60 * 60 * 1000,
-    limit: 30,
+    limit: 300,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { error: 'Demasiadas solicitudes. Intente nuevamente más tarde.' }
   });
 }
 
+// Login: 10 intentos cada 15 min por IP + correo (frena la fuerza bruta contra una
+// cuenta sin bloquear a los demás de la misma red) y un tope holgado por IP sola
+// contra quien prueba muchas cuentas desde un mismo lugar.
 function loginRateLimiter() {
-  return rateLimit({
+  const common = {
     windowMs: 15 * 60 * 1000,
-    limit: 10,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { error: 'Demasiados intentos de inicio de sesión. Espere 15 minutos.' }
-  });
+  };
+  return [
+    rateLimit({ ...common, limit: 300 }),
+    rateLimit({
+      ...common,
+      limit: 10,
+      keyGenerator: req => {
+        const correo = String(req.body?.correo || req.body?.identificador || '').trim();
+        return `${req.ip}|${correo.includes('@') ? normalizeEmail(correo) : correo.toLowerCase()}`;
+      }
+    })
+  ];
 }
 
 // Pasa los errores de handlers async al manejador de errores de Express (que los registra).

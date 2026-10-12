@@ -104,10 +104,10 @@ export function renderReportView() {
         </div>
 
         <div class="form-group">
-          <label>N.º Denuncia Policial (Opcional)</label>
+          <label>N.º de denuncia (si ya la hiciste)</label>
           <input type="text" id="repDenuncia" placeholder="Ej: DEN-2026-XXXX" class="form-control">
           <p class="notice notice-warning">
-            Aviso: Si no registra número de denuncia, el caso permanecerá en estado PENDIENTE hasta ser verificado por las autoridades.
+            No es obligatorio: sin número el caso queda como Pendiente / En revisión y la administración lo verificará con la Policía. La alerta temprana a tu zona se envía igual.
           </p>
         </div>
 

@@ -1,11 +1,11 @@
 import express from 'express';
 import { asyncRoute } from './auth-routes.js';
 
-// Estadísticas: solo agregados, nunca registros personales. Requieren sesión.
-export function createStatsRouter({ db, requireUser }) {
+// Estadísticas públicas: solo agregados, nunca registros personales.
+export function createStatsRouter({ db, publicReadLimiter }) {
   const router = express.Router();
 
-  router.get('/estadisticas', requireUser, asyncRoute(async (_req, res) => {
+  router.get('/estadisticas', publicReadLimiter, asyncRoute(async (_req, res) => {
     const { rows } = await db.query(`
       SELECT
         COUNT(*) FILTER (WHERE estado IN ('VALIDADO', 'EN_SEGUIMIENTO', 'LOCALIZADO', 'CERRADO')) AS total,

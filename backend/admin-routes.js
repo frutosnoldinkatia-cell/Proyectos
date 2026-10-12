@@ -6,7 +6,6 @@ import {
   paginationFromQuery,
   sendStoredPhoto,
   toAdminCase,
-  toPublicCase,
   validDateFilter
 } from './case-shared.js';
 import { withTransaction } from './db.js';
@@ -222,7 +221,7 @@ export function createAdminRouter({ db, requireAdmin }) {
       return updatedRows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Caso no disponible' });
-    res.json({ caso: toPublicCase(updated) });
+    res.json({ caso: toAdminCase(updated) });
   }));
 
   router.post('/admin/simulador/avanzar-48h', ...requireAdmin, asyncRoute(async (_req, res) => {

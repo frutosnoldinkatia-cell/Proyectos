@@ -142,7 +142,7 @@ export function renderStatsView(stats) {
   return `
     <div>
       <header class="page-heading">
-        <span class="section-kicker">Datos de la plataforma</span>
+        <span class="section-kicker">Datos públicos</span>
         <h1>Estadísticas nacionales de búsqueda</h1>
         <p>Indicadores agregados de los casos publicados y de la referencia histórica 2025.</p>
       </header>

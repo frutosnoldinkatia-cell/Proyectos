@@ -140,9 +140,10 @@ export async function applyCurrentRoute() {
   else closeCaseDetail({ fromHistory: true });
 }
 
-// Pantallas visibles sin sesión: ninguna. El ingreso es obligatorio (decisión del
-// usuario, ROLES_Y_PERMISOS.txt); sin sesión solo se ve ingresar/registrarse.
-export const PUBLIC_VIEWS = [];
+// Pantallas visibles sin sesión (consulta pública, ROLES_Y_PERMISOS.txt): el feed
+// (con la ficha del caso y el mapa) y las estadísticas. Reportar, pista, mis casos,
+// alertas y el panel llevan al login y recuerdan la pantalla pedida.
+export const PUBLIC_VIEWS = ['feed', 'stats'];
 
 export async function navigateTo(view, params = {}, options = {}) {
   if (estado.locatedExpiryTimer) {
@@ -169,9 +170,12 @@ export async function navigateTo(view, params = {}, options = {}) {
   // navegador queda diciendo una cosa y la pantalla muestra otra.
   const requestedView = view;
 
-  if (!store.currentUser && !['auth', 'otp', 'feed'].includes(view)) {
+  if (!store.currentUser && !['auth', 'otp', ...PUBLIC_VIEWS].includes(view)) {
     // Se recuerda adonde queria ir para devolverlo ahi despues del login.
     estado.pendingDestination = { view, params };
+  } else if (!store.currentUser && PUBLIC_VIEWS.includes(view)) {
+    // Volvió a consultar sin ingresar: ya no hay pantalla pendiente.
+    estado.pendingDestination = null;
   }
 
   if (!store.currentUser && view !== 'otp' && !PUBLIC_VIEWS.includes(view)) {

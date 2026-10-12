@@ -18,6 +18,9 @@ export function updateHeaderUser() {
   document.querySelectorAll('[data-role-nav="admin"]').forEach(item => item.classList.toggle('hidden', !isAdministrator));
   document.querySelectorAll('[data-role-nav="citizen"]').forEach(item => item.classList.toggle('hidden', !isCitizen));
   document.querySelectorAll('[data-hide-admin-nav]').forEach(item => item.classList.toggle('hidden', isAdministrator));
+  // Consulta pública: sin sesión se ofrece ingresar y se ocultan las opciones de cuenta.
+  document.querySelectorAll('[data-role-nav="guest"]').forEach(item => item.classList.toggle('hidden', Boolean(store.currentUser)));
+  document.querySelectorAll('[data-role-nav="session"]').forEach(item => item.classList.toggle('hidden', !store.currentUser));
   profile?.classList.toggle('hidden', !store.currentUser);
   document.getElementById('drawerIdentity')?.classList.toggle('hidden', !store.currentUser);
   document.getElementById('headerProfileName').textContent = displayName;
@@ -133,6 +136,7 @@ export function renderAuthScreen(mode = 'login', identifier = '') {
       <div>
         <h1>Portal de acceso · Rastreo PY</h1>
         <p>Plataforma Oficial Colaborativa</p>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="navigateTo('home')">← Volver a los casos públicos</button>
       </div>
 
       <div class="auth-tabs">

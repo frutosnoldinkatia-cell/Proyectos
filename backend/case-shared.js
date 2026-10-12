@@ -79,21 +79,30 @@ export function toPublicCase(row) {
     fechaHoraDesaparicion: row.fecha_hora_desaparicion,
     fotoUrl: hasPhoto(row) ? `/api/casos/${encodeURIComponent(row.id)}/foto` : '',
     ubicacion: { lat: row.latitud, lng: row.longitud, direccion: row.direccion },
-    numeroDenuncia: row.numero_denuncia,
     estado: row.estado,
     seguimientoEtapa: Number(row.seguimiento_etapa) || 0,
     fechaCreacion: row.creado_en,
     localizadoEn: row.localizado_en,
     visibleHasta: row.localizado_en
       ? new Date(new Date(row.localizado_en).getTime() + LOCATED_WINDOW_HOURS * 60 * 60 * 1000)
-      : null,
+      : null
+  };
+}
+
+// Lo que ve quien reportó el caso (y el administrador): además de lo público, el
+// número de denuncia y la fecha del próximo seguimiento. Nunca va en respuestas
+// públicas: GET /casos y /casos/:id se leen sin sesión (ROLES_Y_PERMISOS.txt).
+export function toOwnerCase(row) {
+  return {
+    ...toPublicCase(row),
+    numeroDenuncia: row.numero_denuncia,
     proximoSeguimiento: row.proximo_seguimiento
   };
 }
 
 export function toAdminCase(row) {
   return {
-    ...toPublicCase(row),
+    ...toOwnerCase(row),
     fotoUrl: hasPhoto(row) ? `/api/admin/casos/${encodeURIComponent(row.id)}/foto` : '',
     fotoDisponible: hasPhoto(row),
     motivoRechazo: row.motivo_rechazo,

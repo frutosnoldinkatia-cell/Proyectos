@@ -43,7 +43,7 @@ async function sendCluePhoto(db, req, res, administrator) {
   res.type(`image/${match[1]}`).set('Cache-Control', 'private, no-store').send(Buffer.from(match[2], 'base64'));
 }
 
-export function createClueRouter({ db, requireUser, requireAdmin }) {
+export function createClueRouter({ db, requireUser, requireAdmin, publicReadLimiter }) {
   const router = express.Router();
   // Las pistas exigen sesión (ver docs/ROLES_Y_PERMISOS.txt); el límite es por usuario.
   const clueLimiter = rateLimit({
@@ -55,7 +55,8 @@ export function createClueRouter({ db, requireUser, requireAdmin }) {
     message: { error: 'Se alcanzó el límite temporal de envíos de pistas. Intente nuevamente más tarde.' }
   });
 
-  router.get('/pistas', requireUser, asyncRoute(async (req, res) => {
+  // Lectura pública (sin sesión): solo pistas VALIDADAS de casos visibles, sin autor.
+  router.get('/pistas', publicReadLimiter, asyncRoute(async (req, res) => {
     const pagination = paginationFromQuery(req.query);
     const { rows } = await db.query(`
       SELECT p.id, p.caso_id, p.descripcion, p.fecha_hora_avistamiento,
@@ -78,7 +79,7 @@ export function createClueRouter({ db, requireUser, requireAdmin }) {
     })), rows, pagination));
   }));
 
-  router.get('/pistas/:id/fotos/:n', requireUser, asyncRoute((req, res) => sendCluePhoto(db, req, res, false)));
+  router.get('/pistas/:id/fotos/:n', publicReadLimiter, asyncRoute((req, res) => sendCluePhoto(db, req, res, false)));
   router.get('/admin/pistas/:id/fotos/:n', ...requireAdmin, asyncRoute((req, res) => sendCluePhoto(db, req, res, true)));
 
   router.get('/admin/pistas', ...requireAdmin, asyncRoute(async (req, res) => {

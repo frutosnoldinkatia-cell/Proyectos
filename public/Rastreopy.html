@@ -73,23 +73,25 @@
              queda marcando una sección donde ya no estás. El texto de cada ítem
              coincide con el <h1> de su vista. -->
         <nav class="drawer-navigation" aria-label="Secciones">
+          <button type="button" data-role-nav="guest" data-nav-view="auth" data-on-click="drawerNavigate('auth')" class="drawer-item hidden">Ingresar / Registrarse</button>
           <button type="button" data-nav-view="feed" data-on-click="drawerNavigate('feed')" class="drawer-item">Inicio</button>
           <button type="button" data-hide-admin-nav data-nav-view="report" data-on-click="drawerNavigate('report')" class="drawer-item">Reportar persona desaparecida</button>
           <button type="button" data-nav-view="lead" data-on-click="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
           <button type="button" data-nav-view="alerts" data-on-click="toggleDrawer(false); toggleNotificationsModal()" class="drawer-item">Alertas <span id="notifBadge" class="hidden">0</span></button>
           <button type="button" data-nav-view="stats" data-on-click="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
-          <button type="button" data-role-nav="citizen" data-nav-view="my-cases" data-on-click="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
+          <!-- Visible también sin sesión: al tocarlo lleva al login y vuelve acá -->
+          <button type="button" data-hide-admin-nav data-nav-view="my-cases" data-on-click="drawerNavigate('my-cases')" class="drawer-item">Mis casos</button>
           <button type="button" data-role-nav="admin" data-nav-view="admin" data-on-click="drawerNavigate('admin')" class="drawer-item">Panel de administración <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
         </nav>
       </div>
 
       <div class="drawer-account">
         <p class="drawer-section-label">Cuenta y avisos</p>
-        <button type="button" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
+        <button type="button" data-role-nav="session" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
         <!-- Visible solo si el navegador permite instalar (o en iOS, con guía) -->
         <button id="installAppButton" type="button" data-on-click="toggleDrawer(false); installApp()" class="btn btn-outline hidden">Instalar app</button>
         <button id="simulateFollowupButton" data-on-click="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
-        <button data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
+        <button data-role-nav="session" data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
     </aside>
 

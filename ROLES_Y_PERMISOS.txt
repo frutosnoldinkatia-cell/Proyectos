@@ -20,9 +20,12 @@ ADMINISTRADOR
   ADMIN_IDENTIFICADOR y ADMIN_PASSWORD).
 
 SIN SESIÓN (no es un rol, es la ausencia de uno)
-  Persona que entra a la página sin iniciar sesión. El ingreso es
-  obligatorio: sin sesión solo puede registrarse, verificar el código e
-  iniciar sesión. La API responde 401 a todo lo demás.
+  Persona que entra a la página sin iniciar sesión. Puede CONSULTAR: feed,
+  fichas públicas, mapa, pistas validadas y estadísticas. Para cualquier
+  ACCIÓN (reportar, enviar una pista, ver "Mis casos" o alertas) tiene que
+  ingresar; la API responde 401 a esas rutas.
+  (Decisión del equipo, opción A, alineada con el PDF del Workshop,
+  sección 5.2. Reemplaza al "ingreso obligatorio para leer".)
 
 
 [ 2. REGLA DE LAS PISTAS ]
@@ -40,10 +43,10 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
 --------------------------------------------------------------------------------
   Acción                                         Sin sesión  Ciudadano  Admin
   ---------------------------------------------  ----------  ---------  -----
-  Ver feed de casos publicados y buscar             NO          SÍ       SÍ
-  Ver ficha de un caso publicado                    NO          SÍ       SÍ
-  Ver estadísticas generales                        NO          SÍ       SÍ
-  Ver pistas VALIDADAS (anónimas)                   NO          SÍ       SÍ
+  Ver feed de casos públicos y buscar               SÍ          SÍ       SÍ
+  Ver ficha pública de un caso                      SÍ          SÍ       SÍ
+  Ver estadísticas generales                        SÍ          SÍ       SÍ
+  Ver pistas VALIDADAS (anónimas)                   SÍ          SÍ       SÍ
   Registrarse / iniciar sesión / verificar OTP      SÍ          -        -
   Aceptar términos y condiciones                    -           SÍ       SÍ
   Enviar una pista                                  NO          SÍ       SÍ
@@ -70,8 +73,8 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
 --------------------------------------------------------------------------------
   Pantalla      Sin sesión            Ciudadano           Admin
   ------------  --------------------  ------------------  -------------------
-  home / feed   redirige a login      visible             visible
-  stats         redirige a login      visible             visible
+  home / feed   visible               visible             visible
+  stats         visible               visible             visible
   lead (pista)  redirige a login      visible             visible
   report        redirige a login      visible             vuelve al inicio con aviso
   my-cases      redirige a login      visible             vuelve al inicio con aviso
@@ -80,7 +83,9 @@ SIN SESIÓN (no es un rol, es la ausencia de uno)
   auth / otp    visible               redirige a home     redirige a home
 
   - Los botones y enlaces a una pantalla no permitida NO se muestran
-    (no alcanza con bloquearlos al hacer clic).
+    (no alcanza con bloquearlos al hacer clic). Excepción: sin sesión SÍ se
+    muestran Reportar, Enviar pista, Mis casos y Alertas; al tocarlos llevan
+    al login y, después de ingresar, vuelven a la pantalla pedida.
   - El botón de demo "Vista Administrador" se elimina.
 
 
@@ -90,6 +95,15 @@ Backend (la protección real):
   - Rutas de ciudadano: middleware authenticate  -> 401 si no hay sesión.
   - Rutas de admin:     middleware requireAdministrator -> 403 si es ciudadano.
   - El rol se lee siempre del token/servidor, nunca de lo que mande el navegador.
+  - Lectura pública (GET /api/casos, /casos/:id, /casos/:id/foto, /pistas,
+    /pistas/:id/fotos/:n y /estadisticas): sin sesión, con límite por IP
+    (LIMITE_LECTURA_PUBLICA_POR_MINUTO, por defecto 3000: en el Workshop
+    ~100 celulares salen por la misma IP).
+  - Qué NO sale nunca en la lectura pública: casos PENDIENTE o RECHAZADO,
+    LOCALIZADO fuera de VENTANA_LOCALIZADOS_HORAS, pistas no validadas, quién
+    envió una pista, número de denuncia, próximo seguimiento, checklist del
+    admin, motivo de rechazo o cierre y contacto del reportante. El número de
+    denuncia lo ven solo quien reportó el caso ("Mis casos") y el admin.
 Frontend (la experiencia):
   - Un único guard en navigateTo() que use esta tabla.
   - El menú se arma según el rol del usuario actual.

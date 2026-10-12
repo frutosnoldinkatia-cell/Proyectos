@@ -1,5 +1,6 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
+import { rateLimit } from 'express-rate-limit';
 import { createAdminRouter } from './admin-routes.js';
 import { asyncRoute, authenticate, isAdministrator, requireAdministrator } from './auth-routes.js';
 import {
@@ -10,6 +11,7 @@ import {
   paginationFromQuery,
   PUBLIC_CASE_FILTER,
   sendStoredPhoto,
+  toOwnerCase,
   toPublicCase,
   validCoordinates
 } from './case-shared.js';
@@ -36,12 +38,23 @@ export function createCaseRouter({ db, jwtSecret }) {
     next();
   }];
 
+  // Lectura pública sin sesión (casos, fotos, pistas validadas y estadísticas):
+  // límite por IP solo contra abusos. En un evento ~100 celulares salen por la misma
+  // IP y el feed se actualiza solo, así que el límite por defecto es holgado.
+  const publicReadLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: Number(process.env.LIMITE_LECTURA_PUBLICA_POR_MINUTO) || 3000,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'Demasiadas consultas desde esta red. Intente nuevamente en un minuto.' }
+  });
+
   router.use((_req, res, next) => {
     res.set('Cache-Control', 'no-store');
     next();
   });
 
-  router.get('/casos', requireUser, asyncRoute(async (req, res) => {
+  router.get('/casos', publicReadLimiter, asyncRoute(async (req, res) => {
     const search = typeof req.query.q === 'string' ? `%${req.query.q.trim()}%` : '%%';
     const city = typeof req.query.ciudad === 'string' ? `%${req.query.ciudad.trim()}%` : '%%';
     const department = typeof req.query.departamento === 'string' ? `%${req.query.departamento.trim()}%` : '%%';
@@ -67,7 +80,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.json(paginatedBody('casos', rows.map(toPublicCase), rows, pagination));
   }));
 
-  router.get('/casos/:id', requireUser, asyncRoute(async (req, res) => {
+  router.get('/casos/:id', publicReadLimiter, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`
       SELECT * FROM casos
       WHERE id = $2 AND ${PUBLIC_CASE_FILTER} AND estado <> 'RECHAZADO'
@@ -76,7 +89,7 @@ export function createCaseRouter({ db, jwtSecret }) {
     res.json({ caso: toPublicCase(rows[0]) });
   }));
 
-  router.get('/casos/:id/foto', requireUser, asyncRoute((req, res) => sendStoredPhoto(db, req, res, false)));
+  router.get('/casos/:id/foto', publicReadLimiter, asyncRoute((req, res) => sendStoredPhoto(db, req, res, false)));
 
   router.get('/mis-casos', ...requireCitizen, asyncRoute(async (req, res) => {
     const { rows } = await db.query(`
@@ -85,7 +98,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       ORDER BY creado_en DESC
     `, [req.auth.id]);
     res.json({ casos: rows.map(row => ({
-      ...toPublicCase(row),
+      ...toOwnerCase(row),
       motivoRechazo: row.motivo_rechazo
     })) });
   }));
@@ -145,7 +158,7 @@ export function createCaseRouter({ db, jwtSecret }) {
       `, [id, `Se recibió un reporte de ${body.nombreCompleto.trim()} y espera validación.`]);
       return rows[0];
     });
-    res.status(201).json({ caso: toPublicCase(created) });
+    res.status(201).json({ caso: toOwnerCase(created) });
   }));
 
   router.post('/casos/:id/seguimiento', ...requireCitizen, asyncRoute(async (req, res) => {
@@ -198,10 +211,10 @@ export function createCaseRouter({ db, jwtSecret }) {
       return updatedRows[0];
     });
     if (!updated) return res.status(404).json({ error: 'Caso no disponible para seguimiento.' });
-    res.json({ caso: toPublicCase(updated) });
+    res.json({ caso: toOwnerCase(updated) });
   }));
 
-  const shared = { db, requireUser, requireAdmin, requireCitizen };
+  const shared = { db, requireUser, requireAdmin, requireCitizen, publicReadLimiter };
   router.use(createClueRouter(shared));
   router.use(createNotificationRouter(shared));
   router.use(createStatsRouter(shared));

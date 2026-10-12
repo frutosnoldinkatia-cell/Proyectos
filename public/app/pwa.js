@@ -3,8 +3,8 @@
 //   el botón de la bienvenida y el "Instalar app" del menú.
 // - iOS no tiene ese evento: se muestra la guía de 3 pasos (Compartir > Añadir a
 //   pantalla de inicio).
-// - Bienvenida para quien llega por el QR: si la app se abre en el navegador (no
-//   instalada), una pantalla breve invita a instalarla o a continuar.
+// - Bienvenida para quien llega por el QR: si la app se abre en el navegador de un
+//   celular (no instalada), una pantalla breve invita a instalarla o a continuar.
 // La franja de "Sin conexión" no está acá: es compartida (/js/conexion.js).
 import { showToast } from '/js/ui.js';
 
@@ -15,6 +15,14 @@ function esIos() {
   // iPadOS se presenta como "MacIntel", pero con pantalla táctil.
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// La bienvenida es para quien llega por el QR desde el celular: en computadoras
+// no se muestra. Celular = user agent móvil o pantalla táctil como puntero principal.
+function esCelular() {
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
+    || esIos()
+    || window.matchMedia('(pointer: coarse)').matches;
 }
 
 function yaInstalada() {
@@ -84,5 +92,5 @@ export function iniciarPwa() {
     showToast('App instalada', 'Rastreo PY ya está en tu pantalla de inicio.', 'success');
   });
   actualizarOpcionesInstalacion();
-  if (!yaInstalada() && !bienvenidaYaVista()) mostrarBienvenida(true);
+  if (esCelular() && !yaInstalada() && !bienvenidaYaVista()) mostrarBienvenida(true);
 }

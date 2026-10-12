@@ -8,6 +8,7 @@ import { iniciarEventos } from './eventos.js';
 import { clearLeadPhotoSelection, filterLeadCaseCards, filterLeadCases, handleLeadPhotoSelection, handleLeadSubmit } from './lead.js';
 import { centerMapOnParaguay, focusCaseOnMap, useMyLocationOnMap, viewCaseOnFeed } from './map.js';
 import { respondToFollowup } from './my-cases.js';
+import { iniciarPwa, installApp, toggleInstallGuide } from './pwa.js';
 import { clearNotifs, enableSystemNotifications, respondToCaseFollowup, toggleNotificationsModal } from './notifications.js';
 import { centerReportMapOnSelection, handleReportPhotoSelection, handleReportSubmit, onReportCityChange, onReportDepartmentChange, removeReportPhoto, updateMinorAuthorization, useBrowserLocation } from './report.js';
 import { applyCurrentRoute, drawerNavigate, navigateTo } from './router.js';
@@ -91,10 +92,13 @@ export const acciones = {
   loadAdminHistory,
   searchAdminHistory,
   loadAdminHistoryPhotos,
-  shareCase
+  shareCase,
+  installApp,
+  toggleInstallGuide
 };
 
 iniciarEventos(acciones);
+iniciarPwa();
 
 async function initApp() {
   try {

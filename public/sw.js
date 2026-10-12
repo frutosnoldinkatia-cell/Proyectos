@@ -1,9 +1,16 @@
-const CACHE_NAME = 'rastreopy-shell-v5';
+const CACHE_NAME = 'rastreopy-shell-v6';
+const OFFLINE_PAGE = '/offline.html';
 const APP_SHELL = [
   '/',
+  OFFLINE_PAGE,
   '/styles.css',
   '/manifest.webmanifest',
   '/icons/rastreopy.svg',
+  '/icons/rastreopy-192.png',
+  '/icons/rastreopy-512.png',
+  '/icons/rastreopy-maskable-192.png',
+  '/icons/rastreopy-maskable-512.png',
+  '/js/pwa.js',
   '/js/estado.js',
   '/js/config.js',
   '/js/api.js',
@@ -53,6 +60,14 @@ self.addEventListener('fetch', event => {
     }
     return response;
     } catch {
+      // Abrir la app sin red: el HTML cacheado arrancaría sin poder pedir sesión
+      // ni casos (la API no se cachea), así que se muestra la pantalla offline.
+      // Dentro de la app ya abierta no hay navegaciones (rutas con #), así que
+      // el feed en pantalla no se pierde: solo aparece la franja de pwa.js.
+      if (request.mode === 'navigate') {
+        const offline = await caches.match(OFFLINE_PAGE);
+        if (offline) return offline;
+      }
       const cached = await caches.match(request);
       if (cached) return cached;
       return new Response('Sin conexión. Conéctese a Internet para usar Rastreo PY.', {

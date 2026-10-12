@@ -524,6 +524,17 @@ button { touch-action: manipulation; }
 .drawer-section-label { margin: 0; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .drawer-account .btn { width: 100%; justify-content: center; }
 
+/* Sin conexión: franja dentro de la app y página offline.html del service worker */
+.offline-banner { padding: .55rem var(--gutter); border-bottom: 1px solid var(--amber-border); background: var(--amber-soft); color: var(--amber); font-size: .8rem; font-weight: 600; text-align: center; }
+/* En login el botón de tema es fijo arriba a la derecha: la franja le deja lugar */
+.public-theme-toggle:not(.hidden) ~ .offline-banner { padding-right: 8.5rem; text-align: left; }
+.offline-page { display: grid; min-height: 100vh; place-items: center; padding: 1rem; }
+.offline-page .card { width: min(100%, 420px); text-align: center; }
+.offline-page img { width: 72px; height: 72px; }
+.offline-page h1 { margin: .8rem 0 .4rem; color: var(--text-strong); font: 700 1.3rem/1.3 Sora, Inter, sans-serif; }
+.offline-page p { margin: 0 0 1.2rem; color: var(--muted); font-size: .88rem; line-height: 1.5; }
+.install-steps { display: grid; gap: .45rem; padding-left: 2.4rem !important; color: var(--text) !important; }
+
 #mainContent { width: 100%; flex: 1; overflow-y: auto; background: transparent; }
 /* Toda vista -- sea div o section -- comparte ancho, respiro y animacion de
    entrada, para que el salto entre pantallas se sienta igual en todas. */
@@ -1013,12 +1024,12 @@ table tr:hover td { background: var(--surface-2); }
 /* ==========================================================================
    12. Modales, notificaciones y toasts
    ========================================================================== */
-#notifModal, #simTimeModal { position: fixed; z-index: 2000; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--overlay); backdrop-filter: blur(5px); }
-#notifModal > div, #simTimeModal > div { display: flex; flex-direction: column; width: min(100%,480px); max-height: 85vh; overflow: hidden; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: var(--shadow-overlay); }
-#notifModal .modal-header, #simTimeModal .modal-header { display: flex; flex-wrap: nowrap; align-items: center; gap: .5rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
-#notifModal .modal-header > span, #simTimeModal .modal-header > span { min-width: 0; flex: 1 1 auto; font-weight: 700; }
+#notifModal, #simTimeModal, #installGuideModal { position: fixed; z-index: 2000; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--overlay); backdrop-filter: blur(5px); }
+#notifModal > div, #simTimeModal > div, #installGuideModal > div { display: flex; flex-direction: column; width: min(100%,480px); max-height: 85vh; overflow: hidden; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: var(--shadow-overlay); }
+#notifModal .modal-header, #simTimeModal .modal-header, #installGuideModal .modal-header { display: flex; flex-wrap: nowrap; align-items: center; gap: .5rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+#notifModal .modal-header > span, #simTimeModal .modal-header > span, #installGuideModal .modal-header > span { min-width: 0; flex: 1 1 auto; font-weight: 700; }
 #notifModal .modal-footer, #simTimeModal .modal-footer { display: flex; justify-content: flex-end; padding: .8rem 1.2rem; border-top: 1px solid var(--border); background: var(--surface); }
-#simTimeModal .modal-body { margin: 0; padding: 1rem 1.2rem; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+#simTimeModal .modal-body, #installGuideModal .modal-body { margin: 0; padding: 1rem 1.2rem; color: var(--muted); font-size: .85rem; line-height: 1.5; }
 #notifList { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; gap: .65rem; overflow: auto; padding: 1rem !important; }
 /* Aviso estándar (centro de notificaciones y "Mis casos") */
 .notif-list { display: grid; gap: .55rem; margin-bottom: .85rem; }

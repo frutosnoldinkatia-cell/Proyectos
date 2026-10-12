@@ -9,7 +9,8 @@
   <title>Rastreo PY - Plataforma Colaborativa de Búsqueda de Personas Desaparecidas</title>
   <meta name="description" content="Plataforma colaborativa de búsqueda de personas desaparecidas en Paraguay: consultá reportes públicos, aportá pistas verificables y seguí el estado de cada caso.">
   <link rel="icon" href="/icons/rastreopy.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icons/rastreopy.svg">
+  <!-- iOS no acepta SVG para el ícono de la pantalla de inicio -->
+  <link rel="apple-touch-icon" href="/icons/rastreopy-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
 
   <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
@@ -47,6 +48,10 @@
       </div>
     </header>
 
+    <!-- Aviso de red caída (public/js/pwa.js). No reemplaza la vista: el feed
+         que ya estaba en pantalla se sigue viendo debajo. -->
+    <div id="offlineBanner" class="offline-banner hidden" role="status">Sin conexión. Lo que ves puede no estar actualizado; volvé a intentar cuando tengas red.</div>
+
     <!-- PANEL LATERAL (DRAWER) -->
     <div id="drawerOverlay" data-on-click="toggleDrawer(false)" class="drawer-overlay hidden"></div>
     <aside id="drawer" class="drawer" aria-label="Menú principal">
@@ -81,6 +86,8 @@
       <div class="drawer-account">
         <p class="drawer-section-label">Cuenta y avisos</p>
         <button type="button" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
+        <!-- Visible solo si el navegador permite instalar (o en iOS, con guía) -->
+        <button id="installAppButton" type="button" data-on-click="toggleDrawer(false); installApp()" class="btn btn-outline hidden">Instalar app</button>
         <button id="simulateFollowupButton" data-on-click="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
         <button data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
@@ -132,6 +139,21 @@
       </div>
       <p class="modal-body">Acción de demostración para administradores: fuerza el vencimiento del seguimiento de todos los casos activos y puede generar avisos y cambios de estado. No la use con registros reales.</p>
       <div class="modal-footer"><button type="button" data-on-click="runTimeFastForward()" class="btn btn-primary btn-sm">Simular avance de 48 horas</button></div>
+    </div>
+  </div>
+
+  <!-- GUÍA DE INSTALACIÓN EN iOS (Safari no tiene botón de instalar automático) -->
+  <div id="installGuideModal" class="hidden">
+    <div role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+      <div class="modal-header">
+        <span id="installGuideTitle">Instalar Rastreo PY en iPhone o iPad</span>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleInstallGuide()">Cerrar</button>
+      </div>
+      <ol class="modal-body install-steps">
+        <li>Abrí esta página en <strong>Safari</strong>.</li>
+        <li>Tocá el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
+        <li>Elegí <strong>Añadir a pantalla de inicio</strong> y confirmá con <strong>Añadir</strong>.</li>
+      </ol>
     </div>
   </div>
 

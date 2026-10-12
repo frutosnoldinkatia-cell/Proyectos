@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es-PY" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- La sirve el service worker (sw.js) cuando se abre la app sin red. -->
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#070b16" media="(prefers-color-scheme: dark)">
+  <title>Sin conexión - Rastreo PY</title>
+  <link rel="icon" href="/icons/rastreopy.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/js/tema-inicial.js"></script>
+</head>
+<body>
+  <main class="offline-page">
+    <section class="card">
+      <img src="/icons/rastreopy.svg" alt="">
+      <h1>Sin conexión</h1>
+      <p>No pudimos conectar con Rastreo PY. Revisá tu conexión a Internet y volvé a intentar. Ante una emergencia, llamá al <a href="tel:911">911</a>.</p>
+      <a class="btn btn-primary" href="/">Reintentar</a>
+    </section>
+  </main>
+</body>
+</html>

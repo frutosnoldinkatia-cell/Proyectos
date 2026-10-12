@@ -8,7 +8,7 @@ import { iniciarEventos } from './eventos.js';
 import { clearLeadPhotoSelection, filterLeadCaseCards, filterLeadCases, handleLeadPhotoSelection, handleLeadSubmit } from './lead.js';
 import { centerMapOnParaguay, focusCaseOnMap, useMyLocationOnMap, viewCaseOnFeed } from './map.js';
 import { respondToFollowup } from './my-cases.js';
-import { iniciarPwa, installApp, toggleInstallGuide } from './pwa.js';
+import { iniciarConexion } from './conexion.js';
 import { restaurarSesion } from './sesion.js';
 import { clearNotifs, enableSystemNotifications, respondToCaseFollowup, toggleNotificationsModal } from './notifications.js';
 import { centerReportMapOnSelection, handleReportPhotoSelection, handleReportSubmit, onReportCityChange, onReportDepartmentChange, removeReportPhoto, updateMinorAuthorization, useBrowserLocation } from './report.js';
@@ -31,7 +31,9 @@ window.addEventListener('hashchange', () => { applyCurrentRoute(); });
 document.addEventListener('visibilitychange', syncOnVisible);
 
 // Acciones que se pueden invocar desde data-on-<evento>="..." en el HTML (ver
-// eventos.js). Toda función usada en esos atributos tiene que estar acá; el test
+// eventos.js). Toda función usada en esos atributos tiene que estar acá, o sumarse
+// con Object.assign(acciones, {...}) en la entrada propia de cada página
+// (js/web.js para la web, app/app-movil.js para la app); el test
 // backend/test/frontend-handlers.test.js lo verifica.
 export const acciones = {
   hideToast,
@@ -98,13 +100,11 @@ export const acciones = {
   loadAdminHistory,
   searchAdminHistory,
   loadAdminHistoryPhotos,
-  shareCase,
-  installApp,
-  toggleInstallGuide
+  shareCase
 };
 
 iniciarEventos(acciones);
-iniciarPwa();
+iniciarConexion();
 
 // Con un proxy o túnel caído el pedido puede quedar colgado: se corta a los 8 s.
 const pedirUsuario = () => apiRequest('/auth/me', { signal: AbortSignal.timeout?.(8000) })
@@ -132,7 +132,7 @@ async function initApp() {
     applyTheme(localStorage.getItem('rastreo_theme') || 'light');
     labelButtons();
     // Solo un 401/403 borra el token; sin red o con 5xx se conserva (ver sesion.js)
-    // y se muestra la franja de "Sin conexión" (pwa.js) hasta que el servidor responda.
+    // y se muestra la franja de "Sin conexión" (conexion.js) hasta que el servidor responda.
     const { usuario, sinConexion } = await restaurarSesion({ pedirUsuario });
     window.backendCurrentUser = usuario;
     if (sinConexion) {

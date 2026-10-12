@@ -38,7 +38,19 @@ test('sirve la página desde Express con el origen público y headers de segurid
     const configModule = await fetch(`http://127.0.0.1:${server.address().port}/js/config.js`);
     assert.match(configModule.headers.get('content-type'), /javascript/);
     assert.match(await configModule.text(), /export const API_BASE = '\/api'/);
-    assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/manifest.webmanifest`)).text(), /"display": "standalone"/);
+    // Solo la app (/app/) es instalable; la web en / no tiene manifest.
+    assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/manifest.webmanifest`)).status, 404);
+    assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/app/manifest.webmanifest`)).text(), /"display": "standalone"/);
+    const appPage = await fetch(`http://127.0.0.1:${server.address().port}/app/`);
+    assert.equal(appPage.status, 200);
+    assert.equal(appPage.headers.get('content-security-policy'), response.headers.get('content-security-policy'), 'la app tiene la misma CSP');
+    assert.match(await appPage.text(), /<link rel="manifest" href="\/app\/manifest\.webmanifest">/);
+    const appRedirect = await fetch(`http://127.0.0.1:${server.address().port}/app?x=1`, { redirect: 'manual' });
+    assert.equal(appRedirect.status, 301);
+    assert.equal(appRedirect.headers.get('location'), '/app/?x=1');
+    for (const appFile of ['/app/app.css', '/app/app-movil.js', '/app/pwa.js', '/js/conexion.js', '/js/web.js']) {
+      assert.equal((await fetch(`http://127.0.0.1:${server.address().port}${appFile}`)).status, 200, appFile);
+    }
     assert.match(await (await fetch(`http://127.0.0.1:${server.address().port}/sw.js`)).text(), /notificationclick/);
     assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/icons/rastreopy.svg`)).status, 200);
     assert.equal((await fetch(

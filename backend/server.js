@@ -121,6 +121,14 @@ export function createApp({ db, mailer, jwtSecret, appUrl = process.env.APP_URL 
     res.sendFile(path.join(publicDir, 'Rastreopy.html'));
   });
 
+  // App para celular (la instalable, destino del QR). Express no distingue /app de
+  // /app/ en las rutas, así que se mira req.path: /app redirige a /app/ para que
+  // las rutas relativas y el scope del manifest (/app/) coincidan.
+  app.get('/app', (req, res) => {
+    if (!req.path.endsWith('/')) return res.redirect(301, req.originalUrl.replace(/^\/app/, '/app/'));
+    res.sendFile(path.join(publicDir, 'app', 'index.html'));
+  });
+
   app.use((req, res, next) => {
     let decodedPath = req.path;
     try {

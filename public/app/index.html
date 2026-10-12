@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- App para celular (/app/), la instalable. Usa los mismos módulos que la web
+     (public/js/): por eso repite los contenedores e IDs que ellos esperan.
+     backend/test/frontend-shells.test.js compara esos IDs con los de este archivo
+     y los de Rastreopy.html, para que las dos páginas no diverjan sin aviso.
+     data-frontend="app" le indica a router.js que el panel admin no está acá. -->
+<html lang="es-PY" data-theme="light" data-frontend="app">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#070b16" media="(prefers-color-scheme: dark)">
+  <title>Rastreo PY</title>
+  <meta name="description" content="App de Rastreo PY: consultá casos de personas desaparecidas en Paraguay, aportá pistas y recibí alertas.">
+  <link rel="manifest" href="/app/manifest.webmanifest">
+  <link rel="icon" href="/icons/rastreopy.svg" type="image/svg+xml">
+  <!-- iOS: pantalla completa al abrirla desde el inicio, nombre e ícono (no acepta SVG) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Rastreo PY">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/rastreopy-192.png">
+
+  <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/app/app.css">
+  <script src="/js/tema-inicial.js"></script>
+</head>
+<body class="app-movil">
+
+  <div class="app-container">
+    <button id="publicThemeToggle" class="public-theme-toggle" type="button" data-on-click="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
+
+    <!-- BARRA SUPERIOR -->
+    <header id="topHeader" class="hidden">
+      <div class="header-brand">
+        <button type="button" data-on-click="toggleDrawer(true)" class="menu-btn" aria-label="Abrir menú">
+          <div class="hamburger-icon">
+            <div class="hamburger-line"></div>
+            <div class="hamburger-line"></div>
+            <div class="hamburger-line"></div>
+          </div>
+        </button>
+        <button type="button" class="brand-title" data-on-click="navigateTo('home')" aria-label="Ir al inicio">Rastreo PY</button>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggle" type="button" data-on-click="toggleTheme()" aria-label="Cambiar tema">Tema claro</button>
+        <button type="button" class="header-notifications" data-on-click="toggleNotificationsModal()" aria-label="Abrir notificaciones">♧<span id="headerNotifBadge" class="hidden">0</span></button>
+        <button type="button" id="headerProfile" class="header-profile hidden" data-on-click="toggleDrawer(true)" aria-label="Abrir menú de cuenta">
+          <span id="headerProfileAvatar" class="header-profile-avatar" aria-hidden="true"></span>
+          <span class="header-profile-copy"><span id="headerProfileName"></span>
+            <span id="headerProfileRole" class="role-badge role-badge-citizen">Ciudadano</span></span>
+        </button>
+        <button id="headerAuthAction" class="header-auth-action" type="button">♙ Ingresar</button>
+      </div>
+    </header>
+
+    <!-- Aviso de red caída (public/js/conexion.js) -->
+    <div id="offlineBanner" class="offline-banner hidden" role="status">Sin conexión. Lo que ves puede no estar actualizado; volvé a intentar cuando tengas red.</div>
+
+    <!-- MENÚ LATERAL: lo que no entra en la barra inferior -->
+    <div id="drawerOverlay" data-on-click="toggleDrawer(false)" class="drawer-overlay hidden"></div>
+    <aside id="drawer" class="drawer" aria-label="Menú principal">
+      <div>
+        <div class="drawer-header">
+          <span>Rastreo PY</span>
+          <button type="button" data-on-click="toggleDrawer(false)" aria-label="Cerrar menú">Cerrar</button>
+        </div>
+
+        <div id="drawerIdentity" class="drawer-identity hidden">
+          <p id="drawerUserName">Usuario</p>
+          <p id="drawerUserRole" class="role-badge role-badge-citizen">Ciudadano</p>
+        </div>
+
+        <nav class="drawer-navigation" aria-label="Más secciones">
+          <button type="button" data-role-nav="guest" data-nav-view="auth" data-on-click="drawerNavigate('auth')" class="drawer-item hidden">Ingresar / Registrarse</button>
+          <button type="button" data-nav-view="lead" data-on-click="drawerNavigate('lead')" class="drawer-item">Generar pista</button>
+          <button type="button" data-nav-view="stats" data-on-click="drawerNavigate('stats')" class="drawer-item">Estadísticas nacionales de búsqueda</button>
+          <!-- El panel no se duplica en la app: router.js lleva a la web (/#/panel) -->
+          <button type="button" data-role-nav="admin" data-on-click="drawerNavigate('admin')" class="drawer-item hidden">Abrir panel de administración <span id="adminPanelBadge" class="nav-count-badge hidden">0</span></button>
+        </nav>
+      </div>
+
+      <div class="drawer-account">
+        <p class="drawer-section-label">Cuenta y avisos</p>
+        <button type="button" data-role-nav="session" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
+        <!-- Visible solo si el navegador permite instalar (o en iOS, con guía) -->
+        <button id="installAppButton" type="button" data-on-click="toggleDrawer(false); installApp()" class="btn btn-outline hidden">Instalar app</button>
+        <button data-role-nav="session" data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <!-- CONTENEDOR DINÁMICO DE VISTAS -->
+    <main id="mainContent"></main>
+
+    <!-- BARRA INFERIOR. Reportar y Mis casos se ocultan para el admin
+         (data-hide-admin-nav); sin sesión llevan al login y vuelven acá. -->
+    <nav class="app-tabbar" aria-label="Secciones">
+      <button type="button" data-nav-view="feed" data-on-click="navigateTo('home')"><span aria-hidden="true">⌂</span>Inicio</button>
+      <button type="button" data-on-click="abrirMapa()"><span aria-hidden="true">⌖</span>Mapa</button>
+      <button type="button" data-hide-admin-nav data-nav-view="report" data-on-click="navigateTo('report')"><span aria-hidden="true">＋</span>Reportar</button>
+      <button type="button" data-hide-admin-nav data-nav-view="my-cases" data-on-click="navigateTo('my-cases')"><span aria-hidden="true">▤</span>Mis casos</button>
+      <button type="button" data-nav-view="alerts" data-on-click="toggleNotificationsModal()"><span aria-hidden="true">♧</span>Alertas<span id="notifBadge" class="hidden">0</span></button>
+    </nav>
+  </div>
+
+  <!-- BIENVENIDA DEL QR: solo si la app se abre en el navegador (no instalada) -->
+  <section id="installWelcome" class="install-welcome hidden" role="dialog" aria-modal="true" aria-labelledby="installWelcomeTitle">
+    <div class="card">
+      <img src="/icons/rastreopy-192.png" alt="" width="72" height="72">
+      <h1 id="installWelcomeTitle">Instalá Rastreo PY</h1>
+      <p>Tenela en tu pantalla de inicio para consultar casos, enviar pistas y recibir alertas.</p>
+      <button id="installWelcomeButton" type="button" class="btn btn-primary hidden" data-on-click="installApp()">Instalar app</button>
+      <ol id="installWelcomeIos" class="install-steps hidden">
+        <li>Abrí esta página en <strong>Safari</strong>.</li>
+        <li>Tocá <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
+        <li>Elegí <strong>Añadir a pantalla de inicio</strong> y confirmá con <strong>Añadir</strong>.</li>
+      </ol>
+      <p id="installWelcomeOther" class="muted hidden">Si tu navegador lo permite, buscá <strong>Instalar app</strong> o <strong>Agregar a pantalla de inicio</strong> en su menú.</p>
+      <button type="button" class="btn btn-outline" data-on-click="continuarEnNavegador()">Continuar en el navegador</button>
+    </div>
+  </section>
+
+  <!-- NOTIFICACIÓN / TOAST -->
+  <div id="toastNotification" class="hidden">
+    <div>
+      <p id="toastTitle">Notificación</p>
+      <p id="toastMessage">Mensaje de sistema</p>
+    </div>
+    <button data-on-click="hideToast()">Cerrar</button>
+  </div>
+
+  <!-- MODAL DE CENTRO DE NOTIFICACIONES -->
+  <div id="notifModal" class="hidden">
+    <div role="dialog" aria-modal="true" aria-labelledby="notifModalTitle">
+      <div class="modal-header">
+        <span id="notifModalTitle">Centro de notificaciones</span>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="enableSystemNotifications()">Activar avisos</button>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleNotificationsModal()" aria-label="Cerrar notificaciones">Cerrar</button>
+      </div>
+      <div id="notifList"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" data-on-click="clearNotifs()">Marcar todas como leídas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GUÍA DE INSTALACIÓN EN iOS (desde "Instalar app" del menú) -->
+  <div id="installGuideModal" class="hidden">
+    <div role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+      <div class="modal-header">
+        <span id="installGuideTitle">Instalar Rastreo PY en iPhone o iPad</span>
+        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleInstallGuide()">Cerrar</button>
+      </div>
+      <ol class="modal-body install-steps">
+        <li>Abrí esta página en <strong>Safari</strong>.</li>
+        <li>Tocá el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
+        <li>Elegí <strong>Añadir a pantalla de inicio</strong> y confirmá con <strong>Añadir</strong>.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div id="caseDetailModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="caseDetailTitle">
+    <section class="card">
+      <button type="button" class="btn btn-outline btn-sm" data-on-click="closeCaseDetail()">Cerrar</button>
+      <div id="caseDetailContent"></div>
+    </section>
+  </div>
+
+  <!-- Sin modales del panel admin (checklist de revisión, simulador): están solo en la web. -->
+  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/app/app-movil.js"></script>
+</body>
+</html>

@@ -1,16 +1,24 @@
-const CACHE_NAME = 'rastreopy-shell-v8';
+// Un solo service worker en /sw.js (scope "/") para la web (/) y la app (/app/).
+// Al activarse borra los cachés rastreopy-shell-* anteriores (v6, v7, v8...).
+const CACHE_NAME = 'rastreopy-shell-v9';
 const OFFLINE_PAGE = '/offline.html';
 const APP_SHELL = [
   '/',
   OFFLINE_PAGE,
   '/styles.css',
-  '/manifest.webmanifest',
+  // App para celular (/app/): página, estilos, manifest y su entrada propia.
+  '/app/',
+  '/app/app.css',
+  '/app/manifest.webmanifest',
+  '/app/app-movil.js',
+  '/app/pwa.js',
   '/icons/rastreopy.svg',
   '/icons/rastreopy-192.png',
   '/icons/rastreopy-512.png',
   '/icons/rastreopy-maskable-192.png',
   '/icons/rastreopy-maskable-512.png',
-  '/js/pwa.js',
+  '/js/conexion.js',
+  '/js/web.js',
   '/js/sesion.js',
   '/js/estado.js',
   '/js/config.js',

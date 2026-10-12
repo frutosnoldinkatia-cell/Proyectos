@@ -43,7 +43,8 @@ export function updateHeaderUser() {
   drawerRole.innerText = isAdministrator ? 'Administración' : 'Ciudadano';
   drawerRole.classList.toggle('role-badge-admin', isAdministrator);
   drawerRole.classList.toggle('role-badge-citizen', !isAdministrator);
-  document.getElementById('simulateFollowupButton').classList.toggle('hidden', !isAdministrator);
+  // El simulador es del panel admin: la app (/app/) no lo tiene.
+  document.getElementById('simulateFollowupButton')?.classList.toggle('hidden', !isAdministrator);
   startNotificationPolling();
 }
 

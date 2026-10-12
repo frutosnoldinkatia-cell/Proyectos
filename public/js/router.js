@@ -146,6 +146,11 @@ export async function applyCurrentRoute() {
 export const PUBLIC_VIEWS = ['feed', 'stats'];
 
 export async function navigateTo(view, params = {}, options = {}) {
+  // La app (/app/) no tiene panel de administración: se abre el de la web.
+  if (view === 'admin' && document.documentElement.dataset.frontend === 'app') {
+    location.assign(`/${buildRoute('admin', params)}`);
+    return;
+  }
   if (estado.locatedExpiryTimer) {
     clearTimeout(estado.locatedExpiryTimer);
     estado.locatedExpiryTimer = null;

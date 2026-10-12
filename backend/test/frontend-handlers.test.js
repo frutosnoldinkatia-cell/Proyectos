@@ -6,14 +6,24 @@ import test from 'node:test';
 // con data-on-<evento>="acción(args)" y public/js/eventos.js los interpreta con las
 // funciones registradas en `acciones` (public/js/app.js). Si una acción no está
 // registrada o la expresión no la entiende el intérprete, el botón no hace nada.
+// Hay dos páginas: la web (Rastreopy.html + js/web.js) y la app (app/index.html +
+// app/*.js); cada entrada suma sus acciones con Object.assign(acciones, {...}).
 const publicDir = new URL('../../public/', import.meta.url);
+const PAGES = ['Rastreopy.html', 'app/index.html'];
 
 async function frontendSources() {
-  const sources = [['Rastreopy.html', await readFile(new URL('Rastreopy.html', publicDir), 'utf8')]];
-  for (const file of await readdir(new URL('js/', publicDir))) {
-    if (file.endsWith('.js')) sources.push([`js/${file}`, await readFile(new URL(`js/${file}`, publicDir), 'utf8')]);
+  const sources = [];
+  for (const page of PAGES) sources.push([page, await readFile(new URL(page, publicDir), 'utf8')]);
+  for (const dir of ['js/', 'app/']) {
+    for (const file of await readdir(new URL(dir, publicDir))) {
+      if (file.endsWith('.js')) sources.push([`${dir}${file}`, await readFile(new URL(`${dir}${file}`, publicDir), 'utf8')]);
+    }
   }
   return sources;
+}
+
+function nombres(lista) {
+  return lista.split(',').map(name => name.trim()).filter(Boolean);
 }
 
 test('el HTML y los templates no usan JavaScript inline', async () => {
@@ -23,20 +33,30 @@ test('el HTML y los templates no usan JavaScript inline', async () => {
     assert.deepEqual(inline, [], `${file} tiene handlers inline`);
     assert.doesNotMatch(source, /href=["']javascript:/i, `${file} tiene enlaces javascript:`);
   }
-  const [, html] = (await frontendSources())[0];
-  const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>/g)];
-  assert.equal(inlineScripts.length, 0, 'Rastreopy.html no puede tener <script> sin src');
+  for (const [file, html] of (await frontendSources()).filter(([name]) => PAGES.includes(name))) {
+    const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>/g)];
+    assert.equal(inlineScripts.length, 0, `${file} no puede tener <script> sin src`);
+  }
 });
 
 test('cada data-on-* se entiende y usa acciones registradas en app.js', async () => {
   const { parsearExpresion, EVENTOS } = await import(new URL('js/eventos.js', publicDir));
   const sources = await frontendSources();
-  const app = sources.find(([file]) => file === 'js/app.js')[1];
-  const registro = /export const acciones = \{([\s\S]*?)\};/.exec(app);
+  const appJs = sources.find(([file]) => file === 'js/app.js')[1];
+  const registro = /export const acciones = \{([\s\S]*?)\};/.exec(appJs);
   assert.ok(registro, 'app.js debe exportar `acciones`');
-  const registradas = new Set(registro[1].split(',').map(name => name.trim()).filter(Boolean));
+  const comunes = nombres(registro[1]);
+  // Acciones propias de cada página, que suma su entrada con Object.assign.
+  const propias = file => nombres(
+    /Object\.assign\(acciones, \{([^}]*)\}\)/.exec(sources.find(([name]) => name === file)[1])?.[1] || ''
+  );
+  const web = new Set([...comunes, ...propias('js/web.js')]);
+  const app = new Set([...comunes, ...propias('app/app-movil.js')]);
+  // Los módulos compartidos (js/) corren en las dos páginas: solo las comunes.
+  const permitidas = file => (file === 'Rastreopy.html' || file === 'js/web.js' ? web
+    : file.startsWith('app/') ? app : new Set(comunes));
 
-  const usadas = new Set();
+  const faltan = [];
   let expresiones = 0;
   for (const [file, source] of sources) {
     for (const [, evento, expresion] of source.matchAll(/data-on-([a-z]+)="([^"]*)"/g)) {
@@ -45,13 +65,14 @@ test('cada data-on-* se entiende y usa acciones registradas en app.js', async ()
       const ejemplo = expresion.replace(/\$\{[^}]*\}/g, '0');
       let llamadas;
       assert.doesNotThrow(() => { llamadas = parsearExpresion(ejemplo); }, `${file}: no se puede interpretar "${expresion}"`);
-      for (const { accion } of llamadas) usadas.add(accion);
+      for (const { accion } of llamadas) {
+        if (!permitidas(file).has(accion)) faltan.push(`${file}: ${accion}`);
+      }
       expresiones += 1;
     }
   }
   assert.ok(expresiones > 100, `se esperaban más de 100 expresiones, hay ${expresiones}`);
-  const faltan = [...usadas].filter(accion => !registradas.has(accion)).sort();
-  assert.deepEqual(faltan, [], `acciones usadas en data-on-* que no están en \`acciones\`: ${faltan.join(', ')}`);
+  assert.deepEqual(faltan, [], `acciones usadas en data-on-* que esa página no registra: ${faltan.join(', ')}`);
 });
 
 test('el delegador imita a on*="...": this, currentTarget, preventDefault y burbujeo', async () => {

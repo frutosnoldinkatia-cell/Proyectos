@@ -11,7 +11,7 @@
   <link rel="icon" href="/icons/rastreopy.svg" type="image/svg+xml">
   <!-- iOS no acepta SVG para el ícono de la pantalla de inicio -->
   <link rel="apple-touch-icon" href="/icons/rastreopy-192.png">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <!-- Sin manifest: la web no es instalable; la app instalable es /app/ -->
 
   <!-- Leaflet CSS & JS para Mapa Real (OpenStreetMap) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -48,7 +48,7 @@
       </div>
     </header>
 
-    <!-- Aviso de red caída (public/js/pwa.js). No reemplaza la vista: el feed
+    <!-- Aviso de red caída (public/js/conexion.js). No reemplaza la vista: el feed
          que ya estaba en pantalla se sigue viendo debajo. -->
     <div id="offlineBanner" class="offline-banner hidden" role="status">Sin conexión. Lo que ves puede no estar actualizado; volvé a intentar cuando tengas red.</div>
 
@@ -88,8 +88,6 @@
       <div class="drawer-account">
         <p class="drawer-section-label">Cuenta y avisos</p>
         <button type="button" data-role-nav="session" data-on-click="toggleDrawer(false); enableSystemNotifications()" class="btn btn-outline">Activar avisos del dispositivo</button>
-        <!-- Visible solo si el navegador permite instalar (o en iOS, con guía) -->
-        <button id="installAppButton" type="button" data-on-click="toggleDrawer(false); installApp()" class="btn btn-outline hidden">Instalar app</button>
         <button id="simulateFollowupButton" data-on-click="toggleSimulateTimeModal()" class="btn btn-outline hidden">Simulador de seguimiento (+48 h)</button>
         <button data-role-nav="session" data-on-click="logout()" class="btn btn-red">Cerrar sesión</button>
       </div>
@@ -104,6 +102,13 @@
       <p>Marco de referencia: Ley N.º 7605/2025 (RENAPED/MAFE) y Ley N.º 7593/2025, Art. 16 num. 7. Ante una emergencia, llamá al <a href="tel:911">911</a>.</p>
     </footer>
 
+  </div>
+
+  <!-- AVISO "ABRIR LA APP" (solo en celulares, public/js/web.js) -->
+  <div id="openAppNotice" class="open-app-notice hidden" role="region" aria-label="Abrir la app">
+    <p><strong>Rastreo PY tiene app.</strong> Instalala para tenerla a mano.</p>
+    <a id="openAppLink" class="btn btn-primary btn-sm" href="/app/">Abrir la app</a>
+    <button type="button" class="btn btn-outline btn-sm" data-on-click="cerrarAvisoApp()" aria-label="Cerrar aviso">Ahora no</button>
   </div>
 
   <!-- NOTIFICACIÓN / TOAST -->
@@ -144,21 +149,6 @@
     </div>
   </div>
 
-  <!-- GUÍA DE INSTALACIÓN EN iOS (Safari no tiene botón de instalar automático) -->
-  <div id="installGuideModal" class="hidden">
-    <div role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
-      <div class="modal-header">
-        <span id="installGuideTitle">Instalar Rastreo PY en iPhone o iPad</span>
-        <button type="button" class="btn btn-outline btn-sm" data-on-click="toggleInstallGuide()">Cerrar</button>
-      </div>
-      <ol class="modal-body install-steps">
-        <li>Abrí esta página en <strong>Safari</strong>.</li>
-        <li>Tocá el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
-        <li>Elegí <strong>Añadir a pantalla de inicio</strong> y confirmá con <strong>Añadir</strong>.</li>
-      </ol>
-    </div>
-  </div>
-
   <div id="caseDetailModal" class="case-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="caseDetailTitle">
     <section class="card">
       <button type="button" class="btn btn-outline btn-sm" data-on-click="closeCaseDetail()">Cerrar</button>
@@ -186,5 +176,6 @@
 
   <!-- LÓGICA JAVASCRIPT DE LA SPA -->
   <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/web.js"></script>
 </body>
 </html>

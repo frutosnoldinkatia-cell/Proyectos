@@ -7,3 +7,5 @@ npm-debug.log*
 .env
 backend/.env
 scratch
+# Solo para desarrollo (npm run demo-visual): no va en la imagen
+backend/demo-visual.js

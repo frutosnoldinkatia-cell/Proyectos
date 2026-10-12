@@ -10,7 +10,8 @@
     "migrate:sqlite": "node migrate-sqlite.js",
     "start": "node server.js",
     "test": "node --test --test-concurrency=1",
-    "seed:demo": "node seed-demo.js"
+    "seed:demo": "node seed-demo.js",
+    "demo-visual": "node demo-visual.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -22,5 +23,8 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^10.0.16",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
   }
 }

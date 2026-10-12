@@ -127,4 +127,27 @@ Si deseas que se envíen correos reales de recuperación de clave y avisos:
 - Error: "port 5432 is already allocated":
   -> Causa: Tienes un PostgreSQL local corriendo en Windows en el puerto 5432.
   -> Solución: Cambia el puerto en docker-compose.yml en la sección db a "5433:5432".
+
+[ 8. DEMO VISUAL SIN DOCKER (SOLO PARA VER EL FRONTEND) ]
+--------------------------------------------------------------------------------
+Para mirar cómo va quedando el diseño sin Docker ni PostgreSQL. Levanta la app
+real (mismo servidor, misma CSP, mismo public/) con una base en memoria (PGlite)
+y datos de ejemplo ficticios. NO reemplaza a Docker: no envía correos, no usa
+backend/.env para la base y todo lo cargado se pierde al cerrarla.
+
+  cd backend
+  npm install
+  npm run demo-visual
+
+Abrir:
+  Web: http://localhost:3100
+  App: http://localhost:3100/app/
+
+Usuarios de prueba (ya verificados):
+  Ciudadano:     demo.ciudadano@gmail.com / DemoCiudadano1
+  Administrador: demo.admin@gmail.com / DemoAdmin1
+
+- Si el puerto 3100 está ocupado (PowerShell):  $env:PORT=3200; npm run demo-visual
+- Si alguien se registra, el código de verificación aparece en la consola.
+- No arranca con NODE_ENV=production y no se incluye en la imagen Docker.
 ================================================================================

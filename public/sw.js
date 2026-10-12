@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rastreopy-shell-v6';
+const CACHE_NAME = 'rastreopy-shell-v7';
 const OFFLINE_PAGE = '/offline.html';
 const APP_SHELL = [
   '/',
@@ -29,8 +29,26 @@ const APP_SHELL = [
   '/js/notifications.js',
   '/js/eventos.js',
   '/js/tema-inicial.js',
-  '/js/app.js'
+  '/js/app.js',
+  // Las que declara styles.css (@font-face): sin ellas offline.html se ve con la
+  // tipografía del sistema.
+  '/fonts/Inter-400.ttf',
+  '/fonts/Inter-500.ttf',
+  '/fonts/Inter-600.ttf',
+  '/fonts/Inter-700.ttf',
+  '/fonts/Inter-800.ttf',
+  '/fonts/Sora-600.ttf',
+  '/fonts/Sora-700.ttf',
+  '/fonts/Sora-800.ttf'
 ];
+
+// PENDIENTE (sin cambiar por ahora): el middleware cors de backend/server.js
+// responde "Vary: Origin" cuando el pedido trae Origin, y los módulos ES
+// (<script type="module">) lo traen. La copia que guarda el fetch de abajo queda
+// atada a ese Origin, así que caches.match('/js/x.js') sin Origin no la encuentra
+// (con el mismo pedido del navegador sí). Hoy no afecta: sin red se muestra
+// offline.html. Si algún día la app tiene que arrancar entera sin red, habría que
+// guardar los estáticos sin Vary o buscar con { ignoreVary: true }.
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
